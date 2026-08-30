@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#f5f6f8">
-<title>我的持仓 · 行情 v4.22</title>
+<title>我的持仓 · 行情 v4.23</title>
 <style>
 :root { color-scheme: light; }
 * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
@@ -289,17 +289,17 @@ function parseSina(txt){
     return {atr:last14.reduce((a,b)=>a+b,0)/last14.length, lastTR:trs[trs.length-1]};
   }catch(e){ return null; }
 }
-let WT={}, WT_DATE='';
-const WTK='hqm_wt_v2';
-try{ const _x=JSON.parse(localStorage.getItem(WTK)||'null'); if(_x&&_x.date===today()){ WT=_x.wt; WT_DATE=_x.date; } }catch(e){}
+let WT={}, WSIG={}, WT_DATE='';
+const WTK='hqm_wt_v3';
+try{ const _x=JSON.parse(localStorage.getItem(WTK)||'null'); if(_x&&_x.date===today()){ WT=_x.wt; WSIG=_x.wsig||{}; WT_DATE=_x.date; } }catch(e){}
 function weekNo(ds){ const d=new Date(ds), o=new Date(d.getFullYear(),0,1); return d.getFullYear()+'W'+Math.ceil((((d-o)/864e5)+o.getDay()+1)/7); }
 function wtTxt(c){ const v=WT[c]; return v==null?'周线…':(v>0?'20周均上':(v<0?'20周均下':'20周均附近')); }
 function loadWTrend(done){
   if(WT_DATE===today() && Object.keys(WT).length){ done&&done(); return; }
   const codes=[...PF.holds.map(h=>h.code), ...PF.watch.map(w=>w.code)];
-  const out={}; let left=codes.length, finished=false;
+  const out={}, osig={}; let left=codes.length, finished=false;
   const fin=()=>{ if(finished) return; finished=true;
-    if(Object.keys(out).length){ WT=out; WT_DATE=today(); localStorage.setItem(WTK, JSON.stringify({date:WT_DATE, wt:WT})); }
+    if(Object.keys(out).length){ WT=out; WSIG=osig; WT_DATE=today(); localStorage.setItem(WTK, JSON.stringify({date:WT_DATE, wt:WT, wsig:WSIG})); }
     done&&done(); };
   if(!left){ done&&done(); return; }
   setTimeout(fin, 9000);
@@ -307,12 +307,18 @@ function loadWTrend(done){
     let got=false;
     const tick=(val)=>{ if(got) return; got=true; if(val!=null) out[c]=val; if(--left===0) fin(); };
     const ctrl=new AbortController(); const tm=setTimeout(()=>ctrl.abort(), 6000);
-    fetch('https://web.ifzq.gtimg.cn/appstock/app/fqkline/get?param='+c+',day,,,140,qfq', {signal:ctrl.signal})
+    fetch('https://web.ifzq.gtimg.cn/appstock/app/fqkline/get?param='+c+',day,,,640,qfq', {signal:ctrl.signal})
       .then(r=>r.json()).then(d=>{
         clearTimeout(tm);
         const node=d.data&&d.data[c], rows=node&&(node.qfqday||node.day);
         if(!rows||rows.length<40){ tick(null); return; }
         try{ paperScan(c, rows.map(r=>[r[0], +r[1], +r[3], +r[4], +r[2], +r[5]])); }catch(e){}
+        try{ const wbars=[]; let wk2='', cur=null;
+          rows.forEach(r=>{ const k=weekNo(r[0]);
+            if(k!==wk2){ if(cur) wbars.push(cur); wk2=k; cur=[r[0],+r[1],+r[3],+r[4],+r[2]]; }
+            else { cur[2]=Math.max(cur[2],+r[3]); cur[3]=Math.min(cur[3],+r[4]); cur[4]=+r[2]; } });
+          if(cur) wbars.push(cur);
+          const wtr=triDet(wbars); if(wtr&&wtr.brk!==0) osig[c]=wtr.brk; }catch(e){}
         const weeks=[]; let wk='', wc=null;
         rows.forEach(r=>{ const k=weekNo(r[0]); if(k!==wk){ if(wc!=null) weeks.push(wc); wk=k; } wc=+r[2]; });
         weeks.push(wc);
@@ -356,13 +362,13 @@ let FF={}, FF_TS=0;
 function fmtAmt(v){ const a=Math.abs(v); return a>=1e8?(v/1e8).toFixed(2)+'亿':Math.round(v/1e4).toLocaleString()+'万'; }
 function maybeFF(){ const n=Date.now(); if(n-FF_TS>5*60*1000){ FF_TS=n; loadFF(); } }
 function loadFF(){
-  if(!PF.holds.length) return;
-  const secids=PF.holds.map(h=>(h.code.indexOf('sh')===0?'1.':'0.')+h.code.slice(2)).join(',');
+  if(!PF.holds.length&&!PF.watch.length) return;
+  const secids=[...PF.holds,...PF.watch].map(h=>(h.code.indexOf('sh')===0?'1.':'0.')+h.code.slice(2)).join(',');
   window.ffCb=(d)=>{ try{
     let arr=d&&d.data&&(d.data.diff||d.data);
     if(arr&&!Array.isArray(arr)) arr=Object.values(arr);
-    (arr||[]).forEach(r=>{ const h=PF.holds.find(x=>x.code.slice(2)===String(r.f12));
-      if(h&&r.f62!=null) FF[h.code]={amt:+r.f62, pct:(r.f184!=null?+r.f184:null)}; });
+    (arr||[]).forEach(r=>{ const h=PF.holds.find(x=>x.code.slice(2)===String(r.f12))||PF.watch.find(x=>x.code.slice(2)===String(r.f12));
+      if(h&&r.f62!=null){ FF[h.code]={amt:+r.f62, pct:(r.f184!=null?+r.f184:null)}; if(h.addedFF==null){ h.addedFF=+r.f62; save(); } } });
     render();
   }catch(e){} };
   const s=document.createElement('script');
@@ -498,7 +504,7 @@ function confirmAdd(type){
   } else {
     const c=document.getElementById('awCode').value.trim(), n=document.getElementById('awName').value.trim();
     if(!c||!n){ toast('代码和名称必填'); return; }
-    PF.watch.push({code:prefix(c),name:n});
+    PF.watch.push({code:prefix(c),name:n,addedD:today()});
   }
   save(); ATR_DATE=''; addSec(type); toast('已添加'); refresh();
 }
@@ -514,6 +520,7 @@ function editField(type,i,field,val){
   render();
 }
 function GET(c){ const r=window['v_'+c]; return r?r.split('~'):null; }
+function openK(c){ location.href='https://fululi.github.io/k-station/?code='+c; }
 
 function feeOf(sell,buy,qty){
   const cs=Math.max(5, sell*qty*FEE.comm/100), cb=Math.max(5, buy*qty*FEE.comm/100);
@@ -631,6 +638,7 @@ function render(){
     const badge = tf.lv>0 ? `<span class="badge ${tf.cls}">${tf.label}</span>` : '';
     const wth=WT[h.code], wtCh=wth>0?'up':(wth<0?'down':'flat');
     const wtBadge = `<span class="badge ${wtCh}">${wtTxt(h.code)}</span>`;
+    const wsgH=WSIG[h.code], wsgTxtH=wsgH?`<span class="badge ${wsgH>0?'up':'down'}">⚡周线破三角${wsgH>0?'上沿':'下沿'}</span>`:'';
     const fmtTier=(arr,side)=>arr.map((x,j)=>{
       const t=p?P(x)+'('+sg(((x/p-1)*100).toFixed(1))+'%)':P(x);
       return `<span class="tk" onclick="fillT('${h.code}',${x},'${side}')">${t}</span>`; }).join(' / ');
@@ -660,7 +668,7 @@ function render(){
       </div>` : '';
     const delBtn = editMode ? `<button class="del" onclick="delItem(this,'hold',${i})">删除</button>` : '';
     return `<div class="card">${delBtn}
-      <div class="row1"><div><span class="nm">${h.name}</span><span class="code">${h.code.replace(/^(sh|sz)/,'')}</span>${badge}${wtBadge}</div>
+      <div class="row1"><div><span class="nm">${h.name}</span><span class="code">${h.code.replace(/^(sh|sz)/,'')}</span>${badge}${wtBadge}${wsgTxtH}</div>
         <div class="pct ${cls(pct)}">${pct!=null?sg(pct.toFixed(2))+'%':''}</div></div>
       <div class="row1" style="margin-top:4px"><div class="px ${cls(pct)}">${P(p)}</div>
         <div class="sub">成本 ${h.cost} · ${h.shares}股</div></div>
@@ -682,6 +690,7 @@ function render(){
 
   document.getElementById('watch').innerHTML = PF.watch.map((w,i)=>{
     const f=GET(w.code); const p=F(f,3),pct=F(f,32),hi=F(f,33),lo=F(f,34),prev=F(f,4);
+    if(w.addedP==null&&p!=null){ w.addedP=p; if(!w.addedD) w.addedD=today(); save(); }
     const todayAmp=(hi!=null&&lo!=null)?hi-lo:null;
     const base=ampBase(w.code,todayAmp);
     // 有ATR时给"今日预判"(昨收±0.55×ATR),否则退回现价±k×波幅
@@ -694,7 +703,9 @@ function render(){
     const sig=PAPER.find(x=>x.code===w.code&&x.status==='open');
     const sigTxt=sig?` <b class="${sig.dir>0?'up':'down'}">⚡收盘破三角${sig.dir>0?'上沿':'下沿'}</b>`:'';
     const del = editMode ? `<td><button class="wdel" onclick="delItem(this,'watch',${i})">删</button><br><input style="width:58px;font-size:11px;margin-top:4px" placeholder="题材" value="${w.theme||''}" onchange="editField('watch',${i},'theme',this.value)"></td>` : '';
-    return `<tr><td class="l">${w.name}<br><span class="sub">${w.code.replace(/^(sh|sz)/,'')}</span><br><span class="sub">${w.theme||'未标题材'} · <b class="${wtC}">${wtTxt(w.code)}</b><b class="${al[1]}">${al[0]}</b>${sigTxt}</span></td>
+    const wsg=WSIG[w.code], wsgTxt=wsg?` <b class="${wsg>0?'up':'down'}">⚡周线破三角${wsg>0?'上沿':'下沿'}</b>`:'';
+    const addTxt=(w.addedP!=null&&p!=null)?`<br><span class="sub">${(w.addedD||'').slice(5)}加 @${P(w.addedP)} · 以来<b class="${cls((p/w.addedP-1)*100)}">${sg(((p/w.addedP-1)*100).toFixed(1))}%</b>${w.addedFF!=null?` · 入时主力<b class="${cls(w.addedFF)}">${w.addedFF>=0?'+':''}${fmtAmt(w.addedFF)}</b>`:''}</span>`:'';
+    return `<tr><td class="l" style="cursor:pointer" onclick="openK('${w.code}')">${w.name}<br><span class="sub">${w.code.replace(/^(sh|sz)/,'')}</span><br><span class="sub">${w.theme||'未标题材'} · <b class="${wtC}">${wtTxt(w.code)}</b><b class="${al[1]}">${al[0]}</b>${sigTxt}${wsgTxt}</span>${addTxt}</td>
       <td>${P(p)}</td><td class="${cls(pct)}">${pct!=null?sg(pct.toFixed(2))+'%':'—'}</td>
       <td class="sub">${pj}</td>${del}</tr>`;
   }).join('');
