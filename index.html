@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#f5f6f8">
-<title>我的持仓 · 行情 v4.25</title>
+<title>我的持仓 · 行情 v4.26</title>
 <style>
 :root { color-scheme: light; }
 * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
@@ -709,6 +709,7 @@ function render(){
       if(rp!=null) refTxt=` · 关联${rf?rf[1]:''} ${sg(rp.toFixed(2))}%`; }
     const baseSrc=(todayAmp!=null&&atrV!=null)?(todayAmp>=atrV*ATR_FLOOR?'今日振幅':'近14日平均波动'):(atrV!=null?'近14日平均波动':'今日振幅');
     const atrTxt=atrV!=null?`ATR14 ${atrV.toFixed(2)}元 · 计算基准 ${base!=null?base.toFixed(2):'—'}元(取${baseSrc})${refTxt}`:(ATR_FAIL?'⚠ 历史波动数据没拉到,暂按今日振幅算':'波动数据加载中…(首次打开需几秒)');
+    const psigH=PAPER.find(x=>x.code===h.code&&x.status==='open');
     const ff=FF[h.code];
     const ffTxt=ff?`<div class="atrnote">主力净流入 <b class="${cls(ff.amt)}">${ff.amt>=0?'+':''}${fmtAmt(ff.amt)}</b> · 占成交 ${ff.pct!=null?ff.pct.toFixed(1)+'%':'—'} <span class="sub">(东财口径,参考)</span></div>`:'';
     // 今日预判区间: 昨收 ± 0.55×ATR14,受涨跌停约束;突破上沿=强势,跌破下沿=走弱
@@ -738,6 +739,7 @@ function render(){
       <a href="https://fululi.github.io/k-station/?code=${h.code}&lines=${tr.buys.map(x=>'b'+x.toFixed(2)).concat(tr.sells.map(x=>'s'+x.toFixed(2))).join(',')}" style="display:block;text-align:center;margin-top:8px;padding:8px;border-radius:8px;background:#2563eb;color:#fff;text-decoration:none;font-size:13px;font-weight:600">📈 看K线（做T价位已自动画好）</a>
       <div class="atrnote">${atrTxt}</div>
       ${ffTxt}
+      ${psigH?`<div class="atrnote">⚡三角突破信号在模拟跟踪（${P(psigH.entry)}进·止损${P(psigH.stop)}），与你的底仓${h.cost}分开记账</div>`:''}
       ${tf.lv>=1?`<div class="tnote">⚠ 为什么分${tf.lv>=2?'3':'2'}档:${Math.abs(pct||0)>=6?'个股单日涨跌超6%':(Math.abs(pct||0)>=3?'个股涨跌超3%':((ampPct!=null&&ampPct>=5)?'今日振幅超5%':'关联板块/大盘异动'))}。分档=分批:首档少量,留子弹等下一档,别一笔全进全出。</div>`:''}
       ${editRow}
     </div>`;
@@ -834,11 +836,15 @@ function renderPaper(){
         let why=null;
         if(x.dir>0&&p<=x.stop) why='破三角下沿·止损';
         else if(x.dir<0&&p>=x.stop) why='破三角上沿·止损';
-        else if(x.atr&&x.dir>0&&p<=x.peak-x.atr) why='ATR移动止盈';
-        else if(x.atr&&x.dir<0&&p>=x.entry+x.atr) why='ATR移动止盈';
+        else if(x.atr&&x.dir>0&&p<=x.peak-1.5*x.atr) why='ATR移动止盈';
+        else if(x.atr&&x.dir<0&&p>=x.entry+1.5*x.atr) why='ATR移动止盈';
         else if(daysBetween(x.entryD,today())>=20) why='满20天离场';
         if(why){ x.status='closed'; x.exit=p; x.exitD=today(); x.ret=ret; x.why=why; savePaper(); }
-        else return `<div class="prow"${x.entryD===today()?' style="background:#fff7e6"':""}><span><b>${x.name}</b> <b class="${x.dir>0?'up':'down'}">${x.dir>0?'▲多':'▼空'}</b> <span class="sub">${x.entryD.slice(5)} 进 ${P(x.entry)}</span></span><b class="${cls(ret*100)}">${sg((ret*100).toFixed(1))}% <span class="sub">持${daysBetween(x.entryD,today())}天</span></b></div>`;
+        else {
+          const hd=PF.holds.find(h2=>h2.code===x.code);
+          const trailPx=x.atr!=null?(x.dir>0?x.peak-1.5*x.atr:x.entry+1.5*x.atr):null;
+          return `<div class="prow"${x.entryD===today()?' style="background:#fff7e6"':""}><span><b>${x.name}</b> <b class="${x.dir>0?'up':'down'}">${x.dir>0?'▲多':'▼空'}</b> <span class="sub">${x.entryD.slice(5)} 进 ${P(x.entry)}${hd?` · 你有底仓@${hd.cost}`:' · 你无此票'}<br>止损 ${P(x.stop)} · 移动止盈 ${trailPx!=null?P(trailPx):'—'}(峰值回撤1.5×ATR) · 满20天离场</span></span><b class="${cls(ret*100)}">${sg((ret*100).toFixed(1))}% <span class="sub">持${daysBetween(x.entryD,today())}天</span></b></div>`;
+        }
       }
       return `<div class="prow"><span><b>${x.name}</b> ${x.dir>0?'▲多':'▼空'}</span><span class="sub">等待报价…</span></div>`;
     }
