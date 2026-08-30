@@ -290,7 +290,7 @@ function parseSina(txt){
   }catch(e){ return null; }
 }
 let WT={}, WT_DATE='';
-const WTK='hqm_wt_v1';
+const WTK='hqm_wt_v2';
 try{ const _x=JSON.parse(localStorage.getItem(WTK)||'null'); if(_x&&_x.date===today()){ WT=_x.wt; WT_DATE=_x.date; } }catch(e){}
 function weekNo(ds){ const d=new Date(ds), o=new Date(d.getFullYear(),0,1); return d.getFullYear()+'W'+Math.ceil((((d-o)/864e5)+o.getDay()+1)/7); }
 function wtTxt(c){ const v=WT[c]; return v==null?'周线…':(v>0?'周线多':(v<0?'周线空':'周线震荡')); }
