@@ -130,7 +130,7 @@ td { border-top:1px solid #f2f4f6; }
   <tbody id="watch"></tbody></table>
 </div>
 
-<div class="sec"><span>模拟建仓 · 每日自动跟踪</span><span class="sub">三角突破自动记录 · 纯代码零成本</span></div>
+<div class="sec"><span>模拟建仓 · 每日自动跟踪</span><span class="sub">每天首次打开自动扫一次（按日线收盘）· 纯代码零成本</span></div>
 <div class="card" id="paper" style="padding:4px 0"></div>
 
 <div class="sec"><span>今日做T计划(随振幅自动给档)</span><span class="sub" id="tSum"></span></div>
@@ -691,8 +691,10 @@ function render(){
     const pj=(pjLoN!=null)?P(pjLoN)+'~'+P(pjHiN):'—';
     const wt=WT[w.code], wtC=wt>0?'up':(wt<0?'down':'flat');
     const al=(p!=null&&pjHiN!=null)?(p>=pjHiN?[' ⚡破上沿','up']:(p<=pjLoN?[' ⚡破下沿','down']:['',''])):['',''];
+    const sig=PAPER.find(x=>x.code===w.code&&x.status==='open');
+    const sigTxt=sig?` <b class="${sig.dir>0?'up':'down'}">⚡三角突破${sig.dir>0?'▲可进场':'▼回避'}</b>`:'';
     const del = editMode ? `<td><button class="wdel" onclick="delItem(this,'watch',${i})">删</button><br><input style="width:58px;font-size:11px;margin-top:4px" placeholder="题材" value="${w.theme||''}" onchange="editField('watch',${i},'theme',this.value)"></td>` : '';
-    return `<tr><td class="l">${w.name}<br><span class="sub">${w.code.replace(/^(sh|sz)/,'')}</span><br><span class="sub">${w.theme||'未标题材'} · <b class="${wtC}">${wtTxt(w.code)}</b><b class="${al[1]}">${al[0]}</b></span></td>
+    return `<tr><td class="l">${w.name}<br><span class="sub">${w.code.replace(/^(sh|sz)/,'')}</span><br><span class="sub">${w.theme||'未标题材'} · <b class="${wtC}">${wtTxt(w.code)}</b><b class="${al[1]}">${al[0]}</b>${sigTxt}</span></td>
       <td>${P(p)}</td><td class="${cls(pct)}">${pct!=null?sg(pct.toFixed(2))+'%':'—'}</td>
       <td class="sub">${pj}</td>${del}</tr>`;
   }).join('');
@@ -765,7 +767,7 @@ function renderPaper(){
         else if(x.atr&&x.dir<0&&p>=x.entry+x.atr) why='ATR移动止盈';
         else if(daysBetween(x.entryD,today())>=20) why='满20天离场';
         if(why){ x.status='closed'; x.exit=p; x.exitD=today(); x.ret=ret; x.why=why; savePaper(); }
-        else return `<div class="prow"><span><b>${x.name}</b> <b class="${x.dir>0?'up':'down'}">${x.dir>0?'▲多':'▼空'}</b> <span class="sub">${x.entryD.slice(5)} 进 ${P(x.entry)}</span></span><b class="${cls(ret*100)}">${sg((ret*100).toFixed(1))}% <span class="sub">持${daysBetween(x.entryD,today())}天</span></b></div>`;
+        else return `<div class="prow"${x.entryD===today()?' style="background:#fff7e6"':""}><span><b>${x.name}</b> <b class="${x.dir>0?'up':'down'}">${x.dir>0?'▲多':'▼空'}</b> <span class="sub">${x.entryD.slice(5)} 进 ${P(x.entry)}</span></span><b class="${cls(ret*100)}">${sg((ret*100).toFixed(1))}% <span class="sub">持${daysBetween(x.entryD,today())}天</span></b></div>`;
       }
       return `<div class="prow"><span><b>${x.name}</b> ${x.dir>0?'▲多':'▼空'}</span><span class="sub">等待报价…</span></div>`;
     }
