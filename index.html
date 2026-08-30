@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#f5f6f8">
-<title>我的持仓 · 行情 v4.14</title>
+<title>我的持仓 · 行情 v4.15</title>
 <style>
 :root { color-scheme: light; }
 * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
@@ -104,6 +104,11 @@ td { border-top:1px solid #f2f4f6; }
 
 <div class="idx" id="idx"></div>
 <div class="mkt" id="mkt"></div>
+
+<div class="card" id="syncCard" style="display:none">
+  <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px"><b style="font-size:14px">联动监控 · 分时同步率</b><span class="sub" id="syncDate"></span></div>
+  <div id="syncBody" style="font-size:13px;line-height:1.9"></div>
+</div>
 
 <div class="sec"><span>持仓</span><button class="add" onclick="addSec('hold')">＋添加持仓</button></div>
 <div class="addform" id="fHold">
@@ -305,6 +310,65 @@ function loadATR(done){
   });
 }
 
+// ---- 联动监控: 新浪5分钟K线(JSONP)算前两只持仓的分时同步率,量化联动的代理指标 ----
+let SYNC_TS=0;
+function maybeSync(){ const n=Date.now(); if(n-SYNC_TS>5*60*1000){ SYNC_TS=n; loadSync(); } }
+function corr5(a,b){
+  if(!a||!a.length||!b||!b.length) return null;
+  const mb={}; b.forEach(k=>{ mb[k.day]=+k.close; });
+  const ra=[], rb=[]; let pa=null, pb=null;
+  a.forEach(k=>{ const cb=mb[k.day]; if(cb==null) return; const ca=+k.close;
+    if(pa!=null){ ra.push(ca/pa-1); rb.push(cb/pb-1); } pa=ca; pb=cb; });
+  const n=ra.length; if(n<10) return null;
+  const ma=ra.reduce((s,x)=>s+x,0)/n, mbb=rb.reduce((s,x)=>s+x,0)/n;
+  let num=0,da=0,db=0;
+  for(let j=0;j<n;j++){ num+=(ra[j]-ma)*(rb[j]-mbb); da+=(ra[j]-ma)*(ra[j]-ma); db+=(rb[j]-mbb)*(rb[j]-mbb); }
+  return (da>0&&db>0)? num/Math.sqrt(da*db) : null;
+}
+function syncLv(r){
+  if(r==null) return ['—','#8a919c'];
+  if(r>=0.7) return ['高度同步 · 程序化资金特征明显','#dc2626'];
+  if(r>=0.4) return ['中度同步','#b45309'];
+  return ['低同步 · 各走各的','#16a34a'];
+}
+function loadSync(){
+  const card=document.getElementById('syncCard'); if(!card) return;
+  const hs=PF.holds;
+  if(hs.length<2){ card.style.display='none'; return; }
+  card.style.display='block';
+  document.getElementById('syncBody').innerHTML='<div class="sub">分时数据计算中…</div>';
+  const codes=['sh000001', hs[0].code, hs[1].code];
+  const data={}; let i=0;
+  const next=()=>{
+    if(i>=codes.length){ renderSync(data); return; }
+    const c=codes[i++], v='syncd_'+c;
+    const s=document.createElement('script');
+    s.src='https://quotes.sina.cn/cn/api/jsonp_v2.php/var%20'+v+'=/CN_MarketDataService.getKLineData?symbol='+c+'&scale=5&ma=no&datalen=48&_='+Date.now();
+    s.onload=()=>{ data[c]=window[v]||null; window[v]=undefined; s.remove(); next(); };
+    s.onerror=()=>{ data[c]=null; s.remove(); next(); };
+    document.body.appendChild(s);
+  };
+  next();
+}
+function renderSync(data){
+  const A=PF.holds[0], B=PF.holds[1];
+  const ka=data[A.code], kb=data[B.code], ki=data['sh000001'];
+  const cab=corr5(ka,kb), ca=corr5(ka,ki), cb=corr5(kb,ki);
+  const ref=(ka&&ka.length)?ka:(kb&&kb.length?kb:null);
+  document.getElementById('syncDate').textContent = ref?('数据 '+ref[0].day.slice(0,10)):'';
+  const lv=syncLv(cab);
+  let html = cab!=null
+    ? `<div>${A.name} × ${B.name}: <b style="color:${lv[1]};font-size:15px">${cab.toFixed(2)}</b> <span style="color:${lv[1]}">${lv[0]}</span></div>`
+    : '<div class="sub">分时数据没拉到(非交易时段或网络受限),看下方实时背离即可</div>';
+  if(ca!=null&&cb!=null) html+=`<div class="sub">对照大盘: ${A.name}×上证 ${ca.toFixed(2)} · ${B.name}×上证 ${cb.toFixed(2)}</div>`;
+  const pa=F(GET(A.code),32), pb2=F(GET(B.code),32);
+  if(pa!=null&&pb2!=null){ const d=Math.abs(pa-pb2);
+    if(d>=1.5){ const strong=pa>pb2?A.name:B.name, weak=pa>pb2?B.name:A.name;
+      html+=`<div style="margin-top:4px;color:#b45309">⚡ 实时背离 ${d.toFixed(1)}%: ${strong} 强于 ${weak}。高同步品种背离大了,弱的那只有跟随惯性——但也可能是个股单独利空,先看一眼新闻再动手。</div>`; } }
+  html+='<div class="sub" style="margin-top:6px">同步率=5分钟涨跌相关系数(0~1):≥0.7高度同步,0.4~0.7中度,&lt;0.4各走各的。</div>';
+  document.getElementById('syncBody').innerHTML=html;
+}
+
 function refresh(manual){
   const btn=document.querySelector('.rf');
   if(manual&&btn){ btn.textContent='刷新中…'; btn.disabled=true; }
@@ -312,7 +376,7 @@ function refresh(manual){
   const s=document.createElement('script');
   s.src='https://qt.gtimg.cn/q='+allCodes().join(',')+'&_='+Date.now();
   s.charset='GBK';
-  s.onload=()=>{ render(); loadATR(()=>render()); s.remove(); done(); if(manual) toast('已刷新 · '+document.getElementById('time').textContent); }; // 先渲染行情,ATR到了再补渲染
+  s.onload=()=>{ render(); loadATR(()=>render()); maybeSync(); s.remove(); done(); if(manual) toast('已刷新 · '+document.getElementById('time').textContent); }; // 先渲染行情,ATR到了再补渲染
   s.onerror=()=>{ document.getElementById('time').textContent='网络拉取失败,请检查网络后点刷新'; s.remove(); done(); if(manual) toast('刷新失败,请检查网络'); };
   document.body.appendChild(s);
 }
