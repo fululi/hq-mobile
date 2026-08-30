@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#f5f6f8">
-<title>我的持仓 · 行情 v4.21</title>
+<title>我的持仓 · 行情 v4.22</title>
 <style>
 :root { color-scheme: light; }
 * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
@@ -215,8 +215,8 @@ function limitPct(code,name){
 function trendFlag(pct,ampPct,mkt){
   if(pct==null) return {lv:0,label:'',cls:'flat'};
   const a=Math.abs(pct), m=mkt!=null?Math.abs(mkt):0;
-  if(a>=6 || (ampPct!=null&&ampPct>=8)) return {lv:2,label:pct>0?'⚡强势拉升':'⚡急跌异动',cls:pct>0?'up':'down'};
-  if(a>=3 || (ampPct!=null&&ampPct>=5) || m>=1.2) return {lv:1,label:pct>0?'趋势偏强':(pct<0?'趋势偏弱':'大盘异动'),cls:cls(pct)};
+  if(a>=6 || (ampPct!=null&&ampPct>=8)) return {lv:2,label:pct>0?'⚡涨超6%':'⚡跌超6%',cls:pct>0?'up':'down'};
+  if(a>=3 || (ampPct!=null&&ampPct>=5) || m>=1.2) return {lv:1,label:pct>0?'涨超3%':(pct<0?'跌超3%':'大盘异动'),cls:cls(pct)};
   return {lv:0,label:'',cls:'flat'};
 }
 // 分批高抛/低吸目标: 大行情自动加宽档位; 涨跌停按板块约束
@@ -293,7 +293,7 @@ let WT={}, WT_DATE='';
 const WTK='hqm_wt_v2';
 try{ const _x=JSON.parse(localStorage.getItem(WTK)||'null'); if(_x&&_x.date===today()){ WT=_x.wt; WT_DATE=_x.date; } }catch(e){}
 function weekNo(ds){ const d=new Date(ds), o=new Date(d.getFullYear(),0,1); return d.getFullYear()+'W'+Math.ceil((((d-o)/864e5)+o.getDay()+1)/7); }
-function wtTxt(c){ const v=WT[c]; return v==null?'周线…':(v>0?'周线多':(v<0?'周线空':'周线震荡')); }
+function wtTxt(c){ const v=WT[c]; return v==null?'周线…':(v>0?'20周均上':(v<0?'20周均下':'20周均附近')); }
 function loadWTrend(done){
   if(WT_DATE===today() && Object.keys(WT).length){ done&&done(); return; }
   const codes=[...PF.holds.map(h=>h.code), ...PF.watch.map(w=>w.code)];
@@ -616,7 +616,7 @@ function render(){
   }).join('');
   const me=document.getElementById('mkt');
   if(me){ if(MKT==null){ me.textContent=''; }
-    else { const s=MKT>=1.2?'大盘强势,个股顺势可放宽高抛、别急着卖飞':(MKT<=-1.2?'大盘走弱,低吸分批别一次接满':'大盘平稳,按常规区间做T');
+    else { const s=MKT>=1.2?'大盘强势(涨幅≥1.2%)':(MKT<=-1.2?'大盘走弱(跌幅≥1.2%)':'大盘平稳(±1.2%内)');
       me.innerHTML='上证 <b class="'+cls(MKT)+'">'+sg(MKT.toFixed(2))+'%</b> · '+s; } }
 
   let totMv=0, totPnl=0;
@@ -653,7 +653,7 @@ function render(){
     const preHi=(prev!=null&&a2!=null)?Math.min(prev*(1+lp2),prev+1.0*a2):null;
     const preLo=(prev!=null&&a2!=null)?Math.max(prev*(1-lp2),prev-1.0*a2):null;
     const preStr=(preHi!=null)?P(preLo)+' ~ '+P(preHi):'—';
-    const posTxt=(p!=null&&preHi!=null&&preLo!=null)?(p>=preHi?'⚡已破预判上沿,强势别早卖':(p<=preLo?'⚡已破预判下沿,走弱别硬接':'在预判区间内')):'';
+    const posTxt=(p!=null&&preHi!=null&&preLo!=null)?(p>=preHi?'⚡现价破预判上沿':(p<=preLo?'⚡现价破预判下沿':'在预判区间内')):'';
     const editRow = editMode ? `<div class="editbox">
         <label>成本<input type="number" step="0.001" value="${h.cost}" onchange="editField('hold',${i},'cost',this.value)"></label>
         <label>股数<input type="number" step="100" value="${h.shares}" onchange="editField('hold',${i},'shares',this.value)"></label>
@@ -692,7 +692,7 @@ function render(){
     const wt=WT[w.code], wtC=wt>0?'up':(wt<0?'down':'flat');
     const al=(p!=null&&pjHiN!=null)?(p>=pjHiN?[' ⚡破上沿','up']:(p<=pjLoN?[' ⚡破下沿','down']:['',''])):['',''];
     const sig=PAPER.find(x=>x.code===w.code&&x.status==='open');
-    const sigTxt=sig?` <b class="${sig.dir>0?'up':'down'}">⚡三角突破${sig.dir>0?'▲可进场':'▼回避'}</b>`:'';
+    const sigTxt=sig?` <b class="${sig.dir>0?'up':'down'}">⚡收盘破三角${sig.dir>0?'上沿':'下沿'}</b>`:'';
     const del = editMode ? `<td><button class="wdel" onclick="delItem(this,'watch',${i})">删</button><br><input style="width:58px;font-size:11px;margin-top:4px" placeholder="题材" value="${w.theme||''}" onchange="editField('watch',${i},'theme',this.value)"></td>` : '';
     return `<tr><td class="l">${w.name}<br><span class="sub">${w.code.replace(/^(sh|sz)/,'')}</span><br><span class="sub">${w.theme||'未标题材'} · <b class="${wtC}">${wtTxt(w.code)}</b><b class="${al[1]}">${al[0]}</b>${sigTxt}</span></td>
       <td>${P(p)}</td><td class="${cls(pct)}">${pct!=null?sg(pct.toFixed(2))+'%':'—'}</td>
