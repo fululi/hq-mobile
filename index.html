@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#f5f6f8">
-<title>我的持仓 · 行情 v4.17</title>
+<title>我的持仓 · 行情 v4.18</title>
 <style>
 :root { color-scheme: light; }
 * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
@@ -585,7 +585,7 @@ function render(){
     const tf=trendFlag(pct,ampPct,mktOf(h));
     const tr=tiers(p,base,prev,tf.lv,h.code,h.name);
     const projHi=(p!=null&&base!=null)?p+K_UP*base:null, projLo=(p!=null&&base!=null)?p-K_DN*base:null;
-    const badge = tf.lv>0 ? `<span class="badge ${tf.cls}">${tf.label}</span>` : '';
+    const badge = tf.lv>0 ? `<span class="badge ${tf.cls}">${tf.label}</span>` : (pct!=null?`<span class="badge ${cls(pct)}">${pct>=1.2?'偏多':(pct<=-1.2?'偏空':'震荡')}</span>`:'');
     const fmtTier=(arr,side)=>arr.map((x,j)=>{
       const t=p?P(x)+'('+sg(((x/p-1)*100).toFixed(1))+'%)':P(x);
       return `<span class="tk" onclick="fillT('${h.code}',${x},'${side}')">${t}</span>`; }).join(' / ');
