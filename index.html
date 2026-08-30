@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#f5f6f8">
-<title>我的持仓 · 行情 v4.15</title>
+<title>我的持仓 · 行情 v4.16</title>
 <style>
 :root { color-scheme: light; }
 * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
@@ -310,6 +310,27 @@ function loadATR(done){
   });
 }
 
+// ---- 主力净流入(东财JSONP): 由打开页面的设备自己拉,电脑IP被限流时静默不显示 ----
+let FF={}, FF_TS=0;
+function fmtAmt(v){ const a=Math.abs(v); return a>=1e8?(v/1e8).toFixed(2)+'亿':Math.round(v/1e4).toLocaleString()+'万'; }
+function maybeFF(){ const n=Date.now(); if(n-FF_TS>5*60*1000){ FF_TS=n; loadFF(); } }
+function loadFF(){
+  if(!PF.holds.length) return;
+  const secids=PF.holds.map(h=>(h.code.indexOf('sh')===0?'1.':'0.')+h.code.slice(2)).join(',');
+  window.ffCb=(d)=>{ try{
+    let arr=d&&d.data&&(d.data.diff||d.data);
+    if(arr&&!Array.isArray(arr)) arr=Object.values(arr);
+    (arr||[]).forEach(r=>{ const h=PF.holds.find(x=>x.code.slice(2)===String(r.f12));
+      if(h&&r.f62!=null) FF[h.code]={amt:+r.f62, pct:(r.f184!=null?+r.f184:null)}; });
+    render();
+  }catch(e){} };
+  const s=document.createElement('script');
+  s.src='https://push2.eastmoney.com/api/qt/ulist.np/get?fltt=2&invt=2&fields=f12,f62,f184&secids='+secids+'&cb=ffCb&_='+Date.now();
+  s.onload=()=>{ s.remove(); };
+  s.onerror=()=>{ s.remove(); };
+  document.body.appendChild(s);
+}
+
 // ---- 联动监控: 新浪5分钟K线(JSONP)算前两只持仓的分时同步率,量化联动的代理指标 ----
 let SYNC_TS=0;
 function maybeSync(){ const n=Date.now(); if(n-SYNC_TS>5*60*1000){ SYNC_TS=n; loadSync(); } }
@@ -376,7 +397,7 @@ function refresh(manual){
   const s=document.createElement('script');
   s.src='https://qt.gtimg.cn/q='+allCodes().join(',')+'&_='+Date.now();
   s.charset='GBK';
-  s.onload=()=>{ render(); loadATR(()=>render()); maybeSync(); s.remove(); done(); if(manual) toast('已刷新 · '+document.getElementById('time').textContent); }; // 先渲染行情,ATR到了再补渲染
+  s.onload=()=>{ render(); loadATR(()=>render()); maybeSync(); maybeFF(); s.remove(); done(); if(manual) toast('已刷新 · '+document.getElementById('time').textContent); }; // 先渲染行情,ATR到了再补渲染
   s.onerror=()=>{ document.getElementById('time').textContent='网络拉取失败,请检查网络后点刷新'; s.remove(); done(); if(manual) toast('刷新失败,请检查网络'); };
   document.body.appendChild(s);
 }
@@ -580,6 +601,8 @@ function render(){
       if(rp!=null) refTxt=` · 关联${rf?rf[1]:''} ${sg(rp.toFixed(2))}%`; }
     const baseSrc=(todayAmp!=null&&atrV!=null)?(todayAmp>=atrV*ATR_FLOOR?'今日振幅':'近14日平均波动'):(atrV!=null?'近14日平均波动':'今日振幅');
     const atrTxt=atrV!=null?`ATR14 ${atrV.toFixed(2)}元 · 计算基准 ${base!=null?base.toFixed(2):'—'}元(取${baseSrc})${refTxt}`:(ATR_FAIL?'⚠ 历史波动数据没拉到,暂按今日振幅算':'波动数据加载中…(首次打开需几秒)');
+    const ff=FF[h.code];
+    const ffTxt=ff?`<div class="atrnote">主力净流入 <b class="${cls(ff.amt)}">${ff.amt>=0?'+':''}${fmtAmt(ff.amt)}</b> · 占成交 ${ff.pct!=null?ff.pct.toFixed(1)+'%':'—'} <span class="sub">(东财口径,参考)</span></div>`:'';
     // 今日预判区间: 昨收 ± 0.55×ATR14,受涨跌停约束;突破上沿=强势,跌破下沿=走弱
     const lp2=limitPct(h.code,h.name)/100, a2=atrOf(h.code);
     const preHi=(prev!=null&&a2!=null)?Math.min(prev*(1+lp2),prev+1.0*a2):null;
@@ -605,6 +628,7 @@ function render(){
       <div class="proj"><span>今日预判 <b class="flat">${preStr}</b></span><span class="sub">${posTxt}</span></div>
       <div class="proj"><span>低吸 <b class="down">${buyStr}</b></span><span>高抛 <b class="up">${sellStr}</b></span></div>
       <div class="atrnote">${atrTxt}</div>
+      ${ffTxt}
       ${tf.lv>=1?`<div class="tnote">⚠ 为什么分${tf.lv>=2?'3':'2'}档:${Math.abs(pct||0)>=6?'个股单日涨跌超6%':(Math.abs(pct||0)>=3?'个股涨跌超3%':((ampPct!=null&&ampPct>=5)?'今日振幅超5%':'关联板块/大盘异动'))}。分档=分批:首档少量,留子弹等下一档,别一笔全进全出。</div>`:''}
       ${editRow}
     </div>`;
