@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#f5f6f8">
-<title>我的持仓 · 行情 v4.13</title>
+<title>我的持仓 · 行情 v4.14</title>
 <style>
 :root { color-scheme: light; }
 * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
@@ -93,7 +93,7 @@ td { border-top:1px solid #f2f4f6; }
 <body>
 <div class="top">
   <h1>我的持仓 · 行情</h1>
-  <div class="btns"><button class="cp" onclick="copyPlan()">复制计划</button><button class="ed" id="edBtn" onclick="toggleEdit()">编辑</button><button class="rf" onclick="refresh()">刷新</button></div>
+  <div class="btns"><button class="cp" onclick="copyPlan()">复制计划</button><button class="ed" id="edBtn" onclick="toggleEdit()">编辑</button><button class="rf" onclick="refresh(1)">刷新</button></div>
 </div>
 <div class="time" id="time">加载中…</div>
 
@@ -305,12 +305,15 @@ function loadATR(done){
   });
 }
 
-function refresh(){
+function refresh(manual){
+  const btn=document.querySelector('.rf');
+  if(manual&&btn){ btn.textContent='刷新中…'; btn.disabled=true; }
+  const done=()=>{ if(manual&&btn){ btn.textContent='刷新'; btn.disabled=false; } };
   const s=document.createElement('script');
   s.src='https://qt.gtimg.cn/q='+allCodes().join(',')+'&_='+Date.now();
   s.charset='GBK';
-  s.onload=()=>{ render(); loadATR(()=>render()); s.remove(); }; // 先渲染行情,ATR到了再补渲染
-  s.onerror=()=>{ document.getElementById('time').textContent='网络拉取失败,请检查网络后点刷新'; s.remove(); };
+  s.onload=()=>{ render(); loadATR(()=>render()); s.remove(); done(); if(manual) toast('已刷新 · '+document.getElementById('time').textContent); }; // 先渲染行情,ATR到了再补渲染
+  s.onerror=()=>{ document.getElementById('time').textContent='网络拉取失败,请检查网络后点刷新'; s.remove(); done(); if(manual) toast('刷新失败,请检查网络'); };
   document.body.appendChild(s);
 }
 function toggleEdit(){ editMode=!editMode;
