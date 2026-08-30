@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#f5f6f8">
-<title>我的持仓 · 行情 v4.26</title>
+<title>我的持仓 · 行情 v4.27</title>
 <style>
 :root { color-scheme: light; }
 * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
@@ -289,9 +289,9 @@ function parseSina(txt){
     return {atr:last14.reduce((a,b)=>a+b,0)/last14.length, lastTR:trs[trs.length-1]};
   }catch(e){ return null; }
 }
-let WT={}, WSIG={}, DT={}, EXT={}, WT_DATE='';
-const WTK='hqm_wt_v5';
-try{ const _x=JSON.parse(localStorage.getItem(WTK)||'null'); if(_x&&_x.date===today()){ WT=_x.wt; WSIG=_x.wsig||{}; DT=_x.dt||{}; EXT=_x.ext||{}; WT_DATE=_x.date; } }catch(e){}
+let WT={}, WSIG={}, DT={}, EXT={}, LV={}, WT_DATE='';
+const WTK='hqm_wt_v6';
+try{ const _x=JSON.parse(localStorage.getItem(WTK)||'null'); if(_x&&_x.date===today()){ WT=_x.wt; WSIG=_x.wsig||{}; DT=_x.dt||{}; EXT=_x.ext||{}; LV=_x.lv||{}; WT_DATE=_x.date; } }catch(e){}
 function weekNo(ds){ const d=new Date(ds), o=new Date(d.getFullYear(),0,1); return d.getFullYear()+'W'+Math.ceil((((d-o)/864e5)+o.getDay()+1)/7); }
 function wtTxt(c){ const v=WT[c]; return v==null?'周线…':(v>0?'20周均上':(v<0?'20周均下':'20周均附近')); }
 function dtTxt(c){ const v=DT[c]; return v==null?'':(v>0?'20日均上':(v<0?'20日均下':'20日均附近')); }
@@ -302,6 +302,18 @@ function sigCtx(dir, bigV, bigName){ // 信号与大周期(周线/日线)方向�
   return ' · '+bigName+'反向='+(dir>0?'反弹性质':'回调性质');
 }
 function extTxt(c){ const e=EXT[c]; if(!e) return ''; let t='⚠极端'+(e.dir<0?'超卖':'超买')+'·偏离20日线'+(e.dev>0?'+':'')+e.dev+'×ATR·RSI'+e.rsi; if(e.stab) t+=e.dir<0?'·已3日未创新低(止跌迹象)':'·已3日未创新高(滞涨迹象)'; return t+(e.dir<0?'·规则:勿在此割肉':'·规则:勿在此追高'); }
+function verdict(c){ // 五维合成一行作战结论(规则口径见回测框架与档案.md)
+  const w=WT[c], e=EXT[c], lv=LV[c]||{};
+  const wema=lv.we!=null?'20周线'+lv.we:'20周线', dema=lv.de!=null?'20日线'+lv.de:'20日线';
+  if(e&&e.dir<0) return '⚠极端超卖·勿割肉，等3日不创新低或反弹到'+dema+'再处理';
+  if(e&&e.dir>0) return '⚠极端超买·勿追高，回落看'+dema;
+  const sig=PAPER.find(x=>x.code===c&&x.status==='open');
+  if(sig&&sig.dir>0) return w>0?'共振突破·顺势持有，破'+P(sig.stop)+'撤':'反弹性质突破·轻仓，破'+P(sig.stop)+'撤';
+  if(sig&&sig.dir<0) return w<0?'顺势下破·有仓减仓':'多头区破位·减仓看'+wema;
+  if(w>0) return '多头区·持有等信号，破'+wema+'转弱';
+  if(w<0) return '空头区·不加仓，反弹到'+wema+'附近减仓';
+  return '无方向·按做T区间跑，出信号再动';
+}
 let MSIG={}, M15_TS=0;
 function loadM15(done){ // 15分钟三角扫描(新浪15分K,近80根≈5个交易日),15分钟内不重复拉
   const n=Date.now(); if(n-M15_TS<15*60*1000 && Object.keys(MSIG).length){ done&&done(); return; }
@@ -331,15 +343,15 @@ function loadM15(done){ // 15分钟三角扫描(新浪15分K,近80根≈5个交�
 function loadWTrend(done){
   if(WT_DATE===today() && Object.keys(WT).length){ done&&done(); return; }
   const codes=[...PF.holds.map(h=>h.code), ...PF.watch.map(w=>w.code)];
-  const out={}, osig={}, odt={}, oext={}; let left=codes.length, finished=false;
+  const out={}, osig={}, odt={}, oext={}, olv={}; let left=codes.length, finished=false;
   const fin=()=>{ if(finished) return; finished=true;
-    if(Object.keys(out).length){ WT=out; WSIG=osig; DT=odt; EXT=oext; WT_DATE=today(); localStorage.setItem(WTK, JSON.stringify({date:WT_DATE, wt:WT, wsig:WSIG, dt:DT, ext:EXT})); }
+    if(Object.keys(out).length){ WT=out; WSIG=osig; DT=odt; EXT=oext; LV=olv; WT_DATE=today(); localStorage.setItem(WTK, JSON.stringify({date:WT_DATE, wt:WT, wsig:WSIG, dt:DT, ext:EXT, lv:LV})); }
     done&&done(); };
   if(!left){ done&&done(); return; }
   setTimeout(fin, 9000);
   codes.forEach(c=>{
     let got=false;
-    const tick=(val,dv,ev)=>{ if(got) return; got=true; if(val!=null) out[c]=val; if(dv!=null) odt[c]=dv; if(ev!=null) oext[c]=ev; if(--left===0) fin(); };
+    const tick=(val,dv,ev,lv)=>{ if(got) return; got=true; if(val!=null) out[c]=val; if(dv!=null) odt[c]=dv; if(ev!=null) oext[c]=ev; if(lv!=null) olv[c]=lv; if(--left===0) fin(); };
     const ctrl=new AbortController(); const tm=setTimeout(()=>ctrl.abort(), 6000);
     fetch('https://web.ifzq.gtimg.cn/appstock/app/fqkline/get?param='+c+',day,,,640,qfq', {signal:ctrl.signal})
       .then(r=>r.json()).then(d=>{
@@ -376,7 +388,7 @@ function loadWTrend(done){
           if(dev<=-2||rsi<=30) ev={dir:-1, dev:+dev.toFixed(1), rsi:Math.round(rsi), stab:lo3>=loPrev};
           else if(dev>=2||rsi>=70) ev={dir:1, dev:+dev.toFixed(1), rsi:Math.round(rsi), stab:hi3<=hiPrev};
         }catch(e2){}
-        tick(last>e*1.02?1:(last<e*0.98?-1:0), dlast>de*1.01?1:(dlast<de*0.99?-1:0), ev);
+        tick(last>e*1.02?1:(last<e*0.98?-1:0), dlast>de*1.01?1:(dlast<de*0.99?-1:0), ev, {we:+e.toFixed(2), de:+de.toFixed(2)});
       })
       .catch(()=>{ clearTimeout(tm); tick(null); });
   });
@@ -735,6 +747,7 @@ function render(){
         <div class="kv"><div class="k">今日振幅</div><div class="val flat">${ampPct!=null?ampPct.toFixed(2)+'%':'—'}</div></div>
       </div>
       <div class="proj"><span>今日预判 <b class="flat">${preStr}</b></span><span class="sub">${posTxt}</span></div>
+      <div class="proj"><span>📋 <b>${verdict(h.code)}</b></span></div>
       <div class="proj"><span>低吸 <b class="down">${buyStr}</b></span><span>高抛 <b class="up">${sellStr}</b></span></div>
       <a href="https://fululi.github.io/k-station/?code=${h.code}&lines=${tr.buys.map(x=>'b'+x.toFixed(2)).concat(tr.sells.map(x=>'s'+x.toFixed(2))).join(',')}" style="display:block;text-align:center;margin-top:8px;padding:8px;border-radius:8px;background:#2563eb;color:#fff;text-decoration:none;font-size:13px;font-weight:600">📈 看K线（做T价位已自动画好）</a>
       <div class="atrnote">${atrTxt}</div>
@@ -767,7 +780,7 @@ function render(){
     const gzW=(wt!=null&&dtw!=null&&wt===dtw&&wt!==0)?' <b class="flat">周日同向</b>':'';
     const extW=EXT[w.code], extWTxt=extW?` <b class="flat">${extTxt(w.code)}</b>`:'';
     const addTxt=(w.addedP!=null&&p!=null)?`<br><span class="sub">${(w.addedD||'').slice(5)}加 @${P(w.addedP)} · 以来<b class="${cls((p/w.addedP-1)*100)}">${sg(((p/w.addedP-1)*100).toFixed(1))}%</b>${w.addedFF!=null?` · 入时主力<b class="${cls(w.addedFF)}">${w.addedFF>=0?'+':''}${fmtAmt(w.addedFF)}</b>`:''}</span>`:'';
-    return `<tr><td class="l" style="cursor:pointer" onclick="openK('${w.code}')">${w.name}<br><span class="sub">${w.code.replace(/^(sh|sz)/,'')}</span><br><span class="sub">${w.theme||'未标题材'} · <b class="${wtC}">${wtTxt(w.code)}</b>${dtW}<b class="${al[1]}">${al[0]}</b>${sigTxt}${wsgTxt}${m15Txt}${gzW}${extWTxt}</span>${addTxt}</td>
+    return `<tr><td class="l" style="cursor:pointer" onclick="openK('${w.code}')">${w.name}<br><span class="sub">${w.code.replace(/^(sh|sz)/,'')}</span><br><span class="sub">${w.theme||'未标题材'} · <b class="${wtC}">${wtTxt(w.code)}</b>${dtW}<b class="${al[1]}">${al[0]}</b>${sigTxt}${wsgTxt}${m15Txt}${gzW}${extWTxt}</span>${addTxt}<br><span class="sub">📋 <b>${verdict(w.code)}</b></span></td>
       <td>${P(p)}</td><td class="${cls(pct)}">${pct!=null?sg(pct.toFixed(2))+'%':'—'}</td>
       <td class="sub">${pj}</td>${del}</tr>`;
   }).join('') + (PF.watch.length?'<tr><td colspan="4" class="sub" style="font-size:10px">顺势=信号与大周期同向 · 反弹/回调性质=与大周期反向（日线信号看周线，15分钟信号看日线）· ⚠极端=偏离20日线≥2×ATR或RSI≤30/≥70，该区域内反向波动概率上升，勿追涨杀跌，等结构确认（不再创新低/新高）</td></tr>':'');
