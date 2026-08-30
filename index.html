@@ -627,7 +627,7 @@ function render(){
       </div>
       <div class="proj"><span>今日预判 <b class="flat">${preStr}</b></span><span class="sub">${posTxt}</span></div>
       <div class="proj"><span>低吸 <b class="down">${buyStr}</b></span><span>高抛 <b class="up">${sellStr}</b></span></div>
-      <a href="https://fululi.github.io/k-station/?code=${h.code}&lines=${[...tr.buys,...tr.sells].map(x=>x.toFixed(2)).join(',')}" style="display:block;text-align:center;margin-top:8px;padding:8px;border-radius:8px;background:#2563eb;color:#fff;text-decoration:none;font-size:13px;font-weight:600">📈 看K线（做T价位已自动画好）</a>
+      <a href="https://fululi.github.io/k-station/?code=${h.code}&lines=${tr.buys.map(x=>'b'+x.toFixed(2)).concat(tr.sells.map(x=>'s'+x.toFixed(2))).join(',')}" style="display:block;text-align:center;margin-top:8px;padding:8px;border-radius:8px;background:#2563eb;color:#fff;text-decoration:none;font-size:13px;font-weight:600">📈 看K线（做T价位已自动画好）</a>
       <div class="atrnote">${atrTxt}</div>
       ${ffTxt}
       ${tf.lv>=1?`<div class="tnote">⚠ 为什么分${tf.lv>=2?'3':'2'}档:${Math.abs(pct||0)>=6?'个股单日涨跌超6%':(Math.abs(pct||0)>=3?'个股涨跌超3%':((ampPct!=null&&ampPct>=5)?'今日振幅超5%':'关联板块/大盘异动'))}。分档=分批:首档少量,留子弹等下一档,别一笔全进全出。</div>`:''}
