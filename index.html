@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#f5f6f8">
-<title>我的持仓 · 行情 v4.20</title>
+<title>我的持仓 · 行情 v4.21</title>
 <style>
 :root { color-scheme: light; }
 * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
@@ -59,6 +59,8 @@ body { margin:0; padding:14px 12px 40px; background:#f5f6f8; color:#1a1d21;
 .tbox label { font-size:12px; color:#8a919c; display:flex; flex-direction:column; gap:4px; }
 .tbox select,.tbox input { padding:10px 8px; border:1px solid #d7dbe0; border-radius:8px; font-size:16px; }
 .tbox input { text-align:right; font-variant-numeric:tabular-nums; }
+.prow { display:flex; justify-content:space-between; align-items:center; padding:7px 12px; font-size:12.5px; border-bottom:1px solid #eef0f4; }
+.prow:last-child { border-bottom:none; }
 .tbox .go { margin-top:10px; width:100%; border:none; background:#2563eb; color:#fff; font-size:14px; font-weight:600; padding:9px; border-radius:8px; }
 .fee { display:flex; gap:12px; margin-top:10px; font-size:11px; color:#8a919c; align-items:center; flex-wrap:wrap; }
 .fee input { width:56px; padding:4px 5px; border:1px solid #d7dbe0; border-radius:6px; font-size:16px; text-align:right; }
@@ -127,6 +129,9 @@ td { border-top:1px solid #f2f4f6; }
   <table><thead><tr><th class="l">名称</th><th>现价</th><th>涨跌%</th><th>参考低~高</th><th id="wdelh"></th></tr></thead>
   <tbody id="watch"></tbody></table>
 </div>
+
+<div class="sec"><span>模拟建仓 · 每日自动跟踪</span><span class="sub">三角突破自动记录 · 纯代码零成本</span></div>
+<div class="card" id="paper" style="padding:4px 0"></div>
 
 <div class="sec"><span>今日做T计划(随振幅自动给档)</span><span class="sub" id="tSum"></span></div>
 <div class="card tbl">
@@ -307,6 +312,7 @@ function loadWTrend(done){
         clearTimeout(tm);
         const node=d.data&&d.data[c], rows=node&&(node.qfqday||node.day);
         if(!rows||rows.length<40){ tick(null); return; }
+        try{ paperScan(c, rows.map(r=>[r[0], +r[1], +r[3], +r[4], +r[2], +r[5]])); }catch(e){}
         const weeks=[]; let wk='', wc=null;
         rows.forEach(r=>{ const k=weekNo(r[0]); if(k!==wk){ if(wc!=null) weeks.push(wc); wk=k; } wc=+r[2]; });
         weeks.push(wc);
@@ -476,9 +482,10 @@ function maybeConfirmT(){
   ['tSell','tBuy','tQty'].forEach(id=>document.getElementById(id).classList.toggle('armed', !!document.getElementById(id).value));
   if(!h||isNaN(sell)||isNaN(buy)){ box.style.display='none'; return; }
   box.style.display='block';
-  if(isNaN(qty)||qty<=0){ box.innerHTML='还差<b>股数</b>——点上面快捷股数,或手动填一下'; return; }
-  const gross=(sell-buy)*qty, fee=feeOf(sell,buy,qty).fee, net=gross-fee;
-  box.innerHTML=`待确认:<b>${h.name}</b> 卖 ${sell} → 接 ${buy} × ${qty}股<br>毛差 ${sg(Math.round(gross))} − 费用 ${Math.round(fee)} = 净收益 <b style="color:${net>=0?'#dc2626':'#16a34a'}">${sg(Math.round(net))}</b><button class="b" onclick="addTrade()">✓ 确认记账</button>`;
+  const diff=sell-buy, per100=diff*100-feeOf(sell,buy,100).fee;
+  if(isNaN(qty)||qty<=0){ box.innerHTML=`价差 <b>${diff.toFixed(2)} 元/股</b> · <b>一手(100股)净赚 ≈ <span style="color:${per100>=0?'#dc2626':'#16a34a'}">${sg(Math.round(per100))} 元</span></b><span class="sub">（已扣费）· 还差股数,点上面快捷键</span>`; return; }
+  const gross=diff*qty, fee=feeOf(sell,buy,qty).fee, net=gross-fee;
+  box.innerHTML=`待确认:<b>${h.name}</b> 卖 ${sell} → 接 ${buy} × ${qty}股<br>每股净赚 <b>${(net/qty).toFixed(2)} 元</b> · 这单净收益 <b style="color:${net>=0?'#dc2626':'#16a34a'}">${sg(Math.round(net))} 元</b> <span class="sub">（毛差${sg(Math.round(gross))}−费${Math.round(fee)}）</span><button class="b" onclick="addTrade()">✓ 确认记账</button>`;
 }
 // 内嵌表单添加(WPS等环境不支持prompt弹窗)
 function addSec(type){ document.getElementById(type==='hold'?'fHold':'fWatch').classList.toggle('show'); }
@@ -698,6 +705,72 @@ function render(){
   const fc=document.getElementById('feeComm'), fs=document.getElementById('feeStamp');
   if(fc&&!fc.value) fc.value=FEE.comm; if(fs&&!fs.value) fs.value=FEE.stamp;
   renderT();
+  renderPaper();
+}
+/* ================= 模拟建仓 · 每日自动跟踪（纯本地代码，零 token） =================
+   规则(回测框架口径)：收敛三角收盘突破 → 按信号日收盘模拟建仓；
+   出场：反向破三角边止损 / 从峰值回撤1×ATR14移动止盈 / 满20天强制离场 */
+let PAPER=[]; try{ PAPER=JSON.parse(localStorage.getItem('paper_v1')||'[]'); }catch(e){}
+function savePaper(){ try{ localStorage.setItem('paper_v1', JSON.stringify(PAPER.slice(-60))); }catch(e){} }
+function triDet(kl){
+  const n=kl.length, sh=[], sl=[];
+  for(let i=Math.max(2,n-52); i<n-2; i++){
+    if(kl[i][2]>kl[i-1][2]&&kl[i][2]>kl[i-2][2]&&kl[i][2]>=kl[i+1][2]&&kl[i][2]>=kl[i+2][2]) sh.push(i);
+    if(kl[i][3]<kl[i-1][3]&&kl[i][3]<kl[i-2][3]&&kl[i][3]<=kl[i+1][3]&&kl[i][3]<=kl[i+2][3]) sl.push(i);
+  }
+  const H=sh.filter(x=>x>=n-50), L=sl.filter(x=>x>=n-50);
+  if(H.length<2||L.length<2) return null;
+  const h1=H[H.length-2],h2=H[H.length-1],l1=L[L.length-2],l2=L[L.length-1];
+  if(h2<=h1||l2<=l1) return null;
+  const mh=(kl[h2][2]-kl[h1][2])/(h2-h1), ml=(kl[l2][3]-kl[l1][3])/(l2-l1);
+  if(mh>=0||ml<=0) return null;
+  const bh=kl[h1][2]-mh*h1, bl=kl[l1][3]-ml*l1, apex=(bl-bh)/(mh-ml);
+  if(apex<=Math.max(h2,l2)||apex>n+30) return null;
+  const up=mh*(n-1)+bh, dn=ml*(n-1)+bl, c=kl[n-1][4];
+  return { up, dn, brk: c>up?1:(c<dn?-1:0) };
+}
+function atrLast(kl){
+  if(kl.length<15) return null;
+  let s2=0;
+  for(let j=kl.length-14; j<kl.length; j++){
+    const pc=kl[j-1][4];
+    s2+=Math.max(kl[j][2]-kl[j][3], Math.abs(kl[j][2]-pc), Math.abs(kl[j][3]-pc));
+  }
+  return s2/14;
+}
+function daysBetween(a,b){ return Math.round((new Date(b)-new Date(a))/864e5); }
+function nameOf(c){ const h=PF.holds.find(x=>x.code===c)||PF.watch.find(x=>x.code===c); return h?h.name:c; }
+function paperScan(c, kl){ // loadWTrend 拉到日线时顺带扫描
+  const tr=triDet(kl);
+  if(!tr||tr.brk===0) return;
+  if(PAPER.some(x=>x.code===c&&x.status==='open')) return;
+  const c0=kl[kl.length-1][4];
+  PAPER.push({ code:c, name:nameOf(c), dir:tr.brk, entry:c0, entryD:today(),
+    peak:c0, stop: tr.brk>0?tr.dn:tr.up, atr:atrLast(kl), status:'open' });
+  savePaper();
+}
+function renderPaper(){
+  const el=document.getElementById('paper'); if(!el) return;
+  if(!PAPER.length){ el.innerHTML='<div class="sub" style="padding:10px 12px">暂无模拟仓 · 每天自动扫描持仓+观察票的收敛三角，突破当日按收盘价记录建仓，不需要任何AI。</div>'; return; }
+  el.innerHTML=PAPER.slice().reverse().map(x=>{
+    if(x.status==='open'){
+      const f=GET(x.code), p=f?F(f,3):null;
+      if(p!=null){
+        x.peak=Math.max(x.peak||x.entry, x.dir>0?p:x.entry);
+        const ret=x.dir>0?(p/x.entry-1):(1-p/x.entry);
+        let why=null;
+        if(x.dir>0&&p<=x.stop) why='破三角下沿·止损';
+        else if(x.dir<0&&p>=x.stop) why='破三角上沿·止损';
+        else if(x.atr&&x.dir>0&&p<=x.peak-x.atr) why='ATR移动止盈';
+        else if(x.atr&&x.dir<0&&p>=x.entry+x.atr) why='ATR移动止盈';
+        else if(daysBetween(x.entryD,today())>=20) why='满20天离场';
+        if(why){ x.status='closed'; x.exit=p; x.exitD=today(); x.ret=ret; x.why=why; savePaper(); }
+        else return `<div class="prow"><span><b>${x.name}</b> <b class="${x.dir>0?'up':'down'}">${x.dir>0?'▲多':'▼空'}</b> <span class="sub">${x.entryD.slice(5)} 进 ${P(x.entry)}</span></span><b class="${cls(ret*100)}">${sg((ret*100).toFixed(1))}% <span class="sub">持${daysBetween(x.entryD,today())}天</span></b></div>`;
+      }
+      return `<div class="prow"><span><b>${x.name}</b> ${x.dir>0?'▲多':'▼空'}</span><span class="sub">等待报价…</span></div>`;
+    }
+    return `<div class="prow"><span class="sub">${x.name} ${x.dir>0?'▲多':'▼空'} ${x.entryD.slice(5)}→${x.exitD.slice(5)} · ${x.why}</span><b class="${cls(x.ret*100)}">${sg((x.ret*100).toFixed(1))}%</b></div>`;
+  }).join('');
 }
 refresh();
 setInterval(()=>{ const d=new Date(),t=d.getHours()*60+d.getMinutes(),w=d.getDay();
