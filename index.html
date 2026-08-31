@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#f5f6f8">
-<title>我的持仓 · 行情 v4.39</title>
+<title>我的持仓 · 行情 v4.40</title>
 <style>
 :root { color-scheme: light; }
 * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
@@ -513,8 +513,9 @@ function loadWTrend(done){
   });
 }
 function loadATR(done){
-  if(ATR_DATE===today() && Object.keys(ATR).length){ done&&done(); return; }
-  const codes=[...new Set([...PF.holds.map(h=>h.code), ...PF.watch.map(w=>w.code), ...IDX.map(x=>x[0])])];
+  const need=[...new Set([...PF.holds.map(h=>h.code), ...PF.watch.map(w=>w.code), ...IDX.map(x=>x[0])])];
+  if(ATR_DATE===today() && need.every(c=>ATR[c]!=null)){ done&&done(); return; }
+  const codes=need.filter(c=>ATR[c]==null);
   const out={}; let left=codes.length, finished=false;
   const fin=()=>{ if(finished) return; finished=true;
     if(Object.keys(out).length){ ATR=out; ATR_DATE=today(); ATR_FAIL=false;
