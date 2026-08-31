@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#f5f6f8">
-<title>我的持仓 · 行情 v4.50</title>
+<title>我的持仓 · 行情 v4.51</title>
 <style>
 :root { color-scheme: light; }
 * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
@@ -192,6 +192,7 @@ td { border-top:1px solid #f2f4f6; }
   <input id="tNote" placeholder="原因(可选,复盘用):如 冲高减/破位割/接早了" style="width:100%;margin-top:6px">
   <div class="tcf" id="tcf"></div>
   <button class="go" onclick="addTrade()">＋ 记一笔（卖/买股数可不同，差额自动算）</button>
+  <button class="go" style="background:#475569;margin-top:6px" onclick="repeatLast()">↻ 再来一笔（沿用上笔的票/价/股数，改个数就记）</button>
   <div class="fee">费用估算:
     佣金率%<input id="feeComm" type="number" step="0.005" onchange="saveFee()">
     印花税%<input id="feeStamp" type="number" step="0.01" onchange="saveFee()">
@@ -996,6 +997,19 @@ function addTrade(){
   document.getElementById('tSell').value=''; document.getElementById('tBuy').value=''; document.getElementById('tQty').value=''; document.getElementById('tQty2').value=''; document.getElementById('tNote').value='';
   maybeConfirmT();
   renderLog(); toast('已记账,做T净收益 '+sg(Math.round(profit))+(red>0?' · 另减仓'+red+'股':(red<0?' · 另加仓'+(-red)+'股':'')));
+}
+// v4.51: 再来一笔——沿用上笔台账回填表单,连记多单不用重填
+function repeatLast(){
+  if(!TLOG.length){ toast('还没有台账,先记一笔'); return; }
+  const r=TLOG[0];
+  const i=PF.holds.findIndex(h=>h.code===r.code);
+  if(i>=0) document.getElementById('tSel').value=i;
+  document.getElementById('tSell').value=r.sell; document.getElementById('tBuy').value=r.buy;
+  document.getElementById('tQty').value=r.qty; document.getElementById('tQty2').value=r.bq||'';
+  document.getElementById('tNote').value=r.note||'';
+  document.getElementById('tboxMain').scrollIntoView({behavior:'smooth',block:'center'});
+  if(typeof maybeConfirmT==='function') maybeConfirmT();
+  toast('已沿用上笔: '+r.name+' 卖'+r.sell+' 接'+r.buy+' · 改完点「记一笔」');
 }
 // v4.47: 复盘数据包——台账+挂单+持仓压成结构化文本,丢给任意AI生成交易教练报告
 function copyCoach(){
