@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#f5f6f8">
-<title>我的持仓 · 行情 v4.27</title>
+<title>我的持仓 · 行情 v4.28</title>
 <style>
 :root { color-scheme: light; }
 * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
@@ -145,7 +145,8 @@ td { border-top:1px solid #f2f4f6; }
     <label>股票<select id="tSel" onchange="maybeConfirmT()"></select></label>
     <label>卖出价<input id="tSell" type="number" step="0.01" placeholder="高抛" oninput="maybeConfirmT()"></label>
     <label>接回价<input id="tBuy" type="number" step="0.01" placeholder="低吸" oninput="maybeConfirmT()"></label>
-    <label>股数<input id="tQty" type="number" step="100" placeholder="100" oninput="maybeConfirmT()"></label>
+    <label>卖出股数<input id="tQty" type="number" step="100" placeholder="100" oninput="maybeConfirmT()"></label>
+    <label>接回股数<input id="tQty2" type="number" step="100" placeholder="空=同卖出" oninput="maybeConfirmT()"></label>
   </div>
   <div class="qtys"><span>股数:</span>
     <button onclick="setQty(500)">500</button>
@@ -155,7 +156,7 @@ td { border-top:1px solid #f2f4f6; }
     <button onclick="setQty('all')">全仓</button>
   </div>
   <div class="tcf" id="tcf"></div>
-  <button class="go" onclick="addTrade()">＋ 记一笔（先卖后买 = 高抛低吸）</button>
+  <button class="go" onclick="addTrade()">＋ 记一笔（卖/买股数可不同，差额自动算）</button>
   <div class="fee">费用估算:
     佣金率%<input id="feeComm" type="number" step="0.005" onchange="saveFee()">
     印花税%<input id="feeStamp" type="number" step="0.01" onchange="saveFee()">
@@ -166,7 +167,7 @@ td { border-top:1px solid #f2f4f6; }
 <div class="sec"><span>历史记录</span><span class="sub" id="tCum"></span></div>
 <div class="card tbl" id="tlog"></div>
 
-<details class="tip" id="tip"><summary style="cursor:pointer;font-weight:600">📖 使用说明：ATR怎么算 · 档位怎么分 · 怎么记账（点我展开）</summary><div style="margin-top:8px">全部数据手机实时自算,不依赖电脑。<b>ATR14=最近14个已收盘交易日"真实波幅"的均值</b>(真实波幅把跳空缺口也算进去:当日高低差、|当日高−昨收|、|当日低−昨收| 三者取最大)。它用的全是<b>截至昨天收盘</b>的数据,每天第一次打开时自动算好并缓存一天,开盘前就已就绪,不存在来不及。<b>今日预判=昨收±1.0×ATR14</b>——这是给<b>今天</b>用的:盘前直接按预判区间挂低吸/高抛单;突破上沿=强势别早卖,跌破下沿=走弱别硬接。开盘后档位自动切换为"当日已走振幅与ATR14×0.75取大者",大波动日档位自动加宽到2~3档,卡片上有黄色提醒条。涨跌停按板块判断(主板10%、创业/科创板20%、北交所30%、ST 5%)。<b>快捷记账:点一个高抛价、再点一个低吸价,自动预填并弹出确认条,核对后点✓一笔记完</b>(实际成交价有滑点可直接手改格子,净收益实时重算;点错了再点正确档位即覆盖;股数记住上次,还有500/1000/半仓/全仓快捷键)。记一笔自动扣佣金+印花税算<b>净收益</b>和<b>摊低成本</b>。若某日涨/跌停,次日基准自动取昨日真实波幅的60%加宽,不沿用旧ATR。个股可绑定<b>关联板块</b>(如永鼎→通信ETF):板块异动比大盘灵敏,会提前触发加宽分档,卡片上显示关联板块实时涨跌。删除=点两下确认。改动存在本机浏览器,固定用同一个App打开。红涨绿跌。</div></details>
+<details class="tip" id="tip"><summary style="cursor:pointer;font-weight:600">📖 使用说明：ATR怎么算 · 档位怎么分 · 怎么记账（点我展开）</summary><div style="margin-top:8px">全部数据手机实时自算,不依赖电脑。<b>ATR14=最近14个已收盘交易日"真实波幅"的均值</b>(真实波幅把跳空缺口也算进去:当日高低差、|当日高−昨收|、|当日低−昨收| 三者取最大)。它用的全是<b>截至昨天收盘</b>的数据,每天第一次打开时自动算好并缓存一天,开盘前就已就绪,不存在来不及。<b>今日预判=昨收±1.0×ATR14</b>——这是给<b>今天</b>用的:盘前直接按预判区间挂低吸/高抛单;突破上沿=强势别早卖,跌破下沿=走弱别硬接。开盘后档位自动切换为"当日已走振幅与ATR14×0.75取大者",大波动日档位自动加宽到2~3档,卡片上有黄色提醒条。涨跌停按板块判断(主板10%、创业/科创板20%、北交所30%、ST 5%)。<b>快捷记账:点一个高抛价、再点一个低吸价,自动预填并弹出确认条,核对后点✓一笔记完</b>(实际成交价有滑点可直接手改格子,净收益实时重算;点错了再点正确档位即覆盖;股数记住上次,还有500/1000/半仓/全仓快捷键)。记一笔自动扣佣金+印花税算<b>净收益</b>和<b>摊低成本</b>。<b>卖出股数和接回股数可以不同</b>(如卖200接100=高抛+减仓100股,接回股数留空=同卖出);卖出价−接回价的价差和差价率%填价时自动算好;先买后卖(低吸加仓再高抛卖出)同样记,一律按现金差额算盈亏。若某日涨/跌停,次日基准自动取昨日真实波幅的60%加宽,不沿用旧ATR。个股可绑定<b>关联板块</b>(如永鼎→通信ETF):板块异动比大盘灵敏,会提前触发加宽分档,卡片上显示关联板块实时涨跌。删除=点两下确认。改动存在本机浏览器,固定用同一个App打开。红涨绿跌。</div></details>
 <div class="foot"></div>
 
 <script>
@@ -537,6 +538,7 @@ function setQty(n){
   let q = n==='all' ? sh : n==='half' ? Math.floor(sh/2/100)*100 : n;
   if(!q||q<=0) q=100;
   document.getElementById('tQty').value=q;
+  const q2=document.getElementById('tQty2'); if(q2) q2.value='';
   maybeConfirmT();
 }
 // 卖出价+接回价+股数齐了 → 弹出确认条,一键记账
@@ -547,13 +549,16 @@ function maybeConfirmT(){
   const sell=parseFloat(document.getElementById('tSell').value);
   const buy=parseFloat(document.getElementById('tBuy').value);
   const qty=parseInt(document.getElementById('tQty').value);
-  ['tSell','tBuy','tQty'].forEach(id=>document.getElementById(id).classList.toggle('armed', !!document.getElementById(id).value));
+  const q2v=parseInt(document.getElementById('tQty2').value);
+  ['tSell','tBuy','tQty','tQty2'].forEach(id=>document.getElementById(id).classList.toggle('armed', !!document.getElementById(id).value));
   if(!h||isNaN(sell)||isNaN(buy)){ box.style.display='none'; return; }
   box.style.display='block';
-  const diff=sell-buy, per100=diff*100-feeOf(sell,buy,100).fee;
-  if(isNaN(qty)||qty<=0){ box.innerHTML=`价差 <b>${diff.toFixed(2)} 元/股</b> · <b>一手(100股)净赚 ≈ <span style="color:${per100>=0?'#dc2626':'#16a34a'}">${sg(Math.round(per100))} 元</span></b><span class="sub">（已扣费）· 还差股数,点上面快捷键</span>`; return; }
-  const gross=diff*qty, fee=feeOf(sell,buy,qty).fee, net=gross-fee;
-  box.innerHTML=`待确认:<b>${h.name}</b> 卖 ${sell} → 接 ${buy} × ${qty}股<br>每股净赚 <b>${(net/qty).toFixed(2)} 元</b> · 这单净收益 <b style="color:${net>=0?'#dc2626':'#16a34a'}">${sg(Math.round(net))} 元</b> <span class="sub">（毛差${sg(Math.round(gross))}−费${Math.round(fee)}）</span><button class="b" onclick="addTrade()">✓ 确认记账</button>`;
+  const diff=sell-buy, rate=buy?diff/buy*100:0, per100=diff*100-feeOf(sell,buy,100,100).fee;
+  const rc=diff>=0?'#dc2626':'#16a34a', rt=`<b style="color:${rc}">${diff>=0?'+':''}${rate.toFixed(2)}%</b>`;
+  if(isNaN(qty)||qty<=0){ box.innerHTML=`价差 <b>${diff.toFixed(2)} 元/股</b> · 差价率 ${rt} · <b>一手(100股)净赚 ≈ <span style="color:${per100>=0?'#dc2626':'#16a34a'}">${sg(Math.round(per100))} 元</span></b><span class="sub">（已扣费）· 还差股数,点上面快捷键</span>`; return; }
+  const bq=(isNaN(q2v)||q2v<=0)?qty:q2v;
+  const fee=feeOf(sell,buy,qty,bq).fee, cash=sell*qty-buy*bq, net=cash-fee;
+  box.innerHTML=`待确认:<b>${h.name}</b> 卖 ${sell}×${qty}股 → 接 ${buy}×${bq}股<br>价差 <b>${diff.toFixed(2)} 元/股</b> · 差价率 ${rt} · 这单净收益 <b style="color:${net>=0?'#dc2626':'#16a34a'}">${sg(Math.round(net))} 元</b> <span class="sub">（现金差${sg(Math.round(cash))}−费${Math.round(fee)}${bq<qty?' · 未接回'+(qty-bq)+'股=减仓':(bq>qty?' · 多接'+(bq-qty)+'股=加仓':'')}）</span><button class="b" onclick="addTrade()">✓ 确认记账</button>`;
 }
 // 内嵌表单添加(WPS等环境不支持prompt弹窗)
 function addSec(type){ document.getElementById(type==='hold'?'fHold':'fWatch').classList.toggle('show'); }
@@ -584,9 +589,10 @@ function editField(type,i,field,val){
 function GET(c){ const r=window['v_'+c]; return r?r.split('~'):null; }
 function openK(c){ location.href='https://fululi.github.io/k-station/?code='+c; }
 
-function feeOf(sell,buy,qty){
-  const cs=Math.max(5, sell*qty*FEE.comm/100), cb=Math.max(5, buy*qty*FEE.comm/100);
-  const st=sell*qty*FEE.stamp/100;
+function feeOf(sell,buy,sq,bq){
+  if(bq==null||isNaN(bq)||bq<=0) bq=sq;
+  const cs=Math.max(5, sell*sq*FEE.comm/100), cb=Math.max(5, buy*bq*FEE.comm/100);
+  const st=sell*sq*FEE.stamp/100;
   return {fee:cs+cb+st};
 }
 
@@ -617,12 +623,14 @@ function addTrade(){
   const sell=parseFloat(document.getElementById('tSell').value);
   const buy=parseFloat(document.getElementById('tBuy').value);
   const qty=parseInt(document.getElementById('tQty').value);
-  if(isNaN(sell)||isNaN(buy)||isNaN(qty)||qty<=0){ toast('卖出价/接回价/股数都要填'); return; }
-  const gross=(sell-buy)*qty, fee=feeOf(sell,buy,qty).fee;
-  TLOG.unshift({d:today(),code:h.code,name:h.name,sell,buy,qty,gross,fee,profit:gross-fee});
+  const q2v=parseInt(document.getElementById('tQty2').value);
+  if(isNaN(sell)||isNaN(buy)||isNaN(qty)||qty<=0){ toast('卖出价/接回价/卖出股数都要填'); return; }
+  const bq=(isNaN(q2v)||q2v<=0)?qty:q2v;
+  const gross=sell*qty-buy*bq, fee=feeOf(sell,buy,qty,bq).fee;
+  TLOG.unshift({d:today(),code:h.code,name:h.name,sell,buy,qty,bq,gross,fee,profit:gross-fee});
   localStorage.setItem('tlog_lastqty', String(qty));
   saveLog();
-  document.getElementById('tSell').value=''; document.getElementById('tBuy').value=''; document.getElementById('tQty').value='';
+  document.getElementById('tSell').value=''; document.getElementById('tBuy').value=''; document.getElementById('tQty').value=''; document.getElementById('tQty2').value='';
   maybeConfirmT();
   renderLog(); toast('已记账,净收益 '+sg(Math.round(gross-fee)));
 }
@@ -643,7 +651,7 @@ function renderLog(){
   box.innerHTML=TLOG.map((r,idx)=>`<div class="tlog-row">
     <span class="l">${r.name}<br><span class="sub">${r.d}</span></span>
     <span class="sub">卖${P(r.sell)}<br>接${P(r.buy)}</span>
-    <span class="sub">${r.qty}股<br>费${r.fee!=null?Math.round(r.fee):'—'}</span>
+    <span class="sub">${r.bq&&r.bq!==r.qty?('卖'+r.qty+'/接'+r.bq):(r.qty+'股')}<br>费${r.fee!=null?Math.round(r.fee):'—'}</span>
     <span class="${cls(r.profit)}" style="font-weight:700">${sg(Math.round(r.profit).toLocaleString())}</span>
     <button class="rm" onclick="delTrade(${idx})">删</button></div>`).join('');
 }
