@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#f5f6f8">
-<title>我的持仓 · 行情 v4.29</title>
+<title>我的持仓 · 行情 v4.30</title>
 <style>
 :root { color-scheme: light; }
 * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
@@ -71,6 +71,9 @@ body { margin:0; padding:14px 12px 40px; background:#f5f6f8; color:#1a1d21;
 .tcf { display:none; margin-top:10px; background:#fffbeb; border:1px solid #fcd34d; border-radius:9px; padding:10px 12px; font-size:13px; line-height:1.6; }
 .tcf .b { display:block; width:100%; margin-top:8px; border:none; background:#059669; color:#fff; font-size:15px; font-weight:700; padding:11px; border-radius:8px; }
 .tbox input.armed { border-color:#2563eb; background:#eff6ff; }
+.step { display:flex; gap:4px; align-items:stretch; }
+.step input { flex:1; min-width:0; }
+.step button { flex:none; width:34px; border:1px solid #d7dbe0; background:#f4f6f8; border-radius:8px; font-size:16px; font-weight:700; color:#2563eb; padding:0; }
 .trec { display:flex; justify-content:space-between; background:#f0f7ff; border-radius:8px; padding:9px 12px; margin-bottom:10px; font-size:13px; }
 .trec .v { font-weight:700; font-variant-numeric:tabular-nums; }
 .editbox { margin-top:10px; padding:10px; background:#fffbef; border:1px dashed #e6cf8f; border-radius:8px; display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
@@ -139,14 +142,26 @@ td { border-top:1px solid #f2f4f6; }
   <tbody id="tbody"></tbody></table>
 </div>
 
-<div class="sec"><span>做T复盘 · 记一笔</span></div>
+<div class="sec"><span>挂单计划 · 先记着</span><span class="sub">没成交也能记,成交后点「填入」</span></div>
 <div class="tbox">
   <div class="r">
+    <label>股票<select id="pSel"></select></label>
+    <label>方向<select id="pSide"><option value="buy">买入/接回</option><option value="sell">卖出/高抛</option></select></label>
+    <label>价格<div class="step"><button type="button" onclick="stepP('pPrice',-1,'pSel')">－</button><input id="pPrice" type="number" step="0.01" placeholder="39.34"><button type="button" onclick="stepP('pPrice',1,'pSel')">＋</button></div></label>
+    <label>股数<div class="step"><button type="button" onclick="stepQ('pQty',-1)">－</button><input id="pQty" type="number" step="100" placeholder="100"><button type="button" onclick="stepQ('pQty',1)">＋</button></div></label>
+  </div>
+  <button class="go" onclick="addPlan()">＋ 挂一笔（只记录，不算收益）</button>
+</div>
+<div class="card tbl" id="plist"></div>
+
+<div class="sec"><span>做T复盘 · 记一笔</span></div>
+<div class="tbox" id="tboxMain">
+  <div class="r">
     <label>股票<select id="tSel" onchange="maybeConfirmT()"></select></label>
-    <label>卖出价<input id="tSell" type="number" step="0.01" placeholder="高抛" oninput="maybeConfirmT()"></label>
-    <label>接回价<input id="tBuy" type="number" step="0.01" placeholder="低吸" oninput="maybeConfirmT()"></label>
-    <label>卖出股数<input id="tQty" type="number" step="100" placeholder="100" oninput="maybeConfirmT()"></label>
-    <label>接回股数<input id="tQty2" type="number" step="100" placeholder="空=同卖出" oninput="maybeConfirmT()"></label>
+    <label>卖出价<div class="step"><button type="button" onclick="stepP('tSell',-1)">－</button><input id="tSell" type="number" step="0.01" placeholder="高抛" oninput="maybeConfirmT()"><button type="button" onclick="stepP('tSell',1)">＋</button></div></label>
+    <label>接回价<div class="step"><button type="button" onclick="stepP('tBuy',-1)">－</button><input id="tBuy" type="number" step="0.01" placeholder="低吸" oninput="maybeConfirmT()"><button type="button" onclick="stepP('tBuy',1)">＋</button></div></label>
+    <label>卖出股数<div class="step"><button type="button" onclick="stepQ('tQty',-1)">－</button><input id="tQty" type="number" step="100" placeholder="100" oninput="maybeConfirmT()"><button type="button" onclick="stepQ('tQty',1)">＋</button></div></label>
+    <label>接回股数<div class="step"><button type="button" onclick="stepQ('tQty2',-1)">－</button><input id="tQty2" type="number" step="100" placeholder="空=同卖出" oninput="maybeConfirmT()"><button type="button" onclick="stepQ('tQty2',1)">＋</button></div></label>
   </div>
   <div class="qtys"><span>股数:</span>
     <button onclick="setQty(500)">500</button>
@@ -183,6 +198,8 @@ let FEE={comm:0.025, stamp:0.05}; // 佣金万2.5、印花税0.05%(卖出)
 try { PF = JSON.parse(localStorage.getItem(LS)) || JSON.parse(JSON.stringify(DEFAULT)); }
 catch(e){ PF = JSON.parse(JSON.stringify(DEFAULT)); }
 let TLOG; try{ TLOG=JSON.parse(localStorage.getItem(LOG))||[]; }catch(e){ TLOG=[]; }
+let PLAN; try{ PLAN=JSON.parse(localStorage.getItem('tplan_v1'))||[]; }catch(e){ PLAN=[]; }
+function savePlan(){ localStorage.setItem('tplan_v1', JSON.stringify(PLAN)); }
 if(!TLOG.length){ try{ const old=JSON.parse(localStorage.getItem('tlog_v1'))||[];
   if(old.length){ TLOG=old.map(r=>({d:r.d,code:r.code,name:r.name,sell:r.sell,buy:r.buy,qty:r.qty,
     gross:r.profit,fee:null,profit:r.profit})); saveLog(); } }catch(e){} }
@@ -526,10 +543,67 @@ function fillT(code, price, side){
   document.getElementById(side==='sell'?'tSell':'tBuy').value=price;
   const q=document.getElementById('tQty');
   if(!q.value){ q.value=localStorage.getItem('tlog_lastqty')||'100'; }
-  document.querySelector('.tbox').scrollIntoView({behavior:'smooth',block:'center'});
+  document.getElementById('tboxMain').scrollIntoView({behavior:'smooth',block:'center'});
   maybeConfirmT();
   const other=document.getElementById(side==='sell'?'tBuy':'tSell').value;
   toast((side==='sell'?'卖出价 ':'接回价 ')+price+' 已填'+(other?'':' → 再点一个'+(side==='sell'?'低吸价':'高抛价')));
+}
+// 懒人步进:价格从现价起跳(<10元步长0.001,否则0.01),股数±100
+function stepP(id,dir,selId){
+  const el=document.getElementById(id);
+  let v=parseFloat(el.value);
+  if(isNaN(v)){
+    const h=PF.holds[+document.getElementById(selId||'tSel').value||0];
+    const f=h&&GET(h.code); v=f?F(f,3):0;
+  }
+  const st=(v||0)<10?0.001:0.01;
+  v=Math.max(0,(v||0)+dir*st);
+  el.value=v.toFixed(st<0.01?3:2);
+  maybeConfirmT();
+}
+function stepQ(id,dir){
+  const el=document.getElementById(id);
+  let v=parseInt(el.value)||0; v=Math.max(100, v+dir*100);
+  el.value=v; maybeConfirmT();
+}
+// 挂单计划:先记着(买了想卖/想接的价),成交后「填入」配腿
+function addPlan(){
+  const i=+document.getElementById('pSel').value;
+  const h=PF.holds[i]; if(!h){ toast('先添加持仓'); return; }
+  const side=document.getElementById('pSide').value;
+  const price=parseFloat(document.getElementById('pPrice').value);
+  const qty=parseInt(document.getElementById('pQty').value)||100;
+  if(isNaN(price)||price<=0){ toast('价格必填'); return; }
+  PLAN.unshift({d:today(),code:h.code,name:h.name,side,price,qty});
+  savePlan(); renderPlan();
+  document.getElementById('pPrice').value='';
+  toast('已挂:'+h.name+(side==='buy'?' 买 ':' 卖 ')+price+'×'+qty+'股');
+}
+function renderPlan(){
+  const sel=document.getElementById('pSel');
+  if(sel && sel.options.length!==PF.holds.length) sel.innerHTML=PF.holds.map((h,i)=>`<option value="${i}">${h.name}</option>`).join('');
+  const box=document.getElementById('plist'); if(!box) return;
+  if(!PLAN.length){ box.innerHTML='<div class="sub" style="padding:12px">没有挂单。买了想卖的价、或想接回的价,先挂一笔;成交后点「填入」一键进表单。</div>'; return; }
+  box.innerHTML=PLAN.map((p,idx)=>`<div class="tlog-row">
+    <span class="l">${p.name}<br><span class="sub">${p.d}</span></span>
+    <span class="${p.side==='sell'?'up':'down'}" style="font-weight:700">${p.side==='sell'?'卖':'买'}</span>
+    <span class="sub">${P(p.price)}<br>${p.qty}股</span>
+    <button class="b" onclick="fillPlan(${idx})">填入</button>
+    <button class="rm" onclick="delPlan(${idx},this)">删</button></div>`).join('');
+}
+function fillPlan(idx){
+  const p=PLAN[idx]; if(!p) return;
+  const i=PF.holds.findIndex(h=>h.code===p.code); if(i<0){ toast('持仓里没这只票'); return; }
+  document.getElementById('tSel').value=i;
+  if(p.side==='sell'){ document.getElementById('tSell').value=p.price; document.getElementById('tQty').value=p.qty; }
+  else { document.getElementById('tBuy').value=p.price; document.getElementById('tQty2').value=p.qty; }
+  document.getElementById('tboxMain').scrollIntoView({behavior:'smooth',block:'center'});
+  maybeConfirmT();
+  toast(p.name+(p.side==='sell'?' 卖出':' 接回')+'已填入 → 再点档位价补齐另一腿');
+}
+function delPlan(idx,btn){
+  if(!btn.dataset.armed){ btn.dataset.armed='1'; btn.textContent='确认?'; setTimeout(()=>{ btn.dataset.armed=''; btn.textContent='删'; },2500); return; }
+  PLAN.splice(idx,1); savePlan(); renderPlan();
 }
 // 快捷股数:数字 / half半仓 / all全仓(按100股取整)
 function setQty(n){
@@ -616,7 +690,7 @@ function renderT(){
   if(sel && sel.options.length!==PF.holds.length){
     sel.innerHTML=PF.holds.map((h,i)=>`<option value="${i}">${h.name}</option>`).join('');
   }
-  renderLog();
+  renderLog(); renderPlan();
 }
 function addTrade(){
   const i=+document.getElementById('tSel').value;
@@ -631,6 +705,8 @@ function addTrade(){
   TLOG.unshift({d:today(),code:h.code,name:h.name,sell,buy,qty,bq,gross,fee,profit:gross-fee});
   localStorage.setItem('tlog_lastqty', String(qty));
   saveLog();
+  PLAN=PLAN.filter(p=>!(p.code===h.code&&((p.side==='sell'&&p.price===sell)||(p.side==='buy'&&p.price===buy))));
+  savePlan(); renderPlan();
   document.getElementById('tSell').value=''; document.getElementById('tBuy').value=''; document.getElementById('tQty').value=''; document.getElementById('tQty2').value='';
   maybeConfirmT();
   renderLog(); toast('已记账,净收益 '+sg(Math.round(gross-fee)));
