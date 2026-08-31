@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#f5f6f8">
-<title>我的持仓 · 行情 v4.40</title>
+<title>我的持仓 · 行情 v4.41</title>
 <style>
 :root { color-scheme: light; }
 * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
@@ -221,6 +221,10 @@ let PF, editMode=false, MKT=null, ATR={}, ATR_DATE='', ATR_FAIL=false;
 let FEE={comm:0.025, stamp:0.05}; // 佣金万2.5、印花税0.05%(卖出)
 try { PF = JSON.parse(localStorage.getItem(LS)) || JSON.parse(JSON.stringify(DEFAULT)); }
 catch(e){ PF = JSON.parse(JSON.stringify(DEFAULT)); }
+// 兜底: 存档形状损坏(如旧版/误写成数组)时抢救数据并修复,绝不让页面死在加载中
+if(!PF || typeof PF!=='object' || Array.isArray(PF)){ const rs=Array.isArray(PF)?PF:null; PF=JSON.parse(JSON.stringify(DEFAULT)); if(rs) PF.holds=rs; }
+if(!Array.isArray(PF.holds)) PF.holds=[];
+if(!Array.isArray(PF.watch)) PF.watch=[];
 let TLOG; try{ TLOG=JSON.parse(localStorage.getItem(LOG))||[]; }catch(e){ TLOG=[]; }
 let PLAN; try{ PLAN=JSON.parse(localStorage.getItem('tplan_v1'))||[]; }catch(e){ PLAN=[]; }
 function savePlan(){ localStorage.setItem('tplan_v1', JSON.stringify(PLAN)); }
