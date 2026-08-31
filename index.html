@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#f5f6f8">
-<title>我的持仓 · 行情 v4.49</title>
+<title>我的持仓 · 行情 v4.50</title>
 <style>
 :root { color-scheme: light; }
 * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
@@ -1017,11 +1017,32 @@ function copyCoach(){
   if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(txt).then(done,()=>fallbackCopy(txt,done)); } else fallbackCopy(txt,done);
 }
 function delTrade(idx){ TLOG.splice(idx,1); saveLog(); renderLog(); }
+// v4.50: 记错了可改——回填表单+撤下旧条,核对后重新「记一笔」入档
+function editTrade(idx){
+  const r=TLOG[idx]; if(!r) return;
+  const i=PF.holds.findIndex(h=>h.code===r.code);
+  if(i>=0) document.getElementById('tSel').value=i;
+  document.getElementById('tSell').value=r.sell; document.getElementById('tBuy').value=r.buy;
+  document.getElementById('tQty').value=r.qty; document.getElementById('tQty2').value=r.bq||'';
+  document.getElementById('tNote').value=r.note||'';
+  TLOG.splice(idx,1); saveLog(); renderLog();
+  document.getElementById('tboxMain').scrollIntoView({behavior:'smooth',block:'center'});
+  if(typeof maybeConfirmT==='function') maybeConfirmT();
+  toast('已回填表单,改完点「记一笔」重新入档');
+}
 // 台账导出CSV(Excel直接打开,UTF-8带BOM防中文乱码) / 全量备份恢复(换浏览器防丢)
 function exportCSV(){
   if(!TLOG.length){ toast('暂无台账可导'); return; }
   const head='日期,股票,代码,卖出价,接回价,卖股数,接股数,费用,做T净收益,减仓股数,减仓回笼,加仓股数,加仓投入,原因';
   const rows=TLOG.map(r=>[r.d,r.name,r.code,r.sell,r.buy,r.qty,(r.bq||r.qty),r.fee!=null?Math.round(r.fee):'',Math.round(r.profit),r.red>0?r.red:'',r.red>0?Math.round(r.redCash||0):'',r.red<0?-r.red:'',r.red<0?Math.round(r.redCash||0):'',(r.note||'').replace(/[",\n]/g,' ')].join(','));
+  // v4.50: 末尾追加按股票汇总+总计
+  const byN={}; TLOG.forEach(r=>{ const k=r.name; if(!byN[k]) byN[k]={n:0,net:0,fee:0}; byN[k].n++; byN[k].net+=r.profit; byN[k].fee+=r.fee||0; });
+  rows.push('');
+  rows.push('—— 按股票汇总 ——');
+  Object.keys(byN).forEach(k=>{ const b=byN[k];
+    rows.push(['小计',k,'','','','','',Math.round(b.fee),Math.round(b.net),'','','','',b.n+'笔'].join(',')); });
+  const tot=TLOG.reduce((s,r)=>s+r.profit,0), tf=TLOG.reduce((s,r)=>s+(r.fee||0),0);
+  rows.push(['总计','全部','','','','','',Math.round(tf),Math.round(tot),'','','','',TLOG.length+'笔'].join(','));
   const csv='﻿'+head+'\n'+rows.join('\n');
   const a=document.createElement('a');
   a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
@@ -1089,6 +1110,7 @@ function renderLog(){
     <span class="sub">卖${P(r.sell)}<br>接${P(r.buy)}</span>
     <span class="sub">${r.bq&&r.bq!==r.qty?('卖'+r.qty+'/接'+r.bq):(r.qty+'股')}<br>费${r.fee!=null?Math.round(r.fee):'—'}</span>
     <span class="${cls(r.profit)}" style="font-weight:700">${sg(Math.round(r.profit).toLocaleString())}${r.red?`<br><span class="sub" style="font-weight:400">${r.red>0?'另减'+r.red+'股回笼'+Math.round(r.redCash||0):'另加'+(-r.red)+'股投入'+Math.round(r.redCash||0)}</span>`:''}</span>
+    <button class="rm" onclick="editTrade(${idx})">改</button>
     <button class="rm" onclick="delTrade(${idx})">删</button></div>`).join('');
 }
 
@@ -1262,6 +1284,8 @@ function render(){
    出场：反向破三角边止损 / 从峰值回撤1×ATR14移动止盈 / 满20天强制离场 */
 let PAPER=[]; try{ PAPER=JSON.parse(localStorage.getItem('paper_v1')||'[]'); }catch(e){}
 function savePaper(){ try{ localStorage.setItem('paper_v1', JSON.stringify(PAPER.slice(-60))); }catch(e){} }
+// v4.50: 模拟仓可手动删(点两下确认)
+function delPaper(i,btn){ if(!btn.dataset.armed){ btn.dataset.armed='1'; btn.textContent='确认?'; setTimeout(()=>{ btn.dataset.armed=''; btn.textContent='删'; },2500); return; } PAPER.splice(i,1); savePaper(); renderPaper(); }
 function triDet(kl){
   const n=kl.length, sh=[], sl=[];
   for(let i=Math.max(2,n-52); i<n-2; i++){
@@ -1318,12 +1342,12 @@ function renderPaper(){
         else {
           const hd=PF.holds.find(h2=>h2.code===x.code);
           const trailPx=x.atr!=null?(x.dir>0?x.peak-1.5*x.atr:x.entry+1.5*x.atr):null;
-          return `<div class="prow"${x.entryD===today()?' style="background:#fff7e6"':""}><span><b>${x.name}</b> <b class="${x.dir>0?'up':'down'}">${x.dir>0?'▲多':'▼空'}</b> <span class="sub">${x.entryD.slice(5)} 进 ${P(x.entry)}${hd?` · 你有底仓@${hd.cost}`:' · 你无此票'}<br>止损 ${P(x.stop)} · 移动止盈 ${trailPx!=null?P(trailPx):'—'}(峰值回撤1.5×ATR) · 满20天离场</span></span><b class="${cls(ret*100)}">${sg((ret*100).toFixed(1))}% <span class="sub">持${daysBetween(x.entryD,today())}天</span></b></div>`;
+          return `<div class="prow"${x.entryD===today()?' style="background:#fff7e6"':""}><span><b>${x.name}</b> <b class="${x.dir>0?'up':'down'}">${x.dir>0?'▲多':'▼空'}</b> <span class="sub">${x.entryD.slice(5)} 进 ${P(x.entry)}${hd?` · 你有底仓@${hd.cost}`:' · 你无此票'}<br>止损 ${P(x.stop)} · 移动止盈 ${trailPx!=null?P(trailPx):'—'}(峰值回撤1.5×ATR) · 满20天离场</span></span><b class="${cls(ret*100)}">${sg((ret*100).toFixed(1))}% <span class="sub">持${daysBetween(x.entryD,today())}天</span></b><button class="rm" onclick="delPaper(${PAPER.indexOf(x)},this)">删</button></div>`;
         }
       }
-      return `<div class="prow"><span><b>${x.name}</b> ${x.dir>0?'▲多':'▼空'}</span><span class="sub">等待报价…</span></div>`;
+      return `<div class="prow"><span><b>${x.name}</b> ${x.dir>0?'▲多':'▼空'}</span><span class="sub">等待报价…</span><button class="rm" onclick="delPaper(${PAPER.indexOf(x)},this)">删</button></div>`;
     }
-    return `<div class="prow"><span class="sub">${x.name} ${x.dir>0?'▲多':'▼空'} ${x.entryD.slice(5)}→${x.exitD.slice(5)} · ${x.why}</span><b class="${cls(x.ret*100)}">${sg((x.ret*100).toFixed(1))}%</b></div>`;
+    return `<div class="prow"><span class="sub">${x.name} ${x.dir>0?'▲多':'▼空'} ${x.entryD.slice(5)}→${x.exitD.slice(5)} · ${x.why}</span><b class="${cls(x.ret*100)}">${sg((x.ret*100).toFixed(1))}%</b><button class="rm" onclick="delPaper(${PAPER.indexOf(x)},this)">删</button></div>`;
   }).join('');
 }
 // v4.49: ?watch=名称或代码 点链接即加观察(腾讯联想自动补代码)
