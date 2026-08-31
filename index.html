@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#f5f6f8">
-<title>我的持仓 · 行情 v4.42</title>
+<title>我的持仓 · 行情 v4.43</title>
 <style>
 :root { color-scheme: light; }
 * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
@@ -188,6 +188,7 @@ td { border-top:1px solid #f2f4f6; }
     <button onclick="setQty('half')">半仓</button>
     <button onclick="setQty('all')">全仓</button>
   </div>
+  <input id="tNote" placeholder="原因(可选,复盘用):如 冲高减/破位割/接早了" style="width:100%;margin-top:6px">
   <div class="tcf" id="tcf"></div>
   <button class="go" onclick="addTrade()">＋ 记一笔（卖/买股数可不同，差额自动算）</button>
   <div class="fee">费用估算:
@@ -199,6 +200,12 @@ td { border-top:1px solid #f2f4f6; }
 <div class="trec"><span>今日做T净收益(扣费)</span><span class="v" id="tToday">—</span></div>
 <div class="trec"><span>今日复盘(本机台账自动算)</span><span class="v" id="tStat">—</span></div>
 <div class="sec"><span>历史记录</span><span class="sub" id="tCum"></span></div>
+<div class="qtys" style="margin:-4px 0 8px"><span>台账:</span>
+  <button onclick="exportCSV()">📤 导出CSV(Excel)</button>
+  <button onclick="backupJSON()">💾 全量备份</button>
+  <button onclick="document.getElementById('rstFile').click()">📂 恢复备份</button>
+  <input type="file" id="rstFile" accept=".json" style="display:none" onchange="restoreJSON(event)">
+</div>
 <div class="card tbl" id="tlog"></div>
 
 <details class="tip" id="tip"><summary style="cursor:pointer;font-weight:600">📖 使用说明：ATR怎么算 · 档位怎么分 · 怎么记账（点我展开）</summary><div style="margin-top:8px">全部数据手机实时自算,不依赖电脑。<b>ATR14=最近14个已收盘交易日"真实波幅"的均值</b>(真实波幅把跳空缺口也算进去:当日高低差、|当日高−昨收|、|当日低−昨收| 三者取最大)。它用的全是<b>截至昨天收盘</b>的数据,每天第一次打开时自动算好并缓存一天,开盘前就已就绪,不存在来不及。<b>今日预判=昨收±1.0×ATR14</b>——这是给<b>今天</b>用的:盘前直接按预判区间挂低吸/高抛单;突破上沿=强势别早卖,跌破下沿=走弱别硬接。开盘后档位自动切换为"当日已走振幅与ATR14×0.75取大者",大波动日档位自动加宽到2~3档,卡片上有黄色提醒条。涨跌停按板块判断(主板10%、创业/科创板20%、北交所30%、ST 5%)。<b>快捷记账:点一个高抛价、再点一个低吸价,自动预填并弹出确认条,核对后点✓一笔记完</b>(实际成交价有滑点可直接手改格子,净收益实时重算;点错了再点正确档位即覆盖;股数记住上次,还有500/1000/半仓/全仓快捷键)。点定一个高抛价(或手填卖出价)后,低吸各档会直接标出"每股净差+一手净赚"(已扣佣金印花税),不用自己心算;反向点定接回价,高抛档同理。记一笔自动扣佣金+印花税算<b>净收益</b>和<b>摊低成本</b>。<b>卖出股数和接回股数可以不同</b>(如卖200接100=高抛+减仓100股,接回股数留空=同卖出);卖出价−接回价的价差和差价率%填价时自动算好;先买后卖(低吸加仓再高抛卖出)同样记,一律按现金差额算盈亏。若某日涨/跌停,次日基准自动取昨日真实波幅的60%加宽,不沿用旧ATR。个股可绑定<b>关联板块</b>(如永鼎→通信ETF):板块异动比大盘灵敏,会提前触发加宽分档,卡片上显示关联板块实时涨跌。删除=点两下确认。改动存在本机浏览器,固定用同一个App打开。红涨绿跌。</div></details>
@@ -308,6 +315,7 @@ function allCodes(){ const s=new Set(IDX.map(x=>x[0])); s.add('sh000300');
   PF.watch.forEach(w=>s.add(w.code)); return [...s]; }
 
 function cls(v){ return v>0?'up':(v<0?'down':'flat'); }
+function esc(s){ return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 function vCls(v){ if(!v) return '#374151'; if(v.indexOf('极端')>=0) return '#d97706'; if(/空头|减仓|下破|破位/.test(v)) return '#dc2626'; if(/多头|共振|顺势|持有/.test(v)) return '#16a34a'; return '#374151'; }
 function sg(v){ return (v>0?'+':'')+v; }
 function fmtT(s){ return (!s||s.length<14)?'':s.slice(0,4)+'-'+s.slice(4,6)+'-'+s.slice(6,8)+' '+s.slice(8,10)+':'+s.slice(10,12); }
@@ -898,16 +906,51 @@ function addTrade(){
   const mq=Math.min(qty,bq), red=qty-bq;
   const fee=feeOf(sell,buy,qty,bq).fee, profit=(sell-buy)*mq-fee;
   const redCash=red>0?sell*red:(red<0?buy*(-red):0);
-  TLOG.unshift({d:today(),code:h.code,name:h.name,sell,buy,qty,bq,gross:sell*qty-buy*bq,fee,red,redCash,profit});
+  const note=(document.getElementById('tNote').value||'').trim().slice(0,30);
+  TLOG.unshift({d:today(),code:h.code,name:h.name,sell,buy,qty,bq,gross:sell*qty-buy*bq,fee,red,redCash,note,profit});
   localStorage.setItem('tlog_lastqty', String(qty));
   saveLog();
   PLAN=PLAN.filter(p=>!(p.code===h.code&&((p.side==='sell'&&p.price===sell)||(p.side==='buy'&&p.price===buy))));
   savePlan(); renderPlan();
-  document.getElementById('tSell').value=''; document.getElementById('tBuy').value=''; document.getElementById('tQty').value=''; document.getElementById('tQty2').value='';
+  document.getElementById('tSell').value=''; document.getElementById('tBuy').value=''; document.getElementById('tQty').value=''; document.getElementById('tQty2').value=''; document.getElementById('tNote').value='';
   maybeConfirmT();
   renderLog(); toast('已记账,做T净收益 '+sg(Math.round(profit))+(red>0?' · 另减仓'+red+'股':(red<0?' · 另加仓'+(-red)+'股':'')));
 }
 function delTrade(idx){ TLOG.splice(idx,1); saveLog(); renderLog(); }
+// 台账导出CSV(Excel直接打开,UTF-8带BOM防中文乱码) / 全量备份恢复(换浏览器防丢)
+function exportCSV(){
+  if(!TLOG.length){ toast('暂无台账可导'); return; }
+  const head='日期,股票,代码,卖出价,接回价,卖股数,接股数,费用,做T净收益,减仓股数,减仓回笼,加仓股数,加仓投入,原因';
+  const rows=TLOG.map(r=>[r.d,r.name,r.code,r.sell,r.buy,r.qty,(r.bq||r.qty),r.fee!=null?Math.round(r.fee):'',Math.round(r.profit),r.red>0?r.red:'',r.red>0?Math.round(r.redCash||0):'',r.red<0?-r.red:'',r.red<0?Math.round(r.redCash||0):'',(r.note||'').replace(/[",\n]/g,' ')].join(','));
+  const csv='﻿'+head+'\n'+rows.join('\n');
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
+  a.download='做T台账_'+today()+'.csv'; a.click();
+  toast('已导出 '+TLOG.length+' 条台账');
+}
+function backupJSON(){
+  const data={ver:'v4.43',at:new Date().toISOString(),holds:PF.holds,watch:PF.watch,tlog:TLOG,plan:PLAN,fee:FEE};
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([JSON.stringify(data,null,1)],{type:'application/json'}));
+  a.download='hq备份_'+today()+'.json'; a.click();
+  toast('已备份: 持仓'+PF.holds.length+' 台账'+TLOG.length+'条');
+}
+function restoreJSON(ev){
+  const f=ev.target.files&&ev.target.files[0]; ev.target.value='';
+  if(!f) return;
+  const rd=new FileReader();
+  rd.onload=()=>{ try{
+    const d=JSON.parse(rd.result);
+    if(!d||!Array.isArray(d.holds)) throw 0;
+    PF.holds=d.holds; PF.watch=Array.isArray(d.watch)?d.watch:[];
+    TLOG=Array.isArray(d.tlog)?d.tlog:[]; PLAN=Array.isArray(d.plan)?d.plan:[];
+    if(d.fee&&d.fee.comm!=null) FEE=d.fee;
+    save(); saveLog(); savePlan(); ATR_DATE='';
+    render(); renderLog(); renderPlan();
+    toast('已恢复: 持仓'+d.holds.length+' 台账'+TLOG.length+'条');
+  }catch(e){ toast('文件不对,恢复失败'); } };
+  rd.readAsText(f);
+}
 function renderLog(){
   const td=today();
   let todaySum=0; const byCode={};
@@ -932,7 +975,7 @@ function renderLog(){
   const box=document.getElementById('tlog'); if(!box) return;
   if(!TLOG.length){ box.innerHTML='<div class="sub" style="padding:14px">还没有做T记录。做完一轮高抛低吸就来记一笔,自动扣费算摊低成本。</div>'; return; }
   box.innerHTML=TLOG.map((r,idx)=>`<div class="tlog-row">
-    <span class="l">${r.name}<br><span class="sub">${r.d}</span></span>
+    <span class="l">${r.name}${r.note?` <span class="sub">✎${esc(r.note)}</span>`:''}<br><span class="sub">${r.d}</span></span>
     <span class="sub">卖${P(r.sell)}<br>接${P(r.buy)}</span>
     <span class="sub">${r.bq&&r.bq!==r.qty?('卖'+r.qty+'/接'+r.bq):(r.qty+'股')}<br>费${r.fee!=null?Math.round(r.fee):'—'}</span>
     <span class="${cls(r.profit)}" style="font-weight:700">${sg(Math.round(r.profit).toLocaleString())}${r.red?`<br><span class="sub" style="font-weight:400">${r.red>0?'另减'+r.red+'股回笼'+Math.round(r.redCash||0):'另加'+(-r.red)+'股投入'+Math.round(r.redCash||0)}</span>`:''}</span>
