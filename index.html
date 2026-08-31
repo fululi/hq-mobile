@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#f5f6f8">
-<title>我的持仓 · 行情 v4.28</title>
+<title>我的持仓 · 行情 v4.29</title>
 <style>
 :root { color-scheme: light; }
 * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
@@ -602,12 +602,13 @@ function renderT(){
     const todayAmp=(hi!=null&&lo!=null)?hi-lo:null;
     const base=ampBase(h.code,todayAmp);
     const ampPct=(todayAmp!=null&&prev)?todayAmp/prev*100:null;
+    const a3=atrOf(h.code), atrUse=(a3&&todayAmp!=null)?Math.round(todayAmp/a3*100):null;
     const tf=trendFlag(pct,ampPct,mktOf(h));
     const tr=tiers(p,base,prev,tf.lv,h.code,h.name);
     const bs=tr.buys.length?tr.buys.map(x=>`<span class="tk" onclick="fillT('${h.code}',${x},'buy')">${P(x)}</span>`).join(' / '):'—';
     const ss=tr.sells.length?tr.sells.map(x=>`<span class="tk" onclick="fillT('${h.code}',${x},'sell')">${P(x)}</span>`).join(' / '):'—';
     return `<tr><td class="l">${h.name}${tf.lv>0?' <span class="badge '+tf.cls+'" style="margin:0">'+(tf.lv>=2?'⚡':(tf.label==='大盘异动'?'异动':tf.label.replace('趋势偏','趋')))+'</span>':''}</td>
-      <td class="flat">${ampPct!=null?ampPct.toFixed(2)+'%':'—'}</td>
+      <td class="flat">${ampPct!=null?ampPct.toFixed(2)+'%':'—'}${atrUse!=null?'<br><span class="sub">ATR用'+atrUse+'%</span>':''}</td>
       <td class="down">${bs}</td><td class="up">${ss}</td></tr>`;
   }).join('') || '<tr><td class="sub" colspan="4">暂无持仓</td></tr>';
   document.getElementById('tSum').textContent = MKT!=null?(Math.abs(MKT)>=1.2?'大行情:已加宽档位':'常规档位'):'';
