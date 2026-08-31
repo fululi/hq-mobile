@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#f5f6f8">
-<title>我的持仓 · 行情 v4.37</title>
+<title>我的持仓 · 行情 v4.38</title>
 <style>
 :root { color-scheme: light; }
 * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
@@ -45,6 +45,7 @@ body { margin:0; padding:14px 12px 40px; background:#f5f6f8; color:#1a1d21;
 .kv .k { font-size:11px; color:#8a919c; } .kv .val { font-size:15px; font-weight:660; font-variant-numeric:tabular-nums; margin-top:2px; }
 .proj { margin-top:10px; font-size:12px; color:#6b7280; font-variant-numeric:tabular-nums; display:flex; gap:16px; flex-wrap:wrap; }
 .proj b { font-weight:660; }
+.proj.vrd { font-size:13px; margin-top:8px; }
 .badge { font-size:10.5px; font-weight:700; padding:1px 7px; border-radius:6px; margin-left:7px; vertical-align:2px; }
 .badge.up { background:#fdecea; color:#d0342c; } .badge.down { background:#e7f5ee; color:#12924a; } .badge.flat { background:#eef0f3; color:#4b5563; }
 .tnote { margin-top:6px; font-size:11px; color:#9a6a1a; background:#fff8e8; border-radius:6px; padding:5px 8px; }
@@ -302,6 +303,7 @@ function allCodes(){ const s=new Set(IDX.map(x=>x[0])); s.add('sh000300');
   PF.watch.forEach(w=>s.add(w.code)); return [...s]; }
 
 function cls(v){ return v>0?'up':(v<0?'down':'flat'); }
+function vCls(v){ if(!v) return '#374151'; if(v.indexOf('极端')>=0) return '#d97706'; if(/空头|减仓|下破|破位/.test(v)) return '#dc2626'; if(/多头|共振|顺势|持有/.test(v)) return '#16a34a'; return '#374151'; }
 function sg(v){ return (v>0?'+':'')+v; }
 function fmtT(s){ return (!s||s.length<14)?'':s.slice(0,4)+'-'+s.slice(4,6)+'-'+s.slice(6,8)+' '+s.slice(8,10)+':'+s.slice(10,12); }
 function F(f,i){ const v=parseFloat(f&&f[i]); return isNaN(v)?null:v; }
@@ -511,7 +513,7 @@ function loadWTrend(done){
 }
 function loadATR(done){
   if(ATR_DATE===today() && Object.keys(ATR).length){ done&&done(); return; }
-  const codes=[...PF.holds.map(h=>h.code), ...PF.watch.map(w=>w.code)];
+  const codes=[...new Set([...PF.holds.map(h=>h.code), ...PF.watch.map(w=>w.code), ...IDX.map(x=>x[0])])];
   const out={}; let left=codes.length, finished=false;
   const fin=()=>{ if(finished) return; finished=true;
     if(Object.keys(out).length){ ATR=out; ATR_DATE=today(); ATR_FAIL=false;
@@ -923,9 +925,12 @@ function fallbackCopy(txt,cb){
 function render(){
   let when='';
   document.getElementById('idx').innerHTML = IDX.map(([c,n])=>{
-    const f=GET(c); if(!f) return ''; const p=F(f,3),pct=F(f,32); if(f[30]&&f[30].length>=14) when=f[30];
+    const f=GET(c); if(!f) return ''; const p=F(f,3),pct=F(f,32),prev=F(f,4); if(f[30]&&f[30].length>=14) when=f[30];
     if(c==='sh000001') MKT=pct;
-    return `<div class="c"><div class="n">${n}</div><div class="v ${cls(pct)}">${p!=null?p.toFixed(2):'—'}</div><div class="g ${cls(pct)}">${pct!=null?sg(pct.toFixed(2))+'%':''}</div></div>`;
+    const ia=atrOf(c);
+    const ipre=(prev!=null&&ia!=null)?(prev-ia).toFixed(0)+'~'+(prev+ia).toFixed(0):'—';
+    const ipos=(p!=null&&prev!=null&&ia!=null)?(p>=prev+ia?' <b class="up">⚡破上沿</b>':(p<=prev-ia?' <b class="down">⚡破下沿</b>':'')):'';
+    return `<div class="c"><div class="n">${n}</div><div class="v ${cls(pct)}">${p!=null?p.toFixed(2):'—'}</div><div class="g ${cls(pct)}">${pct!=null?sg(pct.toFixed(2))+'%':''}</div><div class="g sub" style="font-weight:400">预判${ipre}${ipos}</div></div>`;
   }).join('');
   const me=document.getElementById('mkt');
   if(me){ if(MKT==null){ me.textContent=''; }
@@ -968,6 +973,7 @@ function render(){
     const baseSrc=(todayAmp!=null&&atrV!=null)?(todayAmp>=atrV*ATR_FLOOR?'今日振幅':'近14日平均波动'):(atrV!=null?'近14日平均波动':'今日振幅');
     const atrTxt=atrV!=null?`ATR14 ${atrV.toFixed(2)}元 · 计算基准 ${base!=null?base.toFixed(2):'—'}元(取${baseSrc})${refTxt}`:(ATR_FAIL?'⚠ 历史波动数据没拉到,暂按今日振幅算':'波动数据加载中…(首次打开需几秒)');
     const psigH=PAPER.find(x=>x.code===h.code&&x.status==='open');
+    const vd=verdict(h.code);
     const ff=FF[h.code];
     const ffTxt=ff?`<div class="atrnote">主力净流入 <b class="${cls(ff.amt)}">${ff.amt>=0?'+':''}${fmtAmt(ff.amt)}</b> · 占成交 ${ff.pct!=null?ff.pct.toFixed(1)+'%':'—'} <span class="sub">(东财口径,参考)</span></div>`:'';
     // 今日预判区间: 昨收 ± 0.55×ATR14,受涨跌停约束;突破上沿=强势,跌破下沿=走弱
@@ -996,7 +1002,7 @@ function render(){
         <div class="kv"><div class="k">今日振幅</div><div class="val flat">${ampPct!=null?ampPct.toFixed(2)+'%':'—'}</div></div>
       </div>
       <div class="proj"><span>今日预判 <b class="flat">${preStr}</b></span><span class="sub">${posTxt}${ampNote}</span></div>
-      <div class="proj"><span>📋 <b>${verdict(h.code)}</b></span></div>
+      <div class="proj vrd"><span>📋 <b style="color:${vCls(vd)}">${vd}</b></span></div>
       <div class="tierbox"><div class="tier tb"><div class="tl">低吸区 · 点价直接填单</div>${buyStr}</div><div class="tier ts"><div class="tl">高抛区 · 点价直接填单</div>${sellStr}</div></div>
       <a href="https://fululi.github.io/k-station/?code=${h.code}&lines=${tr.buys.map(x=>'b'+x.toFixed(2)).concat(tr.sells.map(x=>'s'+x.toFixed(2))).join(',')}" style="display:block;text-align:center;margin-top:8px;padding:8px;border-radius:8px;background:#2563eb;color:#fff;text-decoration:none;font-size:13px;font-weight:600">📈 看K线（做T价位已自动画好）</a>
       <div class="atrnote">${atrTxt}${lk?` · 跟${lk.i} r${lk.r}${(lk.ad||lk.au)?'·极端日×'+(lk.ad||lk.au):''}`:''}</div>
@@ -1030,7 +1036,7 @@ function render(){
     const extW=EXT[w.code], extWTxt=extW?` <b class="flat">${extTxt(w.code)}</b>`:'';
     const lkW=LNK[w.code], lnkWTxt=lkW?` <span class="sub">跟${lkW.i} r${lkW.r}</span>`:'';
     const addTxt=(w.addedP!=null&&p!=null)?`<br><span class="sub">${(w.addedD||'').slice(5)}加 @${P(w.addedP)} · 以来<b class="${cls((p/w.addedP-1)*100)}">${sg(((p/w.addedP-1)*100).toFixed(1))}%</b>${w.addedFF!=null?` · 入时主力<b class="${cls(w.addedFF)}">${w.addedFF>=0?'+':''}${fmtAmt(w.addedFF)}</b>`:''}</span>`:'';
-    return `<tr><td class="l" style="cursor:pointer" onclick="openK('${w.code}')">${w.name}<br><span class="sub">${w.code.replace(/^(sh|sz)/,'')}</span><br><span class="sub">${w.theme||'未标题材'} · <b class="${wtC}">${wtTxt(w.code)}</b>${dtW}<b class="${al[1]}">${al[0]}</b>${sigTxt}${wsgTxt}${m15Txt}${gzW}${extWTxt}${lnkWTxt}</span>${addTxt}<br><span class="sub">📋 <b>${verdict(w.code)}</b></span></td>
+    return `<tr><td class="l" style="cursor:pointer" onclick="openK('${w.code}')">${w.name}<br><span class="sub">${w.code.replace(/^(sh|sz)/,'')}</span><br><span class="sub">${w.theme||'未标题材'} · <b class="${wtC}">${wtTxt(w.code)}</b>${dtW}<b class="${al[1]}">${al[0]}</b>${sigTxt}${wsgTxt}${m15Txt}${gzW}${extWTxt}${lnkWTxt}</span>${addTxt}<br><span class="sub" style="font-size:12px">📋 <b style="color:${vCls(verdict(w.code))}">${verdict(w.code)}</b></span></td>
       <td>${P(p)}</td><td class="${cls(pct)}">${pct!=null?sg(pct.toFixed(2))+'%':'—'}</td>
       <td class="sub">${pj}</td>${del}</tr>`;
   }).join('') + (PF.watch.length?'<tr><td colspan="4" class="sub" style="font-size:10px">顺势=信号与大周期同向 · 反弹/回调性质=与大周期反向（日线信号看周线，15分钟信号看日线）· ⚠极端=偏离20日线≥2×ATR或RSI≤30/≥70，该区域内反向波动概率上升，勿追涨杀跌，等结构确认（不再创新低/新高）</td></tr>':'');
