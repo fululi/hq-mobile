@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#f5f6f8">
-<title>我的持仓 · 行情 v4.35</title>
+<title>我的持仓 · 行情 v4.36</title>
 <style>
 :root { color-scheme: light; }
 * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
@@ -816,8 +816,8 @@ function renderT(){
       const net=diff*100-fee;
       return `<br><span class="sub" style="font-size:10px">${diff>=0?'+':''}${diff.toFixed(2)}/股 <b style="color:${net>=0?'#dc2626':'#16a34a'}">净${sg(Math.round(net))}</b></span>`;
     };
-    const bs=tr.buys.length?tr.buys.map(x=>`<span class="tk" onclick="fillT('${h.code}',${x},'buy')">${P(x)}${ann(x,1)}</span>`).join(' / '):'—';
-    const ss=tr.sells.length?tr.sells.map(x=>`<span class="tk" onclick="fillT('${h.code}',${x},'sell')">${P(x)}${ann(x,-1)}</span>`).join(' / '):'—';
+    const bs=tr.buys.length?tr.buys.map((x,j)=>`<span class="tk" onclick="fillT('${h.code}',${x},'buy')">${tr.buys.length>1?'①②③'[j]:''}${P(x)}${ann(x,1)}</span>`).join(' / '):'—';
+    const ss=tr.sells.length?tr.sells.map((x,j)=>`<span class="tk" onclick="fillT('${h.code}',${x},'sell')">${tr.sells.length>1?'①②③'[j]:''}${P(x)}${ann(x,-1)}</span>`).join(' / '):'—';
     return `<tr><td class="l">${h.name}${tf.lv>0?' <span class="badge '+tf.cls+'" style="margin:0">'+(tf.lv>=2?'⚡':(tf.label==='大盘异动'?'异动':tf.label.replace('趋势偏','趋')))+'</span>':''}</td>
       <td class="flat">${ampPct!=null?ampPct.toFixed(2)+'%':'—'}${atrUse!=null?'<br><span class="sub">ATR用'+atrUse+'%'+(nb.narrow?'·窄档':'')+'</span>':''}</td>
       <td class="down">${bs}</td><td class="up">${ss}</td></tr>`;
@@ -941,7 +941,8 @@ function render(){
     const extH=EXT[h.code], extBadge=extH?`<span class="badge flat">${extTxt(h.code)}</span>`:'';
     const fmtTier=(arr,side)=>arr.map((x,j)=>{
       const t=p?P(x)+'('+sg(((x/p-1)*100).toFixed(1))+'%)':P(x);
-      return `<span class="tk" onclick="fillT('${h.code}',${x},'${side}')">${t}</span>`; }).join(' / ');
+      const ord=arr.length>1?'①②③'[j]:'';
+      return `<span class="tk" onclick="fillT('${h.code}',${x},'${side}')">${ord}${t}</span>`; }).join(' / ');
     const sellStr = tr.sells.length?fmtTier(tr.sells,'sell'):P(projHi);
     const buyStr = tr.buys.length?fmtTier(tr.buys,'buy'):P(projLo);
     const dd=(p!=null&&h.cost)?(p-h.cost)/h.cost*100:null;
@@ -989,7 +990,7 @@ function render(){
       <div class="atrnote">${atrTxt}${lk?` · 跟${lk.i} r${lk.r}${(lk.ad||lk.au)?'·极端日×'+(lk.ad||lk.au):''}`:''}</div>
       ${ffTxt}
       ${psigH?`<div class="atrnote">⚡三角突破信号在模拟跟踪（${P(psigH.entry)}进·止损${P(psigH.stop)}），与你的底仓${h.cost}分开记账</div>`:''}
-      ${tf.lv>=1?`<div class="tnote">⚠ 为什么分${tf.lv>=2?'3':'2'}档:${Math.abs(pct||0)>=6?'个股单日涨跌超6%':(Math.abs(pct||0)>=3?'个股涨跌超3%':((ampPct!=null&&ampPct>=5)?'今日振幅超5%':'关联板块/大盘异动'))}。分档=分批:首档少量,留子弹等下一档,别一笔全进全出。</div>`:''}
+      ${tf.lv>=1?`<div class="tnote">⚠ 为什么分${tf.lv>=2?'3':'2'}档:${Math.abs(pct||0)>=6?'个股单日涨跌超6%':(Math.abs(pct||0)>=3?'个股涨跌超3%':((ampPct!=null&&ampPct>=5)?'今日振幅超5%':'关联板块/大盘异动'))}。分档=分批:①号位先动且少量,留子弹等②号位,别一笔全进全出。</div>`:''}
       ${editRow}
     </div>`;
   }).join('') || '<div class="card sub">暂无持仓,点右上编辑或＋添加</div>';
