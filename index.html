@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#f5f6f8">
-<title>我的持仓 · 行情 v4.31</title>
+<title>我的持仓 · 行情 v4.32</title>
 <style>
 :root { color-scheme: light; }
 * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
@@ -185,7 +185,7 @@ td { border-top:1px solid #f2f4f6; }
 <div class="sec"><span>历史记录</span><span class="sub" id="tCum"></span></div>
 <div class="card tbl" id="tlog"></div>
 
-<details class="tip" id="tip"><summary style="cursor:pointer;font-weight:600">📖 使用说明：ATR怎么算 · 档位怎么分 · 怎么记账（点我展开）</summary><div style="margin-top:8px">全部数据手机实时自算,不依赖电脑。<b>ATR14=最近14个已收盘交易日"真实波幅"的均值</b>(真实波幅把跳空缺口也算进去:当日高低差、|当日高−昨收|、|当日低−昨收| 三者取最大)。它用的全是<b>截至昨天收盘</b>的数据,每天第一次打开时自动算好并缓存一天,开盘前就已就绪,不存在来不及。<b>今日预判=昨收±1.0×ATR14</b>——这是给<b>今天</b>用的:盘前直接按预判区间挂低吸/高抛单;突破上沿=强势别早卖,跌破下沿=走弱别硬接。开盘后档位自动切换为"当日已走振幅与ATR14×0.75取大者",大波动日档位自动加宽到2~3档,卡片上有黄色提醒条。涨跌停按板块判断(主板10%、创业/科创板20%、北交所30%、ST 5%)。<b>快捷记账:点一个高抛价、再点一个低吸价,自动预填并弹出确认条,核对后点✓一笔记完</b>(实际成交价有滑点可直接手改格子,净收益实时重算;点错了再点正确档位即覆盖;股数记住上次,还有500/1000/半仓/全仓快捷键)。记一笔自动扣佣金+印花税算<b>净收益</b>和<b>摊低成本</b>。<b>卖出股数和接回股数可以不同</b>(如卖200接100=高抛+减仓100股,接回股数留空=同卖出);卖出价−接回价的价差和差价率%填价时自动算好;先买后卖(低吸加仓再高抛卖出)同样记,一律按现金差额算盈亏。若某日涨/跌停,次日基准自动取昨日真实波幅的60%加宽,不沿用旧ATR。个股可绑定<b>关联板块</b>(如永鼎→通信ETF):板块异动比大盘灵敏,会提前触发加宽分档,卡片上显示关联板块实时涨跌。删除=点两下确认。改动存在本机浏览器,固定用同一个App打开。红涨绿跌。</div></details>
+<details class="tip" id="tip"><summary style="cursor:pointer;font-weight:600">📖 使用说明：ATR怎么算 · 档位怎么分 · 怎么记账（点我展开）</summary><div style="margin-top:8px">全部数据手机实时自算,不依赖电脑。<b>ATR14=最近14个已收盘交易日"真实波幅"的均值</b>(真实波幅把跳空缺口也算进去:当日高低差、|当日高−昨收|、|当日低−昨收| 三者取最大)。它用的全是<b>截至昨天收盘</b>的数据,每天第一次打开时自动算好并缓存一天,开盘前就已就绪,不存在来不及。<b>今日预判=昨收±1.0×ATR14</b>——这是给<b>今天</b>用的:盘前直接按预判区间挂低吸/高抛单;突破上沿=强势别早卖,跌破下沿=走弱别硬接。开盘后档位自动切换为"当日已走振幅与ATR14×0.75取大者",大波动日档位自动加宽到2~3档,卡片上有黄色提醒条。涨跌停按板块判断(主板10%、创业/科创板20%、北交所30%、ST 5%)。<b>快捷记账:点一个高抛价、再点一个低吸价,自动预填并弹出确认条,核对后点✓一笔记完</b>(实际成交价有滑点可直接手改格子,净收益实时重算;点错了再点正确档位即覆盖;股数记住上次,还有500/1000/半仓/全仓快捷键)。点定一个高抛价(或手填卖出价)后,低吸各档会直接标出"每股净差+一手净赚"(已扣佣金印花税),不用自己心算;反向点定接回价,高抛档同理。记一笔自动扣佣金+印花税算<b>净收益</b>和<b>摊低成本</b>。<b>卖出股数和接回股数可以不同</b>(如卖200接100=高抛+减仓100股,接回股数留空=同卖出);卖出价−接回价的价差和差价率%填价时自动算好;先买后卖(低吸加仓再高抛卖出)同样记,一律按现金差额算盈亏。若某日涨/跌停,次日基准自动取昨日真实波幅的60%加宽,不沿用旧ATR。个股可绑定<b>关联板块</b>(如永鼎→通信ETF):板块异动比大盘灵敏,会提前触发加宽分档,卡片上显示关联板块实时涨跌。删除=点两下确认。改动存在本机浏览器,固定用同一个App打开。红涨绿跌。</div></details>
 <div class="foot"></div>
 
 <script>
@@ -632,7 +632,8 @@ function setQty(n){
   maybeConfirmT();
 }
 // 卖出价+接回价+股数齐了 → 弹出确认条,一键记账
-function maybeConfirmT(){
+function maybeConfirmT(){ maybeConfirmT_(); renderT(); }
+function maybeConfirmT_(){
   const box=document.getElementById('tcf');
   const i=+document.getElementById('tSel').value;
   const h=PF.holds[i];
@@ -695,8 +696,16 @@ function renderT(){
     const a3=atrOf(h.code), atrUse=(a3&&todayAmp!=null)?Math.round(todayAmp/a3*100):null;
     const tf=trendFlag(pct,ampPct,mktOf(h));
     const tr=tiers(p,base,prev,tf.lv,h.code,h.name);
-    const bs=tr.buys.length?tr.buys.map(x=>`<span class="tk" onclick="fillT('${h.code}',${x},'buy')">${P(x)}</span>`).join(' / '):'—';
-    const ss=tr.sells.length?tr.sells.map(x=>`<span class="tk" onclick="fillT('${h.code}',${x},'sell')">${P(x)}</span>`).join(' / '):'—';
+    const aS=parseFloat((document.getElementById('tSell')||{}).value), aB=parseFloat((document.getElementById('tBuy')||{}).value);
+    const ann=(x,dir)=>{ // dir>0 低吸档(锚=卖出价aS:卖aS接x) dir<0 高抛档(锚=接回价aB:接aB卖x)
+      const a=dir>0?aS:aB; if(isNaN(a)||a<=0) return '';
+      const diff=dir>0?a-x:x-a;
+      const fee=dir>0?feeOf(a,x,100,100).fee:feeOf(x,a,100,100).fee;
+      const net=diff*100-fee;
+      return `<br><span class="sub" style="font-size:10px">${diff>=0?'+':''}${diff.toFixed(2)}/股 <b style="color:${net>=0?'#dc2626':'#16a34a'}">净${sg(Math.round(net))}</b></span>`;
+    };
+    const bs=tr.buys.length?tr.buys.map(x=>`<span class="tk" onclick="fillT('${h.code}',${x},'buy')">${P(x)}${ann(x,1)}</span>`).join(' / '):'—';
+    const ss=tr.sells.length?tr.sells.map(x=>`<span class="tk" onclick="fillT('${h.code}',${x},'sell')">${P(x)}${ann(x,-1)}</span>`).join(' / '):'—';
     return `<tr><td class="l">${h.name}${tf.lv>0?' <span class="badge '+tf.cls+'" style="margin:0">'+(tf.lv>=2?'⚡':(tf.label==='大盘异动'?'异动':tf.label.replace('趋势偏','趋')))+'</span>':''}</td>
       <td class="flat">${ampPct!=null?ampPct.toFixed(2)+'%':'—'}${atrUse!=null?'<br><span class="sub">ATR用'+atrUse+'%</span>':''}</td>
       <td class="down">${bs}</td><td class="up">${ss}</td></tr>`;
