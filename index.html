@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#f5f6f8">
-<title>我的持仓 · 行情 v4.30</title>
+<title>我的持仓 · 行情 v4.31</title>
 <style>
 :root { color-scheme: light; }
 * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
@@ -53,6 +53,9 @@ body { margin:0; padding:14px 12px 40px; background:#f5f6f8; color:#1a1d21;
 .mkt b { font-weight:700; }
 .tlog-row { display:grid; grid-template-columns:1.4fr 1fr 1fr 1fr auto; gap:6px; align-items:center; padding:8px 10px; border-top:1px solid #f2f4f6; font-size:13px; }
 .tlog-row .rm { font-size:11px; color:#c2410c; background:#fdece3; border:none; padding:3px 7px; border-radius:6px; }
+.tlog-row.hit { background:#fdece3; animation:hitflash 1.2s ease-in-out infinite; }
+.tlog-row.hit .b { background:#dc2626; color:#fff; border-color:#dc2626; }
+@keyframes hitflash { 50% { background:#fdd7c3; } }
 .tbox { background:#fff; border:1px solid #e6e8ec; border-radius:12px; padding:12px 14px; margin-bottom:12px; }
 .tbox .r { display:grid; grid-template-columns:1fr 1fr; gap:8px; align-items:end; }
 .tbox .r label:first-child { grid-column:1 / -1; }
@@ -142,7 +145,7 @@ td { border-top:1px solid #f2f4f6; }
   <tbody id="tbody"></tbody></table>
 </div>
 
-<div class="sec"><span>挂单计划 · 先记着</span><span class="sub">没成交也能记,成交后点「填入」</span></div>
+<div class="sec"><span>挂单计划 · 先记着</span><span class="sub" id="pHit">没成交也能记,成交后点「填入」</span></div>
 <div class="tbox">
   <div class="r">
     <label>股票<select id="pSel"></select></label>
@@ -583,13 +586,26 @@ function renderPlan(){
   const sel=document.getElementById('pSel');
   if(sel && sel.options.length!==PF.holds.length) sel.innerHTML=PF.holds.map((h,i)=>`<option value="${i}">${h.name}</option>`).join('');
   const box=document.getElementById('plist'); if(!box) return;
-  if(!PLAN.length){ box.innerHTML='<div class="sub" style="padding:12px">没有挂单。买了想卖的价、或想接回的价,先挂一笔;成交后点「填入」一键进表单。</div>'; return; }
-  box.innerHTML=PLAN.map((p,idx)=>`<div class="tlog-row">
+  let hits=0, dirty=false;
+  if(PLAN.length){
+    box.innerHTML=PLAN.map((p,idx)=>{
+      const f=GET(p.code), px=f?F(f,3):null;
+      if(px!=null&&!p.hit&&((p.side==='sell'&&px>=p.price)||(p.side==='buy'&&px<=p.price))){ p.hit=true; dirty=true; }
+      if(p.hit) hits++;
+      const mid=p.hit?`${P(p.price)} <span style="color:#dc2626;font-weight:700">⚡到价</span><br>现${P(px)} · ${p.qty}股`:`${P(p.price)}<br>${p.qty}股`;
+      return `<div class="tlog-row${p.hit?' hit':''}">
     <span class="l">${p.name}<br><span class="sub">${p.d}</span></span>
     <span class="${p.side==='sell'?'up':'down'}" style="font-weight:700">${p.side==='sell'?'卖':'买'}</span>
-    <span class="sub">${P(p.price)}<br>${p.qty}股</span>
+    <span class="sub">${mid}</span>
     <button class="b" onclick="fillPlan(${idx})">填入</button>
-    <button class="rm" onclick="delPlan(${idx},this)">删</button></div>`).join('');
+    <button class="rm" onclick="delPlan(${idx},this)">删</button></div>`;
+    }).join('');
+  } else {
+    box.innerHTML='<div class="sub" style="padding:12px">没有挂单。买了想卖的价、或想接回的价,先挂一笔;成交后点「填入」一键进表单。</div>';
+  }
+  if(dirty) savePlan();
+  const ph=document.getElementById('pHit');
+  if(ph) ph.textContent=hits?('⚡ '+hits+'笔到价,点「填入」去成交'):'没成交也能记,成交后点「填入」';
 }
 function fillPlan(idx){
   const p=PLAN[idx]; if(!p) return;
