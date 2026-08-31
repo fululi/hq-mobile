@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#f5f6f8">
-<title>我的持仓 · 行情 v4.36</title>
+<title>我的持仓 · 行情 v4.37</title>
 <style>
 :root { color-scheme: light; }
 * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
@@ -94,6 +94,18 @@ td { border-top:1px solid #f2f4f6; }
 .wdel { font-size:11px; color:#c2410c; background:#fdece3; border:none; padding:3px 8px; border-radius:6px; font-weight:600; }
 .up{color:#d0342c;} .down{color:#12924a;} .flat{color:#4b5563;}
 .tk { border-bottom:1.5px dashed currentColor; cursor:pointer; padding:0 1px; }
+.tierbox { display:flex; gap:8px; margin-top:10px; }
+.tier { flex:1; border-radius:12px; padding:8px 10px 10px; }
+.tier.tb { background:#f0fdf4; border:1.5px solid #86efac; }
+.tier.ts { background:#fef2f2; border:1.5px solid #fca5a5; }
+.tier .tl { font-size:11px; font-weight:700; margin-bottom:4px; }
+.tier.tb .tl { color:#15803d; } .tier.ts .tl { color:#b91c1c; }
+.tchip { display:flex; align-items:baseline; gap:5px; padding:4px 2px; cursor:pointer; }
+.tchip:active { opacity:.6; }
+.tchip i { font-style:normal; font-size:11px; font-weight:700; color:#9ca3af; }
+.tchip b { font-size:19px; font-weight:800; font-variant-numeric:tabular-nums; letter-spacing:.2px; }
+.tier.tb .tchip b { color:#16a34a; } .tier.ts .tchip b { color:#dc2626; }
+.tchip s { text-decoration:none; font-size:11px; color:#6b7280; font-variant-numeric:tabular-nums; }
 .tip { background:#fffdf5; border:1px solid #f0e6c8; border-radius:10px; padding:10px 12px; font-size:12px; color:#6b5d34; line-height:1.6; margin:2px 0 12px; }
 .foot { font-size:11px; color:#9aa1ab; line-height:1.6; margin-top:8px; padding:0 2px; }
 </style>
@@ -940,11 +952,11 @@ function render(){
     const gzH=(wth!=null&&dth!=null&&wth===dth&&wth!==0)?'<span class="badge flat">周日同向</span>':'';
     const extH=EXT[h.code], extBadge=extH?`<span class="badge flat">${extTxt(h.code)}</span>`:'';
     const fmtTier=(arr,side)=>arr.map((x,j)=>{
-      const t=p?P(x)+'('+sg(((x/p-1)*100).toFixed(1))+'%)':P(x);
-      const ord=arr.length>1?'①②③'[j]:'';
-      return `<span class="tk" onclick="fillT('${h.code}',${x},'${side}')">${ord}${t}</span>`; }).join(' / ');
-    const sellStr = tr.sells.length?fmtTier(tr.sells,'sell'):P(projHi);
-    const buyStr = tr.buys.length?fmtTier(tr.buys,'buy'):P(projLo);
+      const pctS=p?sg(((x/p-1)*100).toFixed(1))+'%':'';
+      const ord=arr.length>1?'①②③'[j]:'•';
+      return `<div class="tchip" onclick="fillT('${h.code}',${x},'${side}')"><i>${ord}</i><b>${P(x)}</b><s>${pctS}</s></div>`; }).join('');
+    const sellStr = tr.sells.length?fmtTier(tr.sells,'sell'):`<div class="tchip"><b>${P(projHi)}</b></div>`;
+    const buyStr = tr.buys.length?fmtTier(tr.buys,'buy'):`<div class="tchip"><b>${P(projLo)}</b></div>`;
     const dd=(p!=null&&h.cost)?(p-h.cost)/h.cost*100:null;
     const pnl=(p!=null&&h.cost)?(p-h.cost)*h.shares:null;
     const mv=p!=null?p*h.shares:null;
@@ -985,7 +997,7 @@ function render(){
       </div>
       <div class="proj"><span>今日预判 <b class="flat">${preStr}</b></span><span class="sub">${posTxt}${ampNote}</span></div>
       <div class="proj"><span>📋 <b>${verdict(h.code)}</b></span></div>
-      <div class="proj"><span>低吸 <b class="down">${buyStr}</b></span><span>高抛 <b class="up">${sellStr}</b></span></div>
+      <div class="tierbox"><div class="tier tb"><div class="tl">低吸区 · 点价直接填单</div>${buyStr}</div><div class="tier ts"><div class="tl">高抛区 · 点价直接填单</div>${sellStr}</div></div>
       <a href="https://fululi.github.io/k-station/?code=${h.code}&lines=${tr.buys.map(x=>'b'+x.toFixed(2)).concat(tr.sells.map(x=>'s'+x.toFixed(2))).join(',')}" style="display:block;text-align:center;margin-top:8px;padding:8px;border-radius:8px;background:#2563eb;color:#fff;text-decoration:none;font-size:13px;font-weight:600">📈 看K线（做T价位已自动画好）</a>
       <div class="atrnote">${atrTxt}${lk?` · 跟${lk.i} r${lk.r}${(lk.ad||lk.au)?'·极端日×'+(lk.ad||lk.au):''}`:''}</div>
       ${ffTxt}
