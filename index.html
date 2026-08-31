@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#f5f6f8">
-<title>我的持仓 · 行情 v4.34</title>
+<title>我的持仓 · 行情 v4.35</title>
 <style>
 :root { color-scheme: light; }
 * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
@@ -120,7 +120,7 @@ td { border-top:1px solid #f2f4f6; }
 
 <div class="sec"><span>持仓</span><button class="add" onclick="addSec('hold')">＋添加持仓</button></div>
 <div class="addform" id="fHold">
-  <input id="ahCode" placeholder="代码 如600519" inputmode="numeric"><input id="ahName" placeholder="名称 如贵州茅台">
+  <input id="ahCode" placeholder="代码或名称 如德明利"><input id="ahName" placeholder="名称(留空=自动)">
   <input id="ahCost" type="number" step="0.001" placeholder="成本价"><input id="ahQty" type="number" step="100" placeholder="股数">
   <button onclick="confirmAdd('hold')">确认添加持仓</button>
 </div>
@@ -128,7 +128,7 @@ td { border-top:1px solid #f2f4f6; }
 
 <div class="sec"><span>观察</span><button class="add" onclick="addSec('watch')">＋添加观察</button></div>
 <div class="addform" id="fWatch">
-  <input id="awCode" placeholder="代码 如300750" inputmode="numeric"><input id="awName" placeholder="名称 如宁德时代">
+  <input id="awCode" placeholder="代码或名称 如德明利"><input id="awName" placeholder="名称(留空=自动)">
   <button onclick="confirmAdd('watch')">确认添加观察</button>
 </div>
 <div class="card tbl">
@@ -294,6 +294,25 @@ function sg(v){ return (v>0?'+':'')+v; }
 function fmtT(s){ return (!s||s.length<14)?'':s.slice(0,4)+'-'+s.slice(4,6)+'-'+s.slice(6,8)+' '+s.slice(8,10)+':'+s.slice(10,12); }
 function F(f,i){ const v=parseFloat(f&&f[i]); return isNaN(v)?null:v; }
 function P(v){ return v==null?'—':(Math.abs(v)<1?v.toFixed(3):v.toFixed(2)); }
+// 腾讯联想搜索：名称/拼音 → 代码（只输名称也能加票）
+function unescQ(s2){ try{ return JSON.parse('"'+s2+'"'); }catch(e){ return s2; } }
+function searchCode(kw, cb){
+  const sc=document.createElement('script'); let done=false;
+  const fin=r=>{ if(done) return; done=true; if(sc.parentNode) sc.parentNode.removeChild(sc); cb(r); };
+  sc.onload=function(){
+    const items=String(window.v_hint||'').split('^');
+    for(let i=0;i<items.length;i++){
+      const f=items[i].split('~');
+      if(f.length<5) continue;
+      if((f[0]==='sh'||f[0]==='sz')&&/GP-A|ZS|ETF|FJ/.test(f[4])){ fin({code:f[0]+f[1],name:unescQ(f[2])}); return; }
+    }
+    fin(null);
+  };
+  sc.onerror=function(){ fin(null); };
+  sc.src='https://smartbox.gtimg.cn/s3/?v=2&q='+encodeURIComponent(kw)+'&t=all';
+  document.head.appendChild(sc);
+  setTimeout(function(){ fin(null); },8000);
+}
 function prefix(code){ code=code.trim();
   if(/^(sh|sz)/.test(code)) return code;
   if(/^(6|5|9)/.test(code)) return 'sh'+code;
@@ -733,18 +752,30 @@ function maybeConfirmT_(){
 }
 // 内嵌表单添加(WPS等环境不支持prompt弹窗)
 function addSec(type){ document.getElementById(type==='hold'?'fHold':'fWatch').classList.toggle('show'); }
-function confirmAdd(type){
+function doAdd(type, code, name){
   if(type==='hold'){
-    const c=document.getElementById('ahCode').value.trim(), n=document.getElementById('ahName').value.trim();
     const cost=parseFloat(document.getElementById('ahCost').value), qty=parseInt(document.getElementById('ahQty').value);
-    if(!c||!n){ toast('代码和名称必填'); return; }
-    PF.holds.push({code:prefix(c),name:n,cost:isNaN(cost)?0:cost,shares:isNaN(qty)?0:qty});
+    PF.holds.push({code:code,name:name,cost:isNaN(cost)?0:cost,shares:isNaN(qty)?0:qty});
   } else {
-    const c=document.getElementById('awCode').value.trim(), n=document.getElementById('awName').value.trim();
-    if(!c||!n){ toast('代码和名称必填'); return; }
-    PF.watch.push({code:prefix(c),name:n,addedD:today()});
+    PF.watch.push({code:code,name:name,addedD:today()});
   }
-  save(); ATR_DATE=''; addSec(type); toast('已添加'); refresh();
+  save(); ATR_DATE=''; addSec(type); toast('已添加 '+name); refresh();
+}
+function confirmAdd(type){
+  const c=document.getElementById(type==='hold'?'ahCode':'awCode').value.trim();
+  const n=document.getElementById(type==='hold'?'ahName':'awName').value.trim();
+  // 代码格是6位数字(或带sh/sz前缀)才当代码；否则连同名称格一起当名称搜
+  if(!/^((sh|sz)?\d{6})$/i.test(c)){
+    const kw=c||n;
+    if(!kw){ toast('填名称(如 德明利)或6位代码'); return; }
+    toast('搜索「'+kw+'」…');
+    searchCode(kw, function(r){
+      if(!r){ toast('没找到「'+kw+'」· 换关键词或输6位代码'); return; }
+      doAdd(type, r.code, n||r.name);
+    });
+    return;
+  }
+  doAdd(type, prefix(c), n||c);
 }
 // 点两下删除(不依赖confirm弹窗)
 function delItem(btn,type,i){
