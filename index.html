@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#f5f6f8">
-<title>我的持仓 · 行情 v4.43</title>
+<title>我的持仓 · 行情 v4.44</title>
 <style>
 :root { color-scheme: light; }
 * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
@@ -169,6 +169,7 @@ td { border-top:1px solid #f2f4f6; }
   </div>
   <div class="sub" id="pHint" style="margin:2px 0 8px"></div>
   <button class="go" onclick="addPlan()">＋ 挂一笔（只记录，不算收益）</button>
+  <button class="go" style="background:#475569;margin-top:6px" onclick="copyOrders()">📋 复制为条件单文本（去券商App手动设置）</button>
 </div>
 <div class="card tbl" id="plist"></div>
 
@@ -199,6 +200,8 @@ td { border-top:1px solid #f2f4f6; }
 </div>
 <div class="trec"><span>今日做T净收益(扣费)</span><span class="v" id="tToday">—</span></div>
 <div class="trec"><span>今日复盘(本机台账自动算)</span><span class="v" id="tStat">—</span></div>
+<div class="trec"><span>本周做T(周一起)</span><span class="v" id="tWeek">—</span></div>
+<div class="trec"><span>本月做T</span><span class="v" id="tMonth">—</span></div>
 <div class="sec"><span>历史记录</span><span class="sub" id="tCum"></span></div>
 <div class="qtys" style="margin:-4px 0 8px"><span>台账:</span>
   <button onclick="exportCSV()">📤 导出CSV(Excel)</button>
@@ -783,6 +786,16 @@ function delPlan(idx,btn){
   if(!btn.dataset.armed){ btn.dataset.armed='1'; btn.textContent='确认?'; setTimeout(()=>{ btn.dataset.armed=''; btn.textContent='删'; },2500); return; }
   PLAN.splice(idx,1); savePlan(); renderPlan();
 }
+// 挂单一键转条件单文本: 复制后去券商App手动设置(不自动下单)
+function copyOrders(){
+  if(!PLAN.length){ toast('没有挂单,先挂一笔'); return; }
+  const lines=['【条件单 '+today()+' · 手动设置用】'];
+  PLAN.forEach(p=>{ lines.push(p.name+' '+p.code.replace(/^(sh|sz)/,'')+' · '+(p.side==='sell'?'卖出':'买入')+' '+P(p.price)+' × '+p.qty+'股'+(p.hit?' · ⚡已到价':'')); });
+  lines.push('—— hq-mobile生成 · 到券商App逐条设条件单');
+  const txt=lines.join('\n');
+  const done=()=>toast('条件单文本已复制,去券商App粘贴');
+  if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(txt).then(done,()=>fallbackCopy(txt,done)); } else fallbackCopy(txt,done);
+}
 // 快捷股数:数字 / half半仓 / all全仓(按100股取整)
 function setQty(n){
   const i=+document.getElementById('tSel').value||0;
@@ -968,6 +981,15 @@ function renderLog(){
     } else { ts.textContent='—'; ts.className='v'; }
   }
   const cum=document.getElementById('tCum');
+  // 周/月复盘面板: 笔数·胜率·净收益(周一起算/自然月)
+  const statStr=(rows)=>{ if(!rows.length) return '—';
+    const sum=rows.reduce((s2,r)=>s2+r.profit,0), wins=rows.filter(r=>r.profit>0).length;
+    return rows.length+'笔·胜率'+Math.round(wins/rows.length*100)+'%·净'+(sum>=0?'+':'')+Math.round(sum).toLocaleString(); };
+  const nw=new Date(), dow=(nw.getDay()+6)%7, mn=new Date(nw); mn.setDate(nw.getDate()-dow);
+  const wkKey=mn.getFullYear()+'-'+String(mn.getMonth()+1).padStart(2,'0')+'-'+String(mn.getDate()).padStart(2,'0');
+  const moKey=td.slice(0,7);
+  const wEl=document.getElementById('tWeek'); if(wEl){ const rows=TLOG.filter(r=>r.d>=wkKey); wEl.textContent=statStr(rows); wEl.className='v '+cls(rows.reduce((s2,r)=>s2+r.profit,0)); }
+  const mEl=document.getElementById('tMonth'); if(mEl){ const rows=TLOG.filter(r=>r.d.slice(0,7)===moKey); mEl.textContent=statStr(rows); mEl.className='v '+cls(rows.reduce((s2,r)=>s2+r.profit,0)); }
   if(cum){ const parts=PF.holds.filter(h=>byCode[h.code]).map(h=>{
       const tot=byCode[h.code], perShr=h.shares?tot/h.shares:0;
       return h.name+' 摊低 '+perShr.toFixed(3)+'元/股';
