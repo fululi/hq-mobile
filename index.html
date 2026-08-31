@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#f5f6f8">
-<title>我的持仓 · 行情 v4.41</title>
+<title>我的持仓 · 行情 v4.42</title>
 <style>
 :root { color-scheme: light; }
 * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
@@ -522,7 +522,7 @@ function loadATR(done){
   const codes=need.filter(c=>ATR[c]==null);
   const out={}; let left=codes.length, finished=false;
   const fin=()=>{ if(finished) return; finished=true;
-    if(Object.keys(out).length){ ATR=out; ATR_DATE=today(); ATR_FAIL=false;
+    if(Object.keys(out).length){ ATR=Object.assign({}, ATR, out); ATR_DATE=today(); ATR_FAIL=false;
       localStorage.setItem(ATRK, JSON.stringify({date:ATR_DATE, atr:ATR})); }
     else if(!Object.keys(ATR).length){ ATR_FAIL=true; }
     done&&done(); };
@@ -798,12 +798,13 @@ function maybeConfirmT_(){
   ['tSell','tBuy','tQty','tQty2'].forEach(id=>document.getElementById(id).classList.toggle('armed', !!document.getElementById(id).value));
   if(!h||isNaN(sell)||isNaN(buy)){ box.style.display='none'; return; }
   box.style.display='block';
-  const diff=sell-buy, rate=buy?diff/buy*100:0, per100=diff*100-feeOf(sell,buy,100,100).fee;
+  const diff=sell-buy, rate=buy?diff/buy*100:0, tq0=Math.max(100,Math.round(((h&&h.shares)||400)/4/100)*100), per100=diff*tq0-feeOf(sell,buy,tq0,tq0).fee;
   const rc=diff>=0?'#dc2626':'#16a34a', rt=`<b style="color:${rc}">${diff>=0?'+':''}${rate.toFixed(2)}%</b>`;
-  if(isNaN(qty)||qty<=0){ box.innerHTML=`价差 <b>${diff.toFixed(2)} 元/股</b> · 差价率 ${rt} · <b>一手(100股)净赚 ≈ <span style="color:${per100>=0?'#dc2626':'#16a34a'}">${sg(Math.round(per100))} 元</span></b><span class="sub">（已扣费）· 还差股数,点上面快捷键</span>`; return; }
+  if(isNaN(qty)||qty<=0){ box.innerHTML=`价差 <b>${diff.toFixed(2)} 元/股</b> · 差价率 ${rt} · <b>${tq0}股净赚 ≈ <span style="color:${per100>=0?'#dc2626':'#16a34a'}">${sg(Math.round(per100))} 元</span></b><span class="sub">（已扣费,按1/4仓估）· 还差股数,点上面快捷键</span>`; return; }
   const bq=(isNaN(q2v)||q2v<=0)?qty:q2v;
-  const fee=feeOf(sell,buy,qty,bq).fee, cash=sell*qty-buy*bq, net=cash-fee;
-  box.innerHTML=`待确认:<b>${h.name}</b> 卖 ${sell}×${qty}股 → 接 ${buy}×${bq}股<br>价差 <b>${diff.toFixed(2)} 元/股</b> · 差价率 ${rt} · 这单净收益 <b style="color:${net>=0?'#dc2626':'#16a34a'}">${sg(Math.round(net))} 元</b>${net<0?' <b style="color:#c2410c">⚠ 差价不够费</b>':''} <span class="sub">（现金差${sg(Math.round(cash))}−费${Math.round(fee)}${bq<qty?' · 未接回'+(qty-bq)+'股=减仓':(bq>qty?' · 多接'+(bq-qty)+'股=加仓':'')}）</span><button class="b" onclick="addTrade()">✓ 确认记账</button>`;
+  const mq=Math.min(qty,bq), red=qty-bq;
+  const fee=feeOf(sell,buy,qty,bq).fee, net=(sell-buy)*mq-fee;
+  box.innerHTML=`待确认:<b>${h.name}</b> 卖 ${sell}×${qty}股 → 接 ${buy}×${bq}股<br>价差 <b>${diff.toFixed(2)} 元/股</b> · 差价率 ${rt} · 做T净收益 <b style="color:${net>=0?'#dc2626':'#16a34a'}">${sg(Math.round(net))} 元</b>${net<0?' <b style="color:#c2410c">⚠ 差价不够费</b>':''} <span class="sub">（按配对${mq}股算·费${Math.round(fee)}全扣${red>0?' · 另减仓'+red+'股回笼'+Math.round(sell*red):(red<0?' · 另加仓'+(-red)+'股投入'+Math.round(buy*(-red)):'')}）</span><button class="b" onclick="addTrade()">✓ 确认记账</button>`;
 }
 // 内嵌表单添加(WPS等环境不支持prompt弹窗)
 function addSec(type){ document.getElementById(type==='hold'?'fHold':'fWatch').classList.toggle('show'); }
@@ -864,12 +865,13 @@ function renderT(){
     const nb=narrowBase(h.code,base,todayAmp);
     const tr=tiers(p,nb.base,prev,tf.lv,h.code,h.name);
     const aS=parseFloat((document.getElementById('tSell')||{}).value), aB=parseFloat((document.getElementById('tBuy')||{}).value);
+    const tq=Math.max(100,Math.round((h.shares||400)/4/100)*100);
     const ann=(x,dir)=>{ // dir>0 低吸档(锚=卖出价aS:卖aS接x) dir<0 高抛档(锚=接回价aB:接aB卖x)
       const a=dir>0?aS:aB; if(isNaN(a)||a<=0) return '';
       const diff=dir>0?a-x:x-a;
-      const fee=dir>0?feeOf(a,x,100,100).fee:feeOf(x,a,100,100).fee;
-      const net=diff*100-fee;
-      return `<br><span class="sub" style="font-size:10px">${diff>=0?'+':''}${diff.toFixed(2)}/股 <b style="color:${net>=0?'#dc2626':'#16a34a'}">净${sg(Math.round(net))}</b></span>`;
+      const fee=dir>0?feeOf(a,x,tq,tq).fee:feeOf(x,a,tq,tq).fee;
+      const net=diff*tq-fee;
+      return `<br><span class="sub" style="font-size:10px">${diff>=0?'+':''}${diff.toFixed(2)}/股 <b style="color:${net>=0?'#dc2626':'#16a34a'}">净${sg(Math.round(net))}</b>·${tq}股</span>`;
     };
     const bs=tr.buys.length?tr.buys.map((x,j)=>`<span class="tk" onclick="fillT('${h.code}',${x},'buy')">${tr.buys.length>1?'①②③'[j]:''}${P(x)}${ann(x,1)}</span>`).join(' / '):'—';
     const ss=tr.sells.length?tr.sells.map((x,j)=>`<span class="tk" onclick="fillT('${h.code}',${x},'sell')">${tr.sells.length>1?'①②③'[j]:''}${P(x)}${ann(x,-1)}</span>`).join(' / '):'—';
@@ -893,15 +895,17 @@ function addTrade(){
   const q2v=parseInt(document.getElementById('tQty2').value);
   if(isNaN(sell)||isNaN(buy)||isNaN(qty)||qty<=0){ toast('卖出价/接回价/卖出股数都要填'); return; }
   const bq=(isNaN(q2v)||q2v<=0)?qty:q2v;
-  const gross=sell*qty-buy*bq, fee=feeOf(sell,buy,qty,bq).fee;
-  TLOG.unshift({d:today(),code:h.code,name:h.name,sell,buy,qty,bq,gross,fee,profit:gross-fee});
+  const mq=Math.min(qty,bq), red=qty-bq;
+  const fee=feeOf(sell,buy,qty,bq).fee, profit=(sell-buy)*mq-fee;
+  const redCash=red>0?sell*red:(red<0?buy*(-red):0);
+  TLOG.unshift({d:today(),code:h.code,name:h.name,sell,buy,qty,bq,gross:sell*qty-buy*bq,fee,red,redCash,profit});
   localStorage.setItem('tlog_lastqty', String(qty));
   saveLog();
   PLAN=PLAN.filter(p=>!(p.code===h.code&&((p.side==='sell'&&p.price===sell)||(p.side==='buy'&&p.price===buy))));
   savePlan(); renderPlan();
   document.getElementById('tSell').value=''; document.getElementById('tBuy').value=''; document.getElementById('tQty').value=''; document.getElementById('tQty2').value='';
   maybeConfirmT();
-  renderLog(); toast('已记账,净收益 '+sg(Math.round(gross-fee)));
+  renderLog(); toast('已记账,做T净收益 '+sg(Math.round(profit))+(red>0?' · 另减仓'+red+'股':(red<0?' · 另加仓'+(-red)+'股':'')));
 }
 function delTrade(idx){ TLOG.splice(idx,1); saveLog(); renderLog(); }
 function renderLog(){
@@ -931,7 +935,7 @@ function renderLog(){
     <span class="l">${r.name}<br><span class="sub">${r.d}</span></span>
     <span class="sub">卖${P(r.sell)}<br>接${P(r.buy)}</span>
     <span class="sub">${r.bq&&r.bq!==r.qty?('卖'+r.qty+'/接'+r.bq):(r.qty+'股')}<br>费${r.fee!=null?Math.round(r.fee):'—'}</span>
-    <span class="${cls(r.profit)}" style="font-weight:700">${sg(Math.round(r.profit).toLocaleString())}</span>
+    <span class="${cls(r.profit)}" style="font-weight:700">${sg(Math.round(r.profit).toLocaleString())}${r.red?`<br><span class="sub" style="font-weight:400">${r.red>0?'另减'+r.red+'股回笼'+Math.round(r.redCash||0):'另加'+(-r.red)+'股投入'+Math.round(r.redCash||0)}</span>`:''}</span>
     <button class="rm" onclick="delTrade(${idx})">删</button></div>`).join('');
 }
 
