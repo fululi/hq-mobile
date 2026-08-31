@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#f5f6f8">
-<title>我的持仓 · 行情 v4.48</title>
+<title>我的持仓 · 行情 v4.49</title>
 <style>
 :root { color-scheme: light; }
 * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
@@ -1326,6 +1326,21 @@ function renderPaper(){
     return `<div class="prow"><span class="sub">${x.name} ${x.dir>0?'▲多':'▼空'} ${x.entryD.slice(5)}→${x.exitD.slice(5)} · ${x.why}</span><b class="${cls(x.ret*100)}">${sg((x.ret*100).toFixed(1))}%</b></div>`;
   }).join('');
 }
+// v4.49: ?watch=名称或代码 点链接即加观察(腾讯联想自动补代码)
+(function(){
+  try{
+    const q=new URLSearchParams(location.search); const w=q.get('watch'); if(!w) return;
+    history.replaceState(null,'',location.pathname);
+    const done=(r)=>{
+      if(!r){ toast('没找到「'+w+'」,点「＋添加观察」手动加'); return; }
+      if(PF.watch.some(x=>x.code===r.code)||PF.holds.some(x=>x.code===r.code)){ toast(r.name+' 已在列表里'); return; }
+      PF.watch.push({code:r.code,name:r.name,addedD:today()}); save(); ATR_DATE=''; render(); loadATR(()=>render());
+      toast('已加观察: '+r.name+' '+r.code.replace(/^(sh|sz)/,''));
+    };
+    if(/^(sh|sz)?\d{6}$/.test(w)){ searchCode(w, function(r){ done(r||{code:prefix(w),name:w}); }); }
+    else searchCode(w, done);
+  }catch(e){}
+})();
 refresh();
 setInterval(()=>{ const d=new Date(),t=d.getHours()*60+d.getMinutes(),w=d.getDay();
   if(!editMode && w>=1&&w<=5&&((t>=565&&t<=690)||(t>=780&&t<=900))) refresh(); }, 20000);
