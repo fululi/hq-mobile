@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#f5f6f8">
-<title>我的持仓 · 行情 v4.38</title>
+<title>我的持仓 · 行情 v4.39</title>
 <style>
 :root { color-scheme: light; }
 * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
@@ -107,6 +107,7 @@ td { border-top:1px solid #f2f4f6; }
 .tchip b { font-size:19px; font-weight:800; font-variant-numeric:tabular-nums; letter-spacing:.2px; }
 .tier.tb .tchip b { color:#16a34a; } .tier.ts .tchip b { color:#dc2626; }
 .tchip s { text-decoration:none; font-size:11px; color:#6b7280; font-variant-numeric:tabular-nums; }
+.ffb { display:inline-block; width:8px; height:8px; border-radius:2px; margin:0 1px; vertical-align:-1px; }
 .tip { background:#fffdf5; border:1px solid #f0e6c8; border-radius:10px; padding:10px 12px; font-size:12px; color:#6b5d34; line-height:1.6; margin:2px 0 12px; }
 .foot { font-size:11px; color:#9aa1ab; line-height:1.6; margin-top:8px; padding:0 2px; }
 </style>
@@ -558,6 +559,41 @@ function loadFF(){
   document.body.appendChild(s);
 }
 
+// ---- 近5日主力资金流(东财历史日资金流JSONP): 每日一条,缓存到当天,红块=净流入/绿块=净流出 ----
+let FFH={}, FFH_DATE='';
+try{ const x=JSON.parse(localStorage.getItem('ffh_v1')); if(x&&x.date===today()){ FFH=x.data||{}; FFH_DATE=x.date; } }catch(e){}
+function maybeFFH(){ if(FFH_DATE!==today()) loadFFH(); }
+function loadFFH(){
+  const codes=[...new Set([...PF.holds.map(h=>h.code),...PF.watch.map(w=>w.code)])];
+  if(!codes.length) return;
+  let i=0; const out={};
+  const next=()=>{
+    if(i>=codes.length){
+      if(Object.keys(out).length){ FFH=out; FFH_DATE=today(); localStorage.setItem('ffh_v1', JSON.stringify({date:FFH_DATE, data:FFH})); }
+      render(); return;
+    }
+    const c=codes[i++]; let got=false;
+    const tm=setTimeout(()=>{ if(!got){ got=true; next(); } }, 5000);
+    window.ffhCb=(d)=>{ if(got) return; got=true; clearTimeout(tm); try{
+      const kl=d&&d.data&&d.data.klines||[];
+      const arr=kl.map(s2=>+String(s2).split(',')[1]).filter(v=>!isNaN(v));
+      if(arr.length) out[c]=arr.slice(-5);
+    }catch(e){} next(); };
+    const s=document.createElement('script');
+    s.src='https://push2his.eastmoney.com/api/qt/stock/fflow/daykline/get?cb=ffhCb&lmt=5&klt=101&fields1=f1,f2,f3,f7&fields2=f51,f52&secid='+(c.indexOf('sh')===0?'1.':'0.')+c.slice(2)+'&_='+Date.now();
+    s.onload=()=>{ s.remove(); };
+    s.onerror=()=>{ s.remove(); if(!got){ got=true; clearTimeout(tm); next(); } };
+    document.body.appendChild(s);
+  };
+  next();
+}
+function ffhTxt(code){
+  const a=FFH[code]; if(!a||!a.length) return '';
+  const sum=a.reduce((s2,x)=>s2+x,0);
+  const blocks=a.map(v=>`<span class="ffb" style="background:${v>=0?'#d0342c':'#12924a'}"></span>`).join('');
+  return `近5日主力 ${blocks} 净<b class="${cls(sum)}">${sum>=0?'+':''}${fmtAmt(sum)}</b>`;
+}
+
 // ---- 联动监控: 新浪5分钟K线(JSONP)算前两只持仓的分时同步率,量化联动的代理指标 ----
 let SYNC_TS=0;
 function maybeSync(){ const n=Date.now(); if(n-SYNC_TS>5*60*1000){ SYNC_TS=n; loadSync(); } }
@@ -624,7 +660,7 @@ function refresh(manual){
   const s=document.createElement('script');
   s.src='https://qt.gtimg.cn/q='+allCodes().join(',')+'&_='+Date.now();
   s.charset='GBK';
-  s.onload=()=>{ render(); loadATR(()=>render()); loadWTrend(()=>render()); loadM15(()=>render()); maybeSync(); maybeFF(); s.remove(); done(); if(manual) toast('已刷新 · '+document.getElementById('time').textContent); }; // 先渲染行情,ATR到了再补渲染
+  s.onload=()=>{ render(); loadATR(()=>render()); loadWTrend(()=>render()); loadM15(()=>render()); maybeSync(); maybeFF(); maybeFFH(); s.remove(); done(); if(manual) toast('已刷新 · '+document.getElementById('time').textContent); }; // 先渲染行情,ATR到了再补渲染
   s.onerror=()=>{ document.getElementById('time').textContent='网络拉取失败,请检查网络后点刷新'; s.remove(); done(); if(manual) toast('刷新失败,请检查网络'); };
   document.body.appendChild(s);
 }
@@ -976,6 +1012,7 @@ function render(){
     const vd=verdict(h.code);
     const ff=FF[h.code];
     const ffTxt=ff?`<div class="atrnote">主力净流入 <b class="${cls(ff.amt)}">${ff.amt>=0?'+':''}${fmtAmt(ff.amt)}</b> · 占成交 ${ff.pct!=null?ff.pct.toFixed(1)+'%':'—'} <span class="sub">(东财口径,参考)</span></div>`:'';
+    const ffhT=ffhTxt(h.code);
     // 今日预判区间: 昨收 ± 0.55×ATR14,受涨跌停约束;突破上沿=强势,跌破下沿=走弱
     const lp2=limitPct(h.code,h.name)/100, a2=atrOf(h.code);
     const lk=LNK[h.code], lpct=idxPctOf(lk);
@@ -1007,6 +1044,7 @@ function render(){
       <a href="https://fululi.github.io/k-station/?code=${h.code}&lines=${tr.buys.map(x=>'b'+x.toFixed(2)).concat(tr.sells.map(x=>'s'+x.toFixed(2))).join(',')}" style="display:block;text-align:center;margin-top:8px;padding:8px;border-radius:8px;background:#2563eb;color:#fff;text-decoration:none;font-size:13px;font-weight:600">📈 看K线（做T价位已自动画好）</a>
       <div class="atrnote">${atrTxt}${lk?` · 跟${lk.i} r${lk.r}${(lk.ad||lk.au)?'·极端日×'+(lk.ad||lk.au):''}`:''}</div>
       ${ffTxt}
+      ${ffhT?`<div class="atrnote">${ffhT}</div>`:''}
       ${psigH?`<div class="atrnote">⚡三角突破信号在模拟跟踪（${P(psigH.entry)}进·止损${P(psigH.stop)}），与你的底仓${h.cost}分开记账</div>`:''}
       ${tf.lv>=1?`<div class="tnote">⚠ 为什么分${tf.lv>=2?'3':'2'}档:${Math.abs(pct||0)>=6?'个股单日涨跌超6%':(Math.abs(pct||0)>=3?'个股涨跌超3%':((ampPct!=null&&ampPct>=5)?'今日振幅超5%':'关联板块/大盘异动'))}。分档=分批:①号位先动且少量,留子弹等②号位,别一笔全进全出。</div>`:''}
       ${editRow}
@@ -1035,8 +1073,10 @@ function render(){
     const gzW=(wt!=null&&dtw!=null&&wt===dtw&&wt!==0)?' <b class="flat">周日同向</b>':'';
     const extW=EXT[w.code], extWTxt=extW?` <b class="flat">${extTxt(w.code)}</b>`:'';
     const lkW=LNK[w.code], lnkWTxt=lkW?` <span class="sub">跟${lkW.i} r${lkW.r}</span>`:'';
+    const ffW=FF[w.code], ffWTxt=ffW?` · 主力<b class="${cls(ffW.amt)}">${ffW.amt>=0?'+':''}${fmtAmt(ffW.amt)}</b>`:'';
+    const ffhW=ffhTxt(w.code);
     const addTxt=(w.addedP!=null&&p!=null)?`<br><span class="sub">${(w.addedD||'').slice(5)}加 @${P(w.addedP)} · 以来<b class="${cls((p/w.addedP-1)*100)}">${sg(((p/w.addedP-1)*100).toFixed(1))}%</b>${w.addedFF!=null?` · 入时主力<b class="${cls(w.addedFF)}">${w.addedFF>=0?'+':''}${fmtAmt(w.addedFF)}</b>`:''}</span>`:'';
-    return `<tr><td class="l" style="cursor:pointer" onclick="openK('${w.code}')">${w.name}<br><span class="sub">${w.code.replace(/^(sh|sz)/,'')}</span><br><span class="sub">${w.theme||'未标题材'} · <b class="${wtC}">${wtTxt(w.code)}</b>${dtW}<b class="${al[1]}">${al[0]}</b>${sigTxt}${wsgTxt}${m15Txt}${gzW}${extWTxt}${lnkWTxt}</span>${addTxt}<br><span class="sub" style="font-size:12px">📋 <b style="color:${vCls(verdict(w.code))}">${verdict(w.code)}</b></span></td>
+    return `<tr><td class="l" style="cursor:pointer" onclick="openK('${w.code}')">${w.name}<br><span class="sub">${w.code.replace(/^(sh|sz)/,'')}</span><br><span class="sub">${w.theme||'未标题材'} · <b class="${wtC}">${wtTxt(w.code)}</b>${dtW}<b class="${al[1]}">${al[0]}</b>${sigTxt}${wsgTxt}${m15Txt}${gzW}${extWTxt}${lnkWTxt}${ffWTxt}</span>${addTxt}${ffhW?`<br><span class="sub">${ffhW}</span>`:''}<br><span class="sub" style="font-size:12px">📋 <b style="color:${vCls(verdict(w.code))}">${verdict(w.code)}</b></span></td>
       <td>${P(p)}</td><td class="${cls(pct)}">${pct!=null?sg(pct.toFixed(2))+'%':'—'}</td>
       <td class="sub">${pj}</td>${del}</tr>`;
   }).join('') + (PF.watch.length?'<tr><td colspan="4" class="sub" style="font-size:10px">顺势=信号与大周期同向 · 反弹/回调性质=与大周期反向（日线信号看周线，15分钟信号看日线）· ⚠极端=偏离20日线≥2×ATR或RSI≤30/≥70，该区域内反向波动概率上升，勿追涨杀跌，等结构确认（不再创新低/新高）</td></tr>':'');
