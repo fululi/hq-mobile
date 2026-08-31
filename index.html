@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#f5f6f8">
-<title>我的持仓 · 行情 v4.46</title>
+<title>我的持仓 · 行情 v4.47</title>
 <style>
 :root { color-scheme: light; }
 * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
@@ -205,6 +205,7 @@ td { border-top:1px solid #f2f4f6; }
 <div class="sec"><span>历史记录</span><span class="sub" id="tCum"></span></div>
 <div class="qtys" style="margin:-4px 0 8px"><span>台账:</span>
   <button onclick="exportCSV()">📤 导出CSV(Excel)</button>
+  <button onclick="copyCoach()">🤖 复盘数据包</button>
   <button onclick="backupJSON()">💾 全量备份</button>
   <button onclick="document.getElementById('rstFile').click()">📂 恢复备份</button>
   <input type="file" id="rstFile" accept=".json" style="display:none" onchange="restoreJSON(event)">
@@ -942,7 +943,19 @@ function addTrade(){
   const fee=feeOf(sell,buy,qty,bq).fee, profit=(sell-buy)*mq-fee;
   const redCash=red>0?sell*red:(red<0?buy*(-red):0);
   const note=(document.getElementById('tNote').value||'').trim().slice(0,30);
-  TLOG.unshift({d:today(),code:h.code,name:h.name,sell,buy,qty,bq,gross:sell*qty-buy*bq,fee,red,redCash,note,profit});
+  // v4.47: 执行评分——对照今日挂单自动判定(±0.3%内=按计划;卖高/买低于挂价=优于计划)
+  const execScore=(side,px)=>{
+    const cands=PLAN.filter(p=>p.code===h.code&&p.side===side);
+    if(!cands.length) return '';
+    let best=cands[0].price,bd=Math.abs(px-best)/best;
+    cands.forEach(c=>{ const d2=Math.abs(px-c.price)/c.price; if(d2<bd){bd=d2;best=c.price;} });
+    const dev=(px-best)/best*100;
+    if(bd<=0.003) return (side==='sell'?'卖':'买')+'=按计划';
+    if(side==='sell') return dev>0?('卖优计划+'+dev.toFixed(1)+'%'):('卖低计划'+dev.toFixed(1)+'%');
+    return dev<0?('买优计划+'+(-dev).toFixed(1)+'%'):('买超计划+'+dev.toFixed(1)+'%');
+  };
+  const exec=[execScore('sell',sell),execScore('buy',buy)].filter(x=>x).join(' · ');
+  TLOG.unshift({d:today(),code:h.code,name:h.name,sell,buy,qty,bq,gross:sell*qty-buy*bq,fee,red,redCash,note,profit,exec});
   localStorage.setItem('tlog_lastqty', String(qty));
   saveLog();
   PLAN=PLAN.filter(p=>!(p.code===h.code&&((p.side==='sell'&&p.price===sell)||(p.side==='buy'&&p.price===buy))));
@@ -950,6 +963,25 @@ function addTrade(){
   document.getElementById('tSell').value=''; document.getElementById('tBuy').value=''; document.getElementById('tQty').value=''; document.getElementById('tQty2').value=''; document.getElementById('tNote').value='';
   maybeConfirmT();
   renderLog(); toast('已记账,做T净收益 '+sg(Math.round(profit))+(red>0?' · 另减仓'+red+'股':(red<0?' · 另加仓'+(-red)+'股':'')));
+}
+// v4.47: 复盘数据包——台账+挂单+持仓压成结构化文本,丢给任意AI生成交易教练报告
+function copyCoach(){
+  if(!TLOG.length){ toast('暂无台账,先记几笔'); return; }
+  const td=today(), L=[];
+  L.push('【做T复盘数据包 · '+td+'】');
+  L.push('你是交易教练,只做执行复盘、不预测涨跌。要求:结论先行;逐笔对照挂单判定执行质量(按计划/优于计划/偏离计划);汇总胜率、均差价率、费用占毛利比;指出重复出现的行为模式(至少出现2次才算模式,单次只算个案);给不超过3条可执行改进。数据对不上就问我,不要编数字。');
+  L.push('■ 持仓: '+PF.holds.map(h=>h.name+h.code.replace(/^(sh|sz)/,'')+' 成本'+h.cost+'·'+h.shares+'股').join(' / '));
+  const tdRows=TLOG.filter(r=>r.d===td);
+  L.push('■ 今日台账 '+tdRows.length+'笔:');
+  tdRows.forEach(r=>{ L.push('· '+r.name+' 卖'+r.sell+'×'+r.qty+' 接'+r.buy+'×'+(r.bq||r.qty)+' 净'+Math.round(r.profit)+'元(费'+Math.round(r.fee||0)+')'+(r.exec?' ['+r.exec+']':'')+(r.note?' 原因:'+r.note:'')); });
+  if(!tdRows.length) L.push('· (今日暂无)');
+  if(PLAN.length) L.push('■ 未成交挂单: '+PLAN.map(p=>p.name+(p.side==='sell'?'卖':'买')+p.price+'×'+p.qty).join(' / '));
+  const his=TLOG.filter(r=>r.d!==td).slice(0,30);
+  if(his.length){ L.push('■ 历史近'+his.length+'笔:');
+    his.forEach(r=>{ L.push(r.d+' '+r.name+' 卖'+r.sell+' 接'+r.buy+' '+r.qty+'股 净'+Math.round(r.profit)+(r.exec?' ['+r.exec+']':'')+(r.note?' '+r.note:'')); }); }
+  const txt=L.join('\n');
+  const done=()=>toast('复盘数据包已复制,粘贴给任意AI即可');
+  if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(txt).then(done,()=>fallbackCopy(txt,done)); } else fallbackCopy(txt,done);
 }
 function delTrade(idx){ TLOG.splice(idx,1); saveLog(); renderLog(); }
 // 台账导出CSV(Excel直接打开,UTF-8带BOM防中文乱码) / 全量备份恢复(换浏览器防丢)
@@ -1019,7 +1051,7 @@ function renderLog(){
   const box=document.getElementById('tlog'); if(!box) return;
   if(!TLOG.length){ box.innerHTML='<div class="sub" style="padding:14px">还没有做T记录。做完一轮高抛低吸就来记一笔,自动扣费算摊低成本。</div>'; return; }
   box.innerHTML=TLOG.map((r,idx)=>`<div class="tlog-row">
-    <span class="l">${r.name}${r.note?` <span class="sub">✎${esc(r.note)}</span>`:''}<br><span class="sub">${r.d}</span></span>
+    <span class="l">${r.name}${r.note?` <span class="sub">✎${esc(r.note)}</span>`:''}${r.exec?` <span class="sub" style="color:#d9a441">◎${esc(r.exec)}</span>`:''}<br><span class="sub">${r.d}</span></span>
     <span class="sub">卖${P(r.sell)}<br>接${P(r.buy)}</span>
     <span class="sub">${r.bq&&r.bq!==r.qty?('卖'+r.qty+'/接'+r.bq):(r.qty+'股')}<br>费${r.fee!=null?Math.round(r.fee):'—'}</span>
     <span class="${cls(r.profit)}" style="font-weight:700">${sg(Math.round(r.profit).toLocaleString())}${r.red?`<br><span class="sub" style="font-weight:400">${r.red>0?'另减'+r.red+'股回笼'+Math.round(r.redCash||0):'另加'+(-r.red)+'股投入'+Math.round(r.redCash||0)}</span>`:''}</span>
