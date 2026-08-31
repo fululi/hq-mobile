@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#f5f6f8">
-<title>我的持仓 · 行情 v4.44</title>
+<title>我的持仓 · 行情 v4.45</title>
 <style>
 :root { color-scheme: light; }
 * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
@@ -242,6 +242,19 @@ if(!TLOG.length){ try{ const old=JSON.parse(localStorage.getItem('tlog_v1'))||[]
   if(old.length){ TLOG=old.map(r=>({d:r.d,code:r.code,name:r.name,sell:r.sell,buy:r.buy,qty:r.qty,
     gross:r.profit,fee:null,profit:r.profit})); saveLog(); } }catch(e){} }
 try{ const f=JSON.parse(localStorage.getItem(FEEK)); if(f&&f.comm!=null) FEE=f; }catch(e){}
+// 旧账迁移(v4.45): 配对口径重算——卖/接股数不同的旧记录,收益只算配对部分,差额单列为减仓/加仓
+{ let mig=false;
+  TLOG.forEach(r=>{
+    if(r.red===undefined && r.qty!=null && r.sell!=null && r.buy!=null){
+      const bq=(r.bq==null||isNaN(r.bq)||r.bq<=0)?r.qty:r.bq;
+      const mq=Math.min(r.qty,bq);
+      r.bq=bq; r.red=r.qty-bq;
+      r.redCash=r.red>0?r.sell*r.red:(r.red<0?r.buy*(-r.red):0);
+      r.profit=(r.sell-r.buy)*mq-(r.fee||0);
+      mig=true;
+    }
+  });
+  if(mig) saveLog(); }
 try{ const a=JSON.parse(localStorage.getItem(ATRK)); if(a&&a.date===today()){ ATR=a.atr||{}; ATR_DATE=a.date; } }catch(e){}
 PF.holds.forEach(h=>{ if(h.ref===undefined){ const d=DEFAULT.holds.find(x=>x.code===h.code); if(d&&d.ref) h.ref=d.ref; } });
 if(!localStorage.getItem(LS)){ try{ localStorage.setItem(LS, JSON.stringify(PF)); }catch(e){} } // 首次打开即落盘本机
