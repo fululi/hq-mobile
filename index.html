@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#f5f6f8">
-<title>我的持仓 · 行情 v4.45</title>
+<title>我的持仓 · 行情 v4.46</title>
 <style>
 :root { color-scheme: light; }
 * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
@@ -311,6 +311,7 @@ function narrowBase(code,base,todayAmp){
 }
 // 取ATR数值(兼容旧缓存纯数字格式)
 function atrOf(code){ const o=ATR[code]; return o==null?null:((typeof o==='number')?o:o.atr); }
+function legOf(code){ const o=ATR[code]; return (o&&typeof o==='object'&&o.legBase>0)?{base:o.legBase,from:o.legFrom}:null; }
 // 波幅基准 = max(当日振幅, ATR14×0.75, 昨日真实波幅×0.6) — 涨/跌停次日自动加宽
 function ampBase(code,todayAmp){
   const o=ATR[code];
@@ -373,7 +374,13 @@ function parseIfzq(c, txt){
     for(let i=1;i<rows.length;i++){ const hi=+rows[i][3],lo=+rows[i][4],pc=+rows[i-1][2];
       trs.push(Math.max(hi-lo,Math.abs(hi-pc),Math.abs(lo-pc))); }
     const last14=trs.slice(-14);
-    return {atr:last14.reduce((a,b)=>a+b,0)/last14.length, lastTR:trs[trs.length-1]};
+    // 日线段(v4.46): 收盘从段内峰值回撤>=5%即切段,报当前段基点(收盘价口径)
+    let base=+rows[0][2], peak=base, baseD=rows[0][0];
+    for(let i=1;i<rows.length;i++){ const c=+rows[i][2];
+      if(c>peak){ peak=c; }
+      else if(peak>base&&(peak-c)/peak>=0.05){ base=c; baseD=rows[i][0]; peak=c; }
+      else if(c<base){ base=c; baseD=rows[i][0]; peak=c; } }
+    return {atr:last14.reduce((a,b)=>a+b,0)/last14.length, lastTR:trs[trs.length-1], legBase:base, legFrom:baseD};
   }catch(e){ return null; }
 }
 function parseSina(txt){
@@ -556,7 +563,7 @@ function loadATR(done){
     let got=false;
     const tick=(val)=>{ if(got) return; got=true; if(val) out[c]=val; if(--left===0) fin(); };
     const ctrl=new AbortController(); const tm=setTimeout(()=>ctrl.abort(), 5000);
-    fetch('https://web.ifzq.gtimg.cn/appstock/app/fqkline/get?param='+c+',day,,,16,qfq', {signal:ctrl.signal})
+    fetch('https://web.ifzq.gtimg.cn/appstock/app/fqkline/get?param='+c+',day,,,70,qfq', {signal:ctrl.signal})
       .then(r=>r.text()).then(t=>{ clearTimeout(tm); tick(parseIfzq(c,t)); })
       .catch(()=>{ clearTimeout(tm);
         const c2=new AbortController(); const tm2=setTimeout(()=>c2.abort(), 4000);
@@ -900,15 +907,17 @@ function renderT(){
     const tr=tiers(p,nb.base,prev,tf.lv,h.code,h.name);
     const aS=parseFloat((document.getElementById('tSell')||{}).value), aB=parseFloat((document.getElementById('tBuy')||{}).value);
     const tq=Math.max(100,Math.round((h.shares||400)/4/100)*100);
-    const ann=(x,dir)=>{ // dir>0 低吸档(锚=卖出价aS:卖aS接x) dir<0 高抛档(锚=接回价aB:接aB卖x)
-      const a=dir>0?aS:aB; if(isNaN(a)||a<=0) return '';
+    const ann=(x,dir,j)=>{ // dir>0 低吸档(锚=卖出价aS:卖aS接x) dir<0 高抛档(锚=接回价aB:接aB卖x); v4.46 未点价时默认配对对侧同序号档,标"约"
+      let a=dir>0?aS:aB, est=false;
+      if(isNaN(a)||a<=0){ const opp=dir>0?tr.sells:tr.buys; a=opp[Math.min(j||0,opp.length-1)]; est=true; }
+      if(a==null||isNaN(a)||a<=0) return '';
       const diff=dir>0?a-x:x-a;
       const fee=dir>0?feeOf(a,x,tq,tq).fee:feeOf(x,a,tq,tq).fee;
       const net=diff*tq-fee;
-      return `<br><span class="sub" style="font-size:10px">${diff>=0?'+':''}${diff.toFixed(2)}/股 <b style="color:${net>=0?'#dc2626':'#16a34a'}">净${sg(Math.round(net))}</b>·${tq}股</span>`;
+      return `<br><span class="sub" style="font-size:10px">${est?'约':''}${diff>=0?'+':''}${diff.toFixed(2)}/股 <b style="color:${net>=0?'#dc2626':'#16a34a'}">净${sg(Math.round(net))}</b>·${tq}股</span>`;
     };
-    const bs=tr.buys.length?tr.buys.map((x,j)=>`<span class="tk" onclick="fillT('${h.code}',${x},'buy')">${tr.buys.length>1?'①②③'[j]:''}${P(x)}${ann(x,1)}</span>`).join(' / '):'—';
-    const ss=tr.sells.length?tr.sells.map((x,j)=>`<span class="tk" onclick="fillT('${h.code}',${x},'sell')">${tr.sells.length>1?'①②③'[j]:''}${P(x)}${ann(x,-1)}</span>`).join(' / '):'—';
+    const bs=tr.buys.length?tr.buys.map((x,j)=>`<span class="tk" onclick="fillT('${h.code}',${x},'buy')">${tr.buys.length>1?'①②③'[j]:''}${P(x)}${ann(x,1,j)}</span>`).join(' / '):'—';
+    const ss=tr.sells.length?tr.sells.map((x,j)=>`<span class="tk" onclick="fillT('${h.code}',${x},'sell')">${tr.sells.length>1?'①②③'[j]:''}${P(x)}${ann(x,-1,j)}</span>`).join(' / '):'—';
     return `<tr><td class="l">${h.name}${tf.lv>0?' <span class="badge '+tf.cls+'" style="margin:0">'+(tf.lv>=2?'⚡':(tf.label==='大盘异动'?'异动':tf.label.replace('趋势偏','趋')))+'</span>':''}</td>
       <td class="flat">${ampPct!=null?ampPct.toFixed(2)+'%':'—'}${atrUse!=null?'<br><span class="sub">ATR用'+atrUse+'%'+(nb.narrow?'·窄档':'')+'</span>':''}</td>
       <td class="down">${bs}</td><td class="up">${ss}</td></tr>`;
@@ -1109,6 +1118,9 @@ function render(){
     const preLo=(prev!=null&&a2!=null)?Math.max(prev*(1-lp2),prev-ampF*a2):null;
     const preStr=(preHi!=null)?P(preLo)+' ~ '+P(preHi):'—';
     const posTxt=(p!=null&&preHi!=null&&preLo!=null)?(p>=preHi?'⚡现价破预判上沿':(p<=preLo?'⚡现价破预判下沿':'在预判区间内')):'';
+    const lg=legOf(h.code);
+    const legGain=(lg&&p!=null)?(p/lg.base-1)*100:null;
+    const legTxt=(legGain!=null&&legGain>=25)?`<div class="atrnote" style="color:#d9a441">📏 本段自低点(${lg.from}起 ${lg.base.toFixed(2)})已涨 <b>+${legGain.toFixed(1)}%</b> · 过25%参考线(历史行情段P75口径)${legGain>=45?' · 已进前10%段':''}</div>`:'';
     const editRow = editMode ? `<div class="editbox">
         <label>成本<input type="number" step="0.001" value="${h.cost}" onchange="editField('hold',${i},'cost',this.value)"></label>
         <label>股数<input type="number" step="100" value="${h.shares}" onchange="editField('hold',${i},'shares',this.value)"></label>
@@ -1127,6 +1139,7 @@ function render(){
       </div>
       <div class="proj"><span>今日预判 <b class="flat">${preStr}</b></span><span class="sub">${posTxt}${ampNote}</span></div>
       <div class="proj vrd"><span>📋 <b style="color:${vCls(vd)}">${vd}</b></span></div>
+      ${legTxt}
       <div class="tierbox"><div class="tier tb"><div class="tl">低吸区 · 点价直接填单</div>${buyStr}</div><div class="tier ts"><div class="tl">高抛区 · 点价直接填单</div>${sellStr}</div></div>
       <a href="https://fululi.github.io/k-station/?code=${h.code}&lines=${tr.buys.map(x=>'b'+x.toFixed(2)).concat(tr.sells.map(x=>'s'+x.toFixed(2))).join(',')}" style="display:block;text-align:center;margin-top:8px;padding:8px;border-radius:8px;background:#2563eb;color:#fff;text-decoration:none;font-size:13px;font-weight:600">📈 看K线（做T价位已自动画好）</a>
       <div class="atrnote">${atrTxt}${lk?` · 跟${lk.i} r${lk.r}${(lk.ad||lk.au)?'·极端日×'+(lk.ad||lk.au):''}`:''}</div>
