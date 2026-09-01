@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#f5f6f8">
-<title>我的持仓 · 行情 v4.93</title>
+<title>我的持仓 · 行情 v4.94</title>
 <style>
 :root { color-scheme: light; }
 * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
@@ -1005,7 +1005,7 @@ function loadWTrend(done){
   const out={}, osig={}, odt={}, oext={}, olv={}, oposn={}, obt={}; let left=codes.length, finished=false;
   const closesMap={};
   const fin=()=>{ if(finished) return; finished=true;
-    if(Object.keys(out).length){ WT=out; WSIG=osig; DT=odt; EXT=oext; LV=olv; WT_DATE=today(); localStorage.setItem(WTK, JSON.stringify({date:WT_DATE, wt:WT, wsig:WSIG, dt:DT, ext:EXT, lv:LV})); }
+    if(Object.keys(out).length){ WT=out; WSIG=osig; DT=odt; EXT=oext; LV=olv; WT_DATE=today(); lsSet(WTK, JSON.stringify({date:WT_DATE, wt:WT, wsig:WSIG, dt:DT, ext:EXT, lv:LV})); }
     if(Object.keys(oposn).length){ DPOS=oposn; try{ localStorage.setItem(DPOSK,JSON.stringify({date:today(),pos:DPOS})); }catch(e){} }
     if(Object.keys(obt).length){ BT=obt; try{ localStorage.setItem(BTK,JSON.stringify({date:today(),bt:BT})); }catch(e){} }
     computeLink(closesMap);
@@ -1070,7 +1070,7 @@ function loadATR(done){
   const out={}; let left=codes.length, finished=false;
   const fin=()=>{ if(finished) return; finished=true;
     if(Object.keys(out).length){ ATR=Object.assign({}, ATR, out); ATR_DATE=today(); ATR_FAIL=false;
-      localStorage.setItem(ATRK, JSON.stringify({date:ATR_DATE, atr:ATR})); }
+      lsSet(ATRK, JSON.stringify({date:ATR_DATE, atr:ATR})); }
     else if(!Object.keys(ATR).length){ ATR_FAIL=true; }
     done&&done(); };
   if(!left){ done&&done(); return; }
@@ -1138,7 +1138,7 @@ function loadFFH(){
   let i=0; const out={};
   const next=()=>{
     if(i>=codes.length){
-      if(Object.keys(out).length){ FFH=out; FFH_DATE=today(); localStorage.setItem('ffh_v1', JSON.stringify({date:FFH_DATE, data:FFH})); }
+      if(Object.keys(out).length){ FFH=out; FFH_DATE=today(); lsSet('ffh_v1', JSON.stringify({date:FFH_DATE, data:FFH})); }
       render(); return;
     }
     const c=codes[i++]; let got=false;
