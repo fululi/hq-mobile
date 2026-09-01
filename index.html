@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#f5f6f8">
-<title>我的持仓 · 行情 v4.87</title>
+<title>我的持仓 · 行情 v4.88</title>
 <style>
 :root { color-scheme: light; }
 * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
@@ -639,7 +639,7 @@ function calcPos(rows){ // v4.73 日线位置:分位/MA20偏离/起涨/历史同
 let PRW=250; try{ const _w=+localStorage.getItem('hqm_prw_v1'); if(_w>=40) PRW=_w; }catch(e){}
 // v4.84: 预判区间不是"保证",是"常态波动范围"。直接量它历史上被击穿多少次,
 // 把公式换成一个能记住的数字,避免用久了盲目信任。
-let PREHIT={}; const PHK='hqm_ph_v1';
+let PREHIT={}, PHTRY={}; const PHK='hqm_ph_v1';
 try{ const _p=JSON.parse(localStorage.getItem(PHK)||'null'); if(_p&&_p.date===today()) PREHIT=_p.ph||{}; }catch(e){}
 let _phT=null;
 function phDirty(){ clearTimeout(_phT); _phT=setTimeout(()=>{ try{ render(); }catch(e){} },300); }
@@ -682,7 +682,7 @@ function preWhy(c,nm){
     t+='→ 记住 '+ph.inr+'% 这个数就够了,别记公式。\n';
     t+='剩下 '+(100-ph.inr)+'% 的日子它会被捅破,那是常事,不是异常。\n';
     t+='它是「常态波动范围」,不是保证,更不是买卖信号。';
-  } else t+='(实测数据还没算好,下拉刷新一次)';
+  } else t+='【实测】还在算 —— 要拉近300根日线才能统计,首次打开或刚换网络时会慢几秒。\n下拉刷新一次;如果刷新几次还是这句,多半是行情接口把这个代码的日线拒了。';
   alert(t);
 }
 function tierWhy(){
@@ -903,7 +903,8 @@ function loadM15(done){ // 15分钟三角扫描(新浪15分K,近80根≈5个交�
   });
 }
 function loadWTrend(done){
-  if(WT_DATE===today() && Object.keys(WT).length){ done&&done(); return; }
+  if(WT_DATE===today() && Object.keys(WT).length
+     && [...PF.holds.map(h=>h.code),...PF.watch.map(w=>w.code)].every(c=>PREHIT[c]||PHTRY[c])){ done&&done(); return; }
   const codes=[...PF.holds.map(h=>h.code), ...PF.watch.map(w=>w.code)];
   const out={}, osig={}, odt={}, oext={}, olv={}, oposn={}, obt={}; let left=codes.length, finished=false;
   const closesMap={};
@@ -916,6 +917,7 @@ function loadWTrend(done){
   if(!left){ done&&done(); return; }
   setTimeout(fin, 9000);
   codes.forEach(c=>{
+    PHTRY[c]=1; // 试过就记账:整批重抓很贵,不能让一只永远算不出的票每20秒拖着全体重跑
     let got=false;
     const tick=(val,dv,ev,lv)=>{ if(got) return; got=true; if(val!=null) out[c]=val; if(dv!=null) odt[c]=dv; if(ev!=null) oext[c]=ev; if(lv!=null) olv[c]=lv; if(--left===0) fin(); };
     const ctrl=new AbortController(); const tm=setTimeout(()=>ctrl.abort(), 6000);
@@ -989,6 +991,23 @@ function loadATR(done){
           .then(r=>r.text()).then(t=>{ clearTimeout(tm2); tick(parseSina(t)); })
           .catch(()=>{ clearTimeout(tm2); tick(null); });
       });
+  });
+}
+
+function loadIdxHit(done){
+  const need=IDX.map(x=>x[0]).filter(c=>!PREHIT[c]&&!PHTRY[c]);
+  if(!need.length){ done&&done(); return; }
+  let left=need.length;
+  const fin=()=>{ if(--left===0){ phDirty(); done&&done(); } };
+  need.forEach(c=>{ PHTRY[c]=1;
+    const ctrl=new AbortController(); const tm=setTimeout(()=>ctrl.abort(),6000);
+    fetch('https://web.ifzq.gtimg.cn/appstock/app/fqkline/get?param='+c+',day,,,300,qfq',{signal:ctrl.signal})
+      .then(r=>r.json()).then(d=>{ clearTimeout(tm);
+        const node=d.data&&d.data[c], rows=node&&(node.qfqday||node.day);
+        if(rows&&rows.length){ const _ph=preHitOf(rows.map(r=>[r[0],+r[1],+r[3],+r[4],+r[2]]));
+          if(_ph){ PREHIT[c]=_ph; try{ localStorage.setItem(PHK,JSON.stringify({date:today(),ph:PREHIT})); }catch(e){} } }
+        fin(); })
+      .catch(()=>{ clearTimeout(tm); delete PHTRY[c]; fin(); }); // 只有网络失败才允许重试,数据不够不重试
   });
 }
 
@@ -1102,7 +1121,7 @@ function refresh(manual){
   const s=document.createElement('script');
   s.src='https://qt.gtimg.cn/q='+allCodes().join(',')+'&_='+Date.now();
   s.charset='GBK';
-  s.onload=()=>{ render(); sweepPlans(); loadATR(render); loadWTrend(render); loadM15(render); maybeSync(); maybeFF(); maybeFFH(); s.remove(); done(); if(manual) toast('已刷新 · '+document.getElementById('time').textContent); }; // 先渲染行情,ATR到了再补渲染
+  s.onload=()=>{ render(); sweepPlans(); loadATR(render); loadIdxHit(); loadWTrend(render); loadM15(render); maybeSync(); maybeFF(); maybeFFH(); s.remove(); done(); if(manual) toast('已刷新 · '+document.getElementById('time').textContent); }; // 先渲染行情,ATR到了再补渲染
   s.onerror=()=>{ document.getElementById('time').textContent='网络拉取失败,请检查网络后点刷新'; s.remove(); done(); if(manual) toast('刷新失败,请检查网络'); };
   document.body.appendChild(s);
 }
