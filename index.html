@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#f5f6f8">
-<title>我的持仓 · 行情 v4.86</title>
+<title>我的持仓 · 行情 v4.87</title>
 <style>
 :root { color-scheme: light; }
 * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
@@ -129,6 +129,9 @@ td { border-top:1px solid #f2f4f6; }
 .qt2 .pr.hi { color:#16a34a; font-weight:700; }
 .qt2 .pr.lo { color:#d97706; }
 .qt2 td.qs { min-width:74px; }
+.cst{font-weight:700;color:#111827}
+.evg{font-style:normal;font-weight:700;color:#b45309;margin-left:3px}
+.evo{font-style:normal;font-weight:700;color:#dc2626;margin-left:3px}
 .acch{display:flex;justify-content:space-between;align-items:baseline;gap:8px;
   margin:12px 0 6px;padding:5px 10px;border-radius:7px;background:#eef2ff;
   border-left:3px solid #6366f1;font-size:12px;color:#3730a3}
@@ -1445,6 +1448,12 @@ function feeSide(code,px,q,sell){
   if(!etf) c=Math.max(FEE.min!=null?FEE.min:5, c);
   return c + ((sell&&!etf)? amt*FEE.stamp/100 : 0) + (etf?0:amt*0.001/100);
 }
+function evenPx(code,cost,shares){
+  if(!(cost>0&&shares>0)) return null;
+  let x=cost;
+  for(let k=0;k<3;k++) x=cost+feeSide(code,x,shares,1)/shares;
+  return x;
+}
 function feeOf(sell,buy,sq,bq){
   if(bq==null||isNaN(bq)||bq<=0) bq=sq;
   return {fee: feeSide(CODE_FEE,sell,sq,1) + feeSide(CODE_FEE,buy,bq,0)};
@@ -2194,7 +2203,14 @@ function doRender(){
       <div class="row1"><div><span class="nm">${h.name}</span><span class="code">${h.code.replace(/^(sh|sz)/,'')}</span>${badge}${wtBadge}${dtBadgeH}${wsgTxtH}${m15Badge}${gzH}${extBadge}</div>
         <div class="pct ${cls(pct)}">${pct!=null?sg(pct.toFixed(2))+'%':''}</div></div>
       <div class="row1" style="margin-top:4px"><div class="px ${cls(pct)}">${P(p)}</div>
-        <div class="sub">${cleared?'<b style="color:#c2410c">已清仓</b> · 0股':'成本 '+h.cost+' · '+h.shares+'股'}</div></div>
+        <div class="sub">${cleared?'<b style="color:#c2410c">已清仓</b> · 0股':(()=>{
+          let t='成本 <b class="cst">'+h.cost+'</b> · '+h.shares+'股';
+          const ev=evenPx(h.code,h.cost,h.shares);
+          if(ev!=null){ t+=' · 保本<b class="cst">'+P(ev)+'</b>';
+            if(p!=null&&p>0){ const d=(ev/p-1)*100;
+              t+=d>0.05?'<i class="evg">还需+'+d.toFixed(1)+'%</i>'
+                :(d<-0.05?'<i class="evo">已越过'+Math.abs(d).toFixed(1)+'%</i>':'<i class="evo">刚好保本</i>'); } }
+          return t; })()}</div></div>
       ${actBar}
       <div class="grid2">
         <div class="kv"><div class="k">回撤/盈亏率</div><div class="val ${dd!=null?cls(dd):'flat'}">${dd!=null?sg(dd.toFixed(2))+'%':'—'}</div></div>
