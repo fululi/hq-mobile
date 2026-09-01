@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#f5f6f8">
-<title>我的持仓 · 行情 v4.55</title>
+<title>我的持仓 · 行情 v4.56</title>
 <style>
 :root { color-scheme: light; }
 * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
@@ -748,7 +748,7 @@ function refresh(manual){
   const s=document.createElement('script');
   s.src='https://qt.gtimg.cn/q='+allCodes().join(',')+'&_='+Date.now();
   s.charset='GBK';
-  s.onload=()=>{ render(); sweepPlans(); loadATR(()=>render()); loadWTrend(()=>render()); loadM15(()=>render()); maybeSync(); maybeFF(); maybeFFH(); s.remove(); done(); if(manual) toast('已刷新 · '+document.getElementById('time').textContent); }; // 先渲染行情,ATR到了再补渲染
+  s.onload=()=>{ render(); sweepPlans(); loadATR(render); loadWTrend(render); loadM15(render); maybeSync(); maybeFF(); maybeFFH(); s.remove(); done(); if(manual) toast('已刷新 · '+document.getElementById('time').textContent); }; // 先渲染行情,ATR到了再补渲染
   s.onerror=()=>{ document.getElementById('time').textContent='网络拉取失败,请检查网络后点刷新'; s.remove(); done(); if(manual) toast('刷新失败,请检查网络'); };
   document.body.appendChild(s);
 }
@@ -1392,7 +1392,14 @@ function fallbackCopy(txt,cb){
   catch(e){ toast('复制失败,请长按框内文字手动复制'); setTimeout(()=>ta.remove(),8000); }
 }
 
+let _rPend=false;
 function render(){
+  if(_rPend) return;
+  _rPend=true;
+  requestAnimationFrame(()=>{ _rPend=false; doRender(); });
+}
+function doRender(){
+  const _ae=document.activeElement, _aid=_ae&&_ae.id, _av=_ae&&_ae.value, _as=_ae&&_ae.selectionStart;
   let when='';
   document.getElementById('idx').innerHTML = IDX.map(([c,n])=>{
     const f=GET(c); if(!f) return ''; const p=F(f,3),pct=F(f,32),prev=F(f,4); if(f[30]&&f[30].length>=14) when=f[30];
@@ -1553,6 +1560,10 @@ function render(){
   const tde=document.getElementById('tDate'); if(tde&&!tde.value) tde.value=today();
   renderT();
   renderPaper();
+  if(_aid){ setTimeout(()=>{
+    const el=document.getElementById(_aid);
+    if(el&&el.tagName==="INPUT"){ el.value=_av||""; try{ el.setSelectionRange(_as,_as); }catch(e){} el.focus(); }
+  },0); }
 }
 /* ================= 模拟建仓 · 每日自动跟踪（纯本地代码，零 token） =================
    规则(回测框架口径)：收敛三角收盘突破 → 按信号日收盘模拟建仓；
@@ -1642,7 +1653,7 @@ function renderPaper(){
 })();
 refresh();
 setInterval(()=>{ const d=new Date(),t=d.getHours()*60+d.getMinutes(),w=d.getDay();
-  if(!editMode && w>=1&&w<=5&&((t>=565&&t<=690)||(t>=780&&t<=900))) refresh(); }, 20000);
+  if(!document.hidden&&!editMode&&w>=1&&w<=5&&((t>=565&&t<=690)||(t>=780&&t<=900))) refresh(); }, 20000);
 </script>
 </body>
 </html>
