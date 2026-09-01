@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#f5f6f8">
-<title>我的持仓 · 行情 v4.83</title>
+<title>我的持仓 · 行情 v4.84</title>
 <style>
 :root { color-scheme: light; }
 * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
@@ -129,6 +129,9 @@ td { border-top:1px solid #f2f4f6; }
 .qt2 .pr.hi { color:#16a34a; font-weight:700; }
 .qt2 .pr.lo { color:#d97706; }
 .qt2 td.qs { min-width:74px; }
+.qm{display:inline-block;min-width:13px;height:13px;line-height:13px;text-align:center;
+  border-radius:50%;background:#cbd5e1;color:#fff;font-size:10px;font-weight:700;
+  margin-left:4px;padding:0 1px;cursor:pointer;vertical-align:middle}
 .tchip s.prb { color:#6b7280; font-size:10.5px; font-weight:600; text-decoration:none; }
 .tchip s.prb.hi { color:#16a34a; }
 .tchip s.prb.lo { color:#d97706; }
@@ -608,6 +611,70 @@ function calcPos(rows){ // v4.73 日线位置:分位/MA20偏离/起涨/历史同
 // 经验频率法(非参数,非布林): 样本内有多少天的日内最低/最高越过了 k%
 // PRW=回看窗口(交易日)。250≈1年, 120≈半年, 60≈3个月。窗口越短越贴近当下波动状态,但样本越少越抖。
 let PRW=250; try{ const _w=+localStorage.getItem('hqm_prw_v1'); if(_w>=40) PRW=_w; }catch(e){}
+// v4.84: 预判区间不是"保证",是"常态波动范围"。直接量它历史上被击穿多少次,
+// 把公式换成一个能记住的数字,避免用久了盲目信任。
+let PREHIT={}; const PHK='hqm_ph_v1';
+try{ const _p=JSON.parse(localStorage.getItem(PHK)||'null'); if(_p&&_p.date===today()) PREHIT=_p.ph||{}; }catch(e){}
+let _phT=null;
+function phDirty(){ clearTimeout(_phT); _phT=setTimeout(()=>{ try{ render(); }catch(e){} },300); }
+function preHitOf(rows){   // rows:[date,open,high,low,close]
+  const n=rows.length; if(n<120) return null;
+  const atrAt=i=>{ let t=0; for(let j=i-14;j<i;j++){ const h=rows[j][2],l=rows[j][3],pc=rows[j-1][4];
+    t+=Math.max(h-l,Math.abs(h-pc),Math.abs(l-pc)); } return t/14; };
+  let tot=0,inr=0,up=0,dn=0,inc=0;
+  for(let i=Math.max(16,n-250);i<n;i++){
+    const pv=rows[i-1][4], a=atrAt(i); if(!(a>0&&pv>0)) continue;
+    const hi=pv+a, lo=pv-a, H=rows[i][2], L=rows[i][3], C=rows[i][4];
+    tot++;
+    if(H<=hi&&L>=lo) inr++;
+    if(H>hi) up++;
+    if(L<lo) dn++;
+    if(C<=hi&&C>=lo) inc++;
+  }
+  return tot<60?null:{n:tot,inr:Math.round(inr/tot*100),up:Math.round(up/tot*100),
+                      dn:Math.round(dn/tot*100),inc:Math.round(inc/tot*100)};
+}
+function preWhy(c,nm){
+  const ph=PREHIT[c], a=atrOf(c), f=GET(c), prev=F(f,4), px=F(f,3), rc=refCloseOf(px,prev);
+  let t='【'+(nm||c)+' 预判区间是怎么来的】\n\n';
+  t+='★ 不是布林带,不是均线通道,没有正态分布假设。\n\n';
+  t+='公式: 基准价 ± 1.0 × ATR14\n';
+  t+='基准价 = 盘中用昨收 / 收盘后用今收(所以收盘后它自动变成"明天的区间")\n';
+  t+='ATR14 = 最近14个交易日「真实波幅」的平均值\n';
+  t+='真实波幅 = max(当日高低差, |高−昨收|, |低−昨收|),把跳空缺口也算进去\n';
+  t+='最后再被涨跌停板夹一次。\n\n';
+  if(rc!=null&&a!=null){
+    t+='当前: 基准 '+rc.toFixed(2)+'   ATR14 '+a.toFixed(2)+' ('+(a/rc*100).toFixed(2)+'%)\n';
+    t+='区间 '+(rc-a).toFixed(2)+' ~ '+(rc+a).toFixed(2)+'\n\n';
+  }
+  if(ph){
+    t+='【实测·近'+ph.n+'个交易日,这个区间到底准不准】\n';
+    t+='  全天没出过区间   '+ph.inr+'%\n';
+    t+='  捅破上沿         '+ph.up+'%\n';
+    t+='  跌破下沿         '+ph.dn+'%\n';
+    t+='  收盘落在区间内   '+ph.inc+'%\n\n';
+    t+='→ 记住 '+ph.inr+'% 这个数就够了,别记公式。\n';
+    t+='剩下 '+(100-ph.inr)+'% 的日子它会被捅破,那是常事,不是异常。\n';
+    t+='它是「常态波动范围」,不是保证,更不是买卖信号。';
+  } else t+='(实测数据还没算好,下拉刷新一次)';
+  alert(t);
+}
+function tierWhy(){
+  alert('【档位这几个数字分别是什么】\n\n'
+   +'① ② ③ = 第几档。价格离现价越远,序号越大。\n'
+   +'  持仓越大 / 波动越大 → 档位越多(3档);小仓位或低波动只给1档。\n\n'
+   +'「从现价X再涨N%」= 离你此刻能成交的价还差多远。这是主信号。\n'
+   +'「今收/昨收 +N%」= 离基准价的距离,档位就是按这个基准算出来的。\n'
+   +'  收盘后两者相同(现价=今收),盘中会不一样。\n\n'
+   +'「成本+N%」= 真按这价卖掉100股,相对你的持仓成本净赚几个点(已扣手续费)。\n\n'
+   +'「N%概率到」= 经验频率,不是模型预测:\n'
+   +'  过去 '+PRW+' 个交易日里,当天最高/最低价越过这个幅度的天数占比。\n'
+   +'  例如"30%概率到"= 10天里大约3天摸得到。\n'
+   +'  窗口可在「做T计划」标题右边切 60/120/250 日。250日≈1年,60日≈3个月。\n'
+   +'  窗口越短越贴近当下波动状态,但样本越少越抖。\n\n'
+   +'★ 重要: 这是「无条件概率」——它不看今天的盘面,只统计历史频率。\n'
+   +'  不能当成"今天有N%概率涨到这"。');
+}
 function hitPr(arr,k){ if(!arr||!arr.length) return null;
   const a=PRW<arr.length?arr.slice(-PRW):arr;
   return Math.round(a.filter(x=>x>=k).length/a.length*100); }
@@ -755,7 +822,9 @@ function computeLink(cm){ // 每票对四大指数算250日相关性+极端日�
     fetch('https://web.ifzq.gtimg.cn/appstock/app/fqkline/get?param='+ix[0]+',day,,,300,qfq',{signal:ctrl.signal})
       .then(r=>r.json()).then(d=>{ clearTimeout(tm);
         const node=d.data&&d.data[ix[0]], rows=node&&(node.qfqday||node.day);
-        if(rows&&rows.length){ const m={}; rows.forEach(r=>{ m[r[0]]=+r[2]; }); ipx[ix[0]]=m; }
+        if(rows&&rows.length){ const m={}; rows.forEach(r=>{ m[r[0]]=+r[2]; }); ipx[ix[0]]=m;
+          try{ const _ph=preHitOf(rows.map(r=>[r[0],+r[1],+r[3],+r[4],+r[2]]));
+            if(_ph){ PREHIT[ix[0]]=_ph; localStorage.setItem(PHK,JSON.stringify({date:today(),ph:PREHIT})); phDirty(); } }catch(e){} }
         if(--left===0) fin2();
       }).catch(()=>{ clearTimeout(tm); if(--left===0) fin2(); });
   });
@@ -832,6 +901,8 @@ function loadWTrend(done){
         closesMap[c]=rows.map(r=>[r[0],+r[2]]);
         try{ paperScan(c, rows.map(r=>[r[0], +r[1], +r[3], +r[4], +r[2], +r[5]])); }catch(e){}
         try{ const _pr=calcPos(rows.map(r=>[r[0],+r[1],+r[3],+r[4],+r[2]])); if(_pr) oposn[c]=_pr; }catch(e){}
+        try{ const _ph=preHitOf(rows.map(r=>[r[0],+r[1],+r[3],+r[4],+r[2]]));
+          if(_ph){ PREHIT[c]=_ph; localStorage.setItem(PHK,JSON.stringify({date:today(),ph:PREHIT})); phDirty(); } }catch(e){}
         try{ const _hn=(PF.holds.concat(PF.watch).find(x=>x.code===c)||{}).name||'';
           const _bs=btSweep(c,_hn,rows.map(r=>[r[0],+r[1],+r[3],+r[4],+r[2]])); if(_bs) obt[c]=_bs; }catch(e){}
         try{ const wbars=[]; let wk2='', cur=null;
@@ -1742,9 +1813,13 @@ function doRender(){
     const f=GET(c); if(!f) return ''; const p=F(f,3),pct=F(f,32),prev=F(f,4); if(f[30]&&f[30].length>=14) when=f[30];
     if(c==='sh000001') MKT=pct;
     const ia=atrOf(c);
-    const ipre=(prev!=null&&ia!=null)?(prev-ia).toFixed(0)+'~'+(prev+ia).toFixed(0):'—';
-    const ipos=(p!=null&&prev!=null&&ia!=null)?(p>=prev+ia?' <b class="up">▲破上沿</b>':(p<=prev-ia?' <b class="down">▼破下沿</b>':'')):'';
-    return `<div class="c"><div class="n">${n}</div><div class="v ${cls(pct)}">${p!=null?p.toFixed(2):'—'}</div><div class="g ${cls(pct)}">${pct!=null?sg(pct.toFixed(2))+'%':''}</div><div class="g sub" style="font-weight:400">预判${ipre}${ipos}</div></div>`;
+    // v4.84 修bug: 指数卡原来死锚昨收 —— 收盘后仍在显示"给今天用的"那份已过期区间。
+    // 个股档位v4.82已改成收盘后滚到今收,指数卡当时漏了,这里补上,两边同一口径。
+    const iref=refCloseOf(p,prev), inx=planNext();
+    const ipre=(iref!=null&&ia!=null)?(iref-ia).toFixed(0)+'~'+(iref+ia).toFixed(0):'—';
+    const ipos=(!inx&&p!=null&&iref!=null&&ia!=null)?(p>=iref+ia?' <b class="up">▲破上沿</b>':(p<=iref-ia?' <b class="down">▼破下沿</b>':'')):'';
+    const iph=PREHIT[c];
+    return `<div class="c"><div class="n">${n}</div><div class="v ${cls(pct)}">${p!=null?p.toFixed(2):'—'}</div><div class="g ${cls(pct)}">${pct!=null?sg(pct.toFixed(2))+'%':''}</div><div class="g sub" style="font-weight:400">${inx?planLbl():'今日'}预判${ipre}${ipos}<span class="qm" onclick="event.stopPropagation();preWhy('${c}','${n}')">?</span>${iph?`<br><span style="font-size:9px;color:#94a3b8">实测${iph.inr}%不出界</span>`:''}</div></div>`;
   }).join('');
   const me=document.getElementById('mkt');
   if(me){
@@ -1809,10 +1884,12 @@ function doRender(){
       let gapS='';
       if(p!=null&&p>0){
         const g=(x/p-1)*100, ag=Math.abs(g).toFixed(1);
-        if(side==='buy') gapS=g<0?`<em style="color:#16a34a">再跌${ag}%到</em>`
-          :`<em style="color:#b45309">⚠比现价高${ag}%</em>`;
-        else gapS=g>0?`<em style="color:#dc2626">再涨${ag}%到</em>`
-          :`<em style="color:#b45309">⚠现价已越过${ag}%</em>`;
+        // v4.84: 原来只写"再涨1.5%",没写从哪涨 —— 把基准价直接写进去
+        const pS=P(p);
+        if(side==='buy') gapS=g<0?`<em style="color:#16a34a">从现价${pS}再跌${ag}%</em>`
+          :`<em style="color:#b45309">⚠比现价${pS}高${ag}%</em>`;
+        else gapS=g>0?`<em style="color:#dc2626">从现价${pS}再涨${ag}%</em>`
+          :`<em style="color:#b45309">⚠现价${pS}已越过${ag}%</em>`;
       }
       // 卖档: 相对持仓成本的净收益(扣费)
       let costS='';
@@ -1848,7 +1925,8 @@ function doRender(){
     const ff=FF[h.code];
     const ffTxt=ff?`<div class="atrnote">主力净流入 <b class="${cls(ff.amt)}">${ff.amt>=0?'+':''}${fmtAmt(ff.amt)}</b> · 占成交 ${ff.pct!=null?ff.pct.toFixed(1)+'%':'—'} <span class="sub">(东财口径,参考)</span></div>`:'';
     const ffhT=ffhTxt(h.code);
-    // 今日预判区间: 昨收 ± 0.55×ATR14,受涨跌停约束;突破上沿=强势,跌破下沿=走弱
+    // 预判区间: 基准 ± ampF×ATR14 (ampF默认1.0,只在联动指数极端日放大),受涨跌停约束
+    // 基准 = 盘中昨收 / 收盘后今收(refCloseOf),与做T档位同一口径
     const lp2=limitPct(h.code,h.name)/100, a2=atrOf(h.code);
     const lk=LNK[h.code], lpct=idxPctOf(lk);
     let ampF=1, ampNote='';
@@ -1888,8 +1966,8 @@ function doRender(){
     }
     const tradeZone=cleared?'<div class="atrnote" style="color:#c2410c;font-weight:700">✓ 已清仓 · 实现盈亏见下方台账 · 分档与快捷单已收起(接回后点编辑重填股数/成本)</div>'
       :(_dead?`<div class="deadn">${deadSum}</div>`:'')
-      +`<div class="tierbox"><div class="tier tb"><div class="tl">低吸区 · 点价直接填单</div>${buyStr}</div><div class="tier ts"><div class="tl">高抛区 · 点价直接填单</div>${sellStr}</div></div>
-      <div class="qbox"><input id="qs_${h.code}" type="number" step="0.001" placeholder="卖出价" oninput="qPrev('${h.code}')"><input id="qb_${h.code}" type="number" step="0.001" placeholder="接回(空=只卖)" oninput="qPrev('${h.code}')"><input id="qq_${h.code}" type="number" step="100" placeholder="股数" oninput="qPrev('${h.code}')"><button onclick="qTrade('${h.code}')">记</button></div>
+      +`<div class="tierbox"><div class="tier tb"><div class="tl">低吸区 · 点价直接填单<span class="qm" onclick="tierWhy()">?</span></div>${buyStr}</div><div class="tier ts"><div class="tl">高抛区 · 点价直接填单<span class="qm" onclick="tierWhy()">?</span></div>${sellStr}</div></div>
+      <div class="qbox"><input id="qs_${h.code}" type="number" step="0.001" placeholder="卖出价" oninput="qPrev('${h.code}')"><input id="qb_${h.code}" type="number" step="0.001" placeholder="接回(空=只卖)" oninput="qPrev('${h.code}')"><input id="qq_${h.code}" type="number" step="100" placeholder="股数(不填=1/4仓)" oninput="qPrev('${h.code}')"><button onclick="qTrade('${h.code}')">记</button></div>
       <div class="sub qpv" id="qp_${h.code}"></div>
       ${roundTxt}`;
     const editRow = editMode ? `<div class="editbox">
@@ -1981,7 +2059,7 @@ function doRender(){
         <div class="kv"><div class="k">持仓市值</div><div class="val flat">${mv!=null?Math.round(mv).toLocaleString():'—'}</div></div>
         <div class="kv"><div class="k">今日振幅</div><div class="val flat">${ampPct!=null?ampPct.toFixed(2)+'%':'—'}</div></div>
       </div>
-      <div class="proj"><span>今日预判 <b class="flat">${preStr}</b></span><span class="sub">${posTxt}${ampNote} · ${anchorNote(h.code,prev)}</span></div>
+      <div class="proj"><span>${planNext()?planLbl():'今日'}预判 <b class="flat">${preStr}</b><span class="qm" onclick="preWhy('${h.code}','${h.name}')">?</span>${PREHIT[h.code]?`<span class="sub" style="font-size:10px"> 实测${PREHIT[h.code].inr}%不出界</span>`:''}</span><span class="sub">${posTxt}${ampNote} · ${anchorNote(h.code,prev)}</span></div>
       <div class="proj" style="margin-top:2px"><span>今日实际 <b class="flat">${lo!=null?P(lo):'—'} ~ ${hi!=null?P(hi):'—'}</b></span><span class="sub">${hi!=null&&preHi!=null?(hi>=preHi?'最高摸到预判上沿':'最高距上沿还差'+P(preHi-hi)):''}${lo!=null&&preLo!=null?(lo<=preLo?' · 最低击穿预判下沿':' · 最低距下沿还差'+P(lo-preLo)):''}</span></div>
       <div class="proj vrd"><span>📋 <b style="color:${vCls(vd)}">${vd}</b></span></div>
       ${tradeZone}
