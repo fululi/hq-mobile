@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#f5f6f8">
-<title>我的持仓 · 行情 v4.56</title>
+<title>我的持仓 · 行情 v4.57</title>
 <style>
 :root { color-scheme: light; }
 * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
@@ -1410,9 +1410,20 @@ function doRender(){
     return `<div class="c"><div class="n">${n}</div><div class="v ${cls(pct)}">${p!=null?p.toFixed(2):'—'}</div><div class="g ${cls(pct)}">${pct!=null?sg(pct.toFixed(2))+'%':''}</div><div class="g sub" style="font-weight:400">预判${ipre}${ipos}</div></div>`;
   }).join('');
   const me=document.getElementById('mkt');
-  if(me){ if(MKT==null){ me.textContent=''; }
-    else { const s=MKT>=1.2?'大盘强势(涨幅≥1.2%)':(MKT<=-1.2?'大盘走弱(跌幅≥1.2%)':'大盘平稳(±1.2%内)');
-      me.innerHTML='上证 <b class="'+cls(MKT)+'">'+sg(MKT.toFixed(2))+'%</b> · '+s; } }
+  if(me){
+    const _ip=IDX.map(([c,n])=>({n,v:(GET(c)?F(GET(c),32):null)})).filter(x=>x.v!=null);
+    const _allDn=_ip.length>=2&&_ip.every(x=>x.v<=-1.2);
+    const _allUp=_ip.length>=2&&_ip.every(x=>x.v>=1.2);
+    const _nums=_ip.map(x=>x.n+'<b class="'+cls(x.v)+'">'+sg(x.v.toFixed(2))+'%</b>').join(' · ');
+    if(_ip.length===0){ me.textContent=''; }
+    else if(_allDn){
+      me.innerHTML='<span style="display:inline-block;background:#fee2e2;color:#991b1b;padding:1px 8px;border-radius:4px;font-weight:700;margin-right:6px">⬇ 单边下跌</span>'+_nums;
+    } else if(_allUp){
+      me.innerHTML='<span style="display:inline-block;background:#dcfce7;color:#166534;padding:1px 8px;border-radius:4px;font-weight:700;margin-right:6px">⬆ 单边上涨</span>'+_nums;
+    } else {
+      me.innerHTML=_nums+(MKT!=null?' · '+(Math.abs(MKT)>=1.2?'指数分化':'平稳'):'');
+    }
+  }
 
   let totMv=0, totPnl=0;
   const qVals={};
@@ -1560,6 +1571,12 @@ function doRender(){
   const tde=document.getElementById('tDate'); if(tde&&!tde.value) tde.value=today();
   renderT();
   renderPaper();
+  // 标题栏：有持仓票跌破ATR下沿时显示⚠计数，手机标签页可感知
+  const _brkN=PF.holds.filter(h=>{
+    const f=GET(h.code),p=F(f,3),prev=F(f,4),ia=atrOf(h.code);
+    return p!=null&&prev!=null&&ia!=null&&p<=(prev-ia)&&h.shares>0;
+  }).length;
+  document.title=_brkN>0?'⚠'+_brkN+'票破下沿 · 我的持仓':'我的持仓 · 行情';
   if(_aid){ setTimeout(()=>{
     const el=document.getElementById(_aid);
     if(el&&el.tagName==="INPUT"){ el.value=_av||""; try{ el.setSelectionRange(_as,_as); }catch(e){} el.focus(); }
