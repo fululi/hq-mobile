@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#f5f6f8">
-<title>我的持仓 · 行情 v4.63</title>
+<title>我的持仓 · 行情 v4.66</title>
 <style>
 :root { color-scheme: light; }
 * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
@@ -108,6 +108,14 @@ td { border-top:1px solid #f2f4f6; }
 .tier.tb .tl { color:#15803d; } .tier.ts .tl { color:#b91c1c; }
 .tchip { display:flex; align-items:baseline; gap:5px; padding:4px 2px; cursor:pointer; flex-wrap:wrap; }
 .tchip em { font-style:normal; font-size:13px; font-weight:700; font-variant-numeric:tabular-nums; }
+.fold { margin-top:8px; border-top:1px dashed #e6e8ec; padding-top:6px; }
+.fold summary { cursor:pointer; font-size:11.5px; color:#9ca3af; list-style:none; }
+.fold summary::-webkit-details-marker { display:none; }
+.fold summary::before { content:'▸ '; }
+.fold[open] summary::before { content:'▾ '; }
+.act { padding:9px 11px; border-radius:9px; margin:7px 0; color:#fff; }
+.act .at { font-size:17px; font-weight:800; letter-spacing:.3px; }
+.act .ad { font-size:12.5px; margin-top:2px; opacity:.96; line-height:1.45; }
 .tchip u { flex-basis:100%; text-decoration:none; font-size:11.5px; font-weight:700; margin-top:-1px; }
 .tchip:active { opacity:.6; }
 .tchip i { font-style:normal; font-size:11px; font-weight:700; color:#9ca3af; }
@@ -1584,30 +1592,11 @@ function doRender(){
         const fee5=feeOf(s5,b5,100,100).fee, net5=(s5-b5)*100-fee5;
         pairs.push(`${'①②③'[j]}买${P(b5)}→卖${P(s5)} 差+${(s5-b5).toFixed(2)}元(${((s5-b5)/b5*100).toFixed(1)}%)·100股净${sg(Math.round(net5))}元`);
       }
-      roundTxt=`<div class="sub" style="margin-top:6px;color:#374151">一轮净赚(已扣费): ${pairs.join('<br>')}</div>`;
+      roundTxt=`<details class="fold"><summary>一轮净赚(已扣费) · ${pairs.length}种配对</summary><div class="sub" style="color:#374151">${pairs.join('<br>')}</div></details>`;
     }
-    // v4.63: 档位失效判定 —— 锚定今开后单边走,现价跌穿/涨过全部档位则整套作废
-    let deadTier='';
-    if(!cleared&&p!=null&&tr.buys.length&&tr.sells.length){
-      const op=F(f,5), gap=(op!=null&&prev)?(op/prev-1)*100:null;
-      const anch=anchorOf(h.code,p,prev);
-      const belowAll=tr.buys.every(x=>x>p), aboveAll=tr.sells.every(x=>x<p);
-      if(belowAll||aboveAll){
-        const drift=anch?(p/anch-1)*100:null;
-        const dir=belowAll?'跌穿':'涨过';
-        const zone=belowAll?'低吸':'高抛';
-        const lst=(belowAll?tr.buys:tr.sells).map(x=>P(x)).join('/');
-        deadTier='<div style="background:#7f1d1d;color:#fff;padding:9px 11px;border-radius:8px;margin:6px 0">'
-          +'<div style="font-size:15px;font-weight:800">⚠ 今日'+zone+'档已全部失效</div>'
-          +'<div style="font-size:12.5px;margin-top:3px;line-height:1.5">'
-          +(gap!=null&&Math.abs(gap)>=1?('今日'+(gap>0?'高开+':'低开')+gap.toFixed(1)+'%,'):'')
-          +'锚点'+P(anch)+' → 现价'+P(p)
-          +(drift!=null?'(较锚点'+sg(drift.toFixed(1))+'%)':'')
-          +'<br>'+zone+'档 '+lst+' 已被现价'+dir+',<b>今日别按这套档位下单</b>,等明日重新锚定</div></div>';
-      }
-    }
+
     const tradeZone=cleared?'<div class="atrnote" style="color:#c2410c;font-weight:700">✓ 已清仓 · 实现盈亏见下方台账 · 分档与快捷单已收起(接回后点编辑重填股数/成本)</div>'
-      :deadTier+`<div class="tierbox"><div class="tier tb"><div class="tl">低吸区 · 点价直接填单</div>${buyStr}</div><div class="tier ts"><div class="tl">高抛区 · 点价直接填单</div>${sellStr}</div></div>
+      :`<div class="tierbox"><div class="tier tb"><div class="tl">低吸区 · 点价直接填单</div>${buyStr}</div><div class="tier ts"><div class="tl">高抛区 · 点价直接填单</div>${sellStr}</div></div>
       <div class="qbox"><input id="qs_${h.code}" type="number" step="0.001" placeholder="卖出价" oninput="qPrev('${h.code}')"><input id="qb_${h.code}" type="number" step="0.001" placeholder="接回(空=只卖)" oninput="qPrev('${h.code}')"><input id="qq_${h.code}" type="number" step="100" placeholder="股数" oninput="qPrev('${h.code}')"><button onclick="qTrade('${h.code}')">记</button></div>
       <div class="sub qpv" id="qp_${h.code}"></div>
       ${roundTxt}`;
@@ -1616,11 +1605,58 @@ function doRender(){
         <label>股数<input type="number" step="100" value="${h.shares}" onchange="editField('hold',${i},'shares',this.value)"></label>
       </div>` : '';
     const delBtn = editMode ? `<button class="del" onclick="delItem(this,'hold',${i})">删除</button>` : '';
+    // v4.65: 早上起床只看这一行 —— 今天这只票该干什么
+    const act=(()=>{
+      const mp=(typeof PLAN!=='undefined'?PLAN:[]).filter(x=>x.code===h.code&&x.hit);
+      if(mp.length) return {t:'⚡ 去成交',d:mp.length+'笔挂单已到价: '+mp.map(x=>(x.side==='sell'?'卖':'买')+P(x.price)).join(' · '),bg:'#dc2626'};
+      if(cleared) return {t:'✓ 已清仓',d:'实现盈亏见下方台账,可去清仓档案查历史',bg:'#6b7280'};
+      if(p==null||!tr.buys.length||!tr.sells.length) return null;
+      const sMin=Math.min(...tr.sells), bMax=Math.max(...tr.buys), bMin=Math.min(...tr.buys);
+      const nr=h.cost>0&&h.shares>0?((p-h.cost)*100-feeOf(p,h.cost,100,100).fee)/(h.cost*100)*100:null;
+      // 今日形态: 高开冲高回落 / 低开下探回升 —— 只用一个后缀说清,不另开一条
+      const op=F(f,5), gp=(op!=null&&prev)?(op/prev-1)*100:null;
+      let sfx='';
+      if(gp!=null&&Math.abs(gp)>=1.5){
+        if(gp>0&&p<prev) sfx=' · 高开'+gp.toFixed(1)+'%后倒跌';
+        else if(gp<0&&p>prev) sfx=' · 低开'+Math.abs(gp).toFixed(1)+'%后翻红';
+        else if(gp>0&&hi!=null&&p<hi*0.985) sfx=' · 高开冲高回落';
+      }
+      if(p>=sMin) return {t:'🔴 可卖'+sfx,d:'现价已进高抛档'+P(sMin)+(nr!=null?' · 此刻卖出净'+(nr>=0?'赚':'亏')+Math.abs(nr).toFixed(1)+'%':''),bg:'#dc2626'};
+      if(p<bMin){
+        const un=(1-p/bMin)*100;
+        return {t:'⏸ 别接'+sfx,d:(sfx?'早盘就是顶,':'')+'低吸档 '+tr.buys.map(x=>P(x)).join('/')+' 都在上方,现价还低'+un.toFixed(1)+'% · 接了在跌',bg:'#b45309'};
+      }
+      if(p<=bMax) return {t:'🟢 可接'+sfx,d:'现价已进低吸档'+P(bMax)+' · ①号位少量先动,留子弹',bg:'#16a34a'};
+      return {t:'⏸ 今天不用动'+sfx,d:'卖要涨'+((sMin/p-1)*100).toFixed(1)+'%到'+P(sMin)+' · 接要跌'+((1-bMax/p)*100).toFixed(1)+'%到'+P(bMax),bg:'#6b7280'};
+    })();
+    // 指数联动: 该票跟随的指数今日走势(重灾区直接摆在动作条里)
+    const lkLine=(()=>{
+      if(!lk) return '';
+      const ip=idxPctOf(lk);
+      if(ip==null) return '';
+      const mul=lk.ad||lk.au, ext=Math.abs(ip)>=1.2;
+      return '<div class="ad" style="border-top:1px solid rgba(255,255,255,.25);margin-top:5px;padding-top:4px">'
+        +'跟'+lk.i+' '+sg(ip.toFixed(2))+'%'+(ext?'<b>(达极端日)</b>':'')
+        +' · 相关r'+lk.r+(mul?' · 该票历史放大×'+mul:'')
+        +(ext&&mul?' → 今日理论波动'+(Math.abs(ip)*mul).toFixed(1)+'%':'')+'</div>';
+    })();
+    // v4.66: 今日走势路径一行数字看完,不用再解释"跳空回补"这种词
+    const pathLine=(()=>{
+      const op=F(f,5);
+      if(p==null||hi==null||lo==null) return '';
+      const seg=[];
+      if(op!=null) seg.push(P(op)+'开');
+      seg.push('高'+P(hi)); seg.push('低'+P(lo)); seg.push('<b>现'+P(p)+'</b>');
+      return '<div class="ad" style="font-variant-numeric:tabular-nums">'+seg.join(' → ')
+        +(prev?' <span style="opacity:.8">(昨收'+P(prev)+')</span>':'')+'</div>';
+    })();
+    const actBar=act?`<div class="act" style="background:${act.bg}"><div class="at">${act.t}</div>${pathLine}<div class="ad">${act.d}</div>${lkLine}</div>`:'';
     return `<div class="card">${delBtn}
       <div class="row1"><div><span class="nm">${h.name}</span><span class="code">${h.code.replace(/^(sh|sz)/,'')}</span>${badge}${wtBadge}${dtBadgeH}${wsgTxtH}${m15Badge}${gzH}${extBadge}</div>
         <div class="pct ${cls(pct)}">${pct!=null?sg(pct.toFixed(2))+'%':''}</div></div>
       <div class="row1" style="margin-top:4px"><div class="px ${cls(pct)}">${P(p)}</div>
         <div class="sub">${cleared?'<b style="color:#c2410c">已清仓</b> · 0股':'成本 '+h.cost+' · '+h.shares+'股'}</div></div>
+      ${actBar}
       <div class="grid2">
         <div class="kv"><div class="k">回撤/盈亏率</div><div class="val ${dd!=null?cls(dd):'flat'}">${dd!=null?sg(dd.toFixed(2))+'%':'—'}</div></div>
         <div class="kv"><div class="k">浮动盈亏</div><div class="val ${pnl!=null?cls(pnl):'flat'}">${pnl!=null?sg(Math.round(pnl).toLocaleString()):'—'}</div></div>
@@ -1630,21 +1666,16 @@ function doRender(){
       <div class="proj"><span>今日预判 <b class="flat">${preStr}</b></span><span class="sub">${posTxt}${ampNote} · ${anchorNote(h.code,prev)}</span></div>
       <div class="proj" style="margin-top:2px"><span>今日实际 <b class="flat">${lo!=null?P(lo):'—'} ~ ${hi!=null?P(hi):'—'}</b></span><span class="sub">${hi!=null&&preHi!=null?(hi>=preHi?'最高摸到预判上沿':'最高距上沿还差'+P(preHi-hi)):''}${lo!=null&&preLo!=null?(lo<=preLo?' · 最低击穿预判下沿':' · 最低距下沿还差'+P(lo-preLo)):''}</span></div>
       <div class="proj vrd"><span>📋 <b style="color:${vCls(vd)}">${vd}</b></span></div>
-      ${legTxt}
       ${tradeZone}
       <a href="https://fululi.github.io/k-station/?code=${h.code}&lines=${tr.buys.map(x=>'b'+x.toFixed(2)).concat(tr.sells.map(x=>'s'+x.toFixed(2))).join(',')}" style="display:block;text-align:center;margin-top:8px;padding:8px;border-radius:8px;background:#2563eb;color:#fff;text-decoration:none;font-size:13px;font-weight:600">📈 看K线（做T价位已自动画好）</a>
-      <div class="atrnote">${atrTxt}${(()=>{
-        if(!lk) return '';
-        const ip=idxPctOf(lk);           // 该股跟随的指数今日涨跌%
-        const ext=ip!=null&&Math.abs(ip)>=1.2;   // 极端日阈值
-        if(!ext) return '';              // v4.59: 不是极端日就不显示,别占屏
-        const mul=lk.ad||lk.au;
-        return ` · <b style="color:#b45309">今日${lk.i}${sg(ip.toFixed(2))}%达极端日</b>,该票历史放大×${mul||'—'}(r${lk.r})`;
-      })()}</div>
+      <details class="fold"><summary>波动数据 · 信号跟踪 · 分档理由（想深究再点）</summary>
+      ${legTxt}
+      <div class="atrnote">${atrTxt}</div>
       ${ffTxt}
       ${ffhT?`<div class="atrnote">${ffhT}</div>`:''}
       ${psigH?`<div class="atrnote">△三角突破信号在模拟跟踪（${P(psigH.entry)}进·止损${P(psigH.stop)}），与你的底仓${h.cost}分开记账</div>`:''}
       ${tf.lv>=1?`<div class="tnote">⚠ 为什么分${tf.lv>=2?'3':'2'}档:${Math.abs(pct||0)>=6?'个股单日涨跌超6%':(Math.abs(pct||0)>=3?'个股涨跌超3%':((ampPct!=null&&ampPct>=5)?'今日振幅超5%':'关联板块/大盘异动'))}。分档=分批:①号位先动且少量,留子弹等②号位,别一笔全进全出。</div>`:''}
+      </details>
       ${editRow}
     </div>`;
   }).join('') || '<div class="card sub">暂无持仓,点右上编辑或＋添加</div>';
