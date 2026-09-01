@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#f5f6f8">
-<title>我的持仓 · 行情 v4.77</title>
+<title>我的持仓 · 行情 v4.80</title>
 <style>
 :root { color-scheme: light; }
 * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
@@ -133,6 +133,10 @@ td { border-top:1px solid #f2f4f6; }
 .tchip s.prb.hi { color:#16a34a; }
 .tchip s.prb.lo { color:#d97706; }
 .deadn { margin-top:6px; font-size:11.5px; color:#7c2d12; background:#fff7ed; padding:4px 6px; border-radius:5px; line-height:1.5; }
+.prb2 { font-size:10px; color:#6b7280; font-weight:700; }
+.prb2.hi { color:#16a34a; }
+.prb2.lo { color:#d97706; }
+.gp { font-size:10px; color:#9ca3af; }
 .dl { margin-top:4px; padding-top:3px; border-top:1px solid #eef0f3; font-size:11px; color:#6b7280; line-height:1.5; font-variant-numeric:tabular-nums; }
 .dl.hot { color:#7c2d12; background:#fff7ed; padding:4px 5px; border-radius:5px; border-top:none; }
 .qf { font-size:11.5px; color:#374151; margin-top:4px; padding-top:3px; border-top:1px solid #eef0f3; font-variant-numeric:tabular-nums; }
@@ -218,7 +222,7 @@ details.fold:not([open]) > summary { margin-bottom:0; }
 <div class="card" id="paper" style="padding:4px 0"></div>
 </details>
 
-<div class="sec"><span>今日做T计划(随振幅自动给档)</span><span class="sub" id="tSum"></span></div>
+<div class="sec"><span id="tTitle">做T计划</span><span class="sub" id="tSum"></span></div>
 <div class="card tbl">
   <table><thead><tr><th class="l">名称</th><th>今日振幅</th><th>低吸(分档)</th><th>高抛(分档)</th></tr></thead>
   <tbody id="tbody"></tbody></table>
@@ -369,6 +373,22 @@ function today(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMon
 function mktLive(){ const d=new Date(), w=d.getDay(), t=d.getHours()*60+d.getMinutes();
   return w>=1&&w<=5&&((t>=570&&t<=690)||(t>=780&&t<=900)); }
 function nowHM(){ const d=new Date(); return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'); }
+// v4.79: 开盘已走多少分钟(用于判断VWAP是否成熟)。集合竞价/午休/收盘都算准。
+function mktMin(){ const d=new Date(), w=d.getDay(), t=d.getHours()*60+d.getMinutes();
+  if(w<1||w>5) return 240;
+  if(t<570) return 0;
+  if(t<=690) return t-570;
+  if(t<780) return 120;
+  if(t<=900) return 120+(t-780);
+  return 240; }
+// v4.79: 盘口状态,别让盘前的空数据看起来像盘中
+function sessLbl(){ const d=new Date(), w=d.getDay(), t=d.getHours()*60+d.getMinutes();
+  if(w<1||w>5) return '休市';
+  if(t<555) return '盘前';
+  if(t<570) return '竞价';
+  if(t<=690||(t>=780&&t<=900)) return nowHM();
+  if(t<780) return '午休';
+  return '收盘'; }
 
 // 轻提示(WPS等环境不支持alert弹窗)
 // v4.75: 盘中到价主动提醒。只在"未到->刚越过"跃迁时响一次,收盘不响,当日不重复。
@@ -376,10 +396,11 @@ let HITSEEN={}; const HITK='hqm_hit_v1'; let BASETITLE='';
 try{ const _h=JSON.parse(localStorage.getItem(HITK)||'null'); if(_h&&_h.date===today()) HITSEEN=_h.seen||{}; }catch(e){}
 let TITLE_TMR=null;
 function alertHit(key,msg){
+  if(!mktLive()) return;      // v4.79: 非交易时段直接退出,不能"标记已提醒"——否则盘前扫一眼就把当日名额消耗光
+  if(mktMin()<5) return;      // 开盘头5分钟价格无序,不报
   if(HITSEEN[key]){ return; }
   HITSEEN[key]=1;
   try{ localStorage.setItem(HITK,JSON.stringify({date:today(),seen:HITSEEN})); }catch(e){}
-  if(!mktLive()) return;
   try{ navigator.vibrate&&navigator.vibrate([140,70,140]); }catch(e){}
   try{ toast('⚡ '+msg); }catch(e){}
   if(!BASETITLE) BASETITLE=document.title;
@@ -412,7 +433,8 @@ function trendFlag(pct,ampPct,mkt){
 function tiers(p,base,prev,lv,code,name){
   if(p==null||base==null) return {sells:[],buys:[]};
   const lp=limitPct(code,name)/100;
-  const cap = prev? prev*(1+lp) : p*(1+lp), floor = prev? prev*(1-lp) : p*(1-lp);
+  const ref = planNext()? p : prev; // v4.80: 明日计划的涨跌停以今收为基准
+  const cap = ref? ref*(1+lp) : p*(1+lp), floor = ref? ref*(1-lp) : p*(1-lp);
   let su,sd;
   if(lv>=2){ su=[0.35,0.7,1.0]; sd=[0.5,0.9,1.3]; }
   else if(lv===1){ su=[0.3,0.55]; sd=[0.5,0.8]; }
@@ -423,6 +445,8 @@ function tiers(p,base,prev,lv,code,name){
 }
 // 后半场窄档: ATR用量≥80% → 按剩余波幅收窄档位(约1.15×ATR为全天软上限),提高成交率
 function narrowBase(code,base,todayAmp){
+  // v4.80: 窄档是"今天还剩多少空间"的盘中概念,明日计划必须重置,否则明早开盘档位窄得离谱
+  if(planNext()) return {base:ampBase(code,null), narrow:false};
   const a=atrOf(code);
   if(a==null||todayAmp==null||base==null) return {base:base,narrow:false};
   if(todayAmp/a<0.8) return {base:base,narrow:false};
@@ -437,9 +461,12 @@ function legOf(code){ const o=ATR[code]; return (o&&typeof o==='object'&&o.legBa
 let DPOS={}; const DPOSK='hqm_pos_v1';
 try{ const _q=JSON.parse(localStorage.getItem(DPOSK)||'null'); if(_q&&_q.date===today()) DPOS=_q.pos||{}; }catch(e){}
 function calcPos(rows){ // v4.73 日线位置:分位/MA20偏离/起涨/历史同等偏离后3日回撤统计
+  // v4.79: 盘中拉到的最后一根是"今天未收盘"的K,只能拿它当现价,绝不能混进历史样本
+  const px0=rows.length?+rows[rows.length-1][4]:0;
+  if(rows.length&&rows[rows.length-1][0]===today()) rows=rows.slice(0,-1);
   const n=rows.length; if(n<90) return null;
   const C=rows.map(r=>+r[4]), H=rows.map(r=>+r[2]), L=rows.map(r=>+r[3]);
-  const px=C[n-1];
+  const px=px0>0?px0:C[n-1];
   const h60=Math.max.apply(null,H.slice(-60)), l60=Math.min.apply(null,L.slice(-60));
   const pctl=(h60>l60)?(px-l60)/(h60-l60)*100:50;
   const ma=k=>C.slice(k-20,k).reduce((s,x)=>s+x,0)/20;
@@ -447,7 +474,7 @@ function calcPos(rows){ // v4.73 日线位置:分位/MA20偏离/起涨/历史同
   let li=n-60; for(let i=n-60;i<n;i++) if(L[i]<L[li]) li=i;
   const up=[]; for(let i=n-1;i>0&&C[i]>C[i-1];i--) up.push(1);
   const R={pctl:Math.round(pctl), dev:+dev.toFixed(1), lowPx:+L[li].toFixed(2), lowD:rows[li][0],
-           rise:+((px/L[li]-1)*100).toFixed(1), days:n-1-li, upd:up.length};
+           rise:+((px/L[li]-1)*100).toFixed(1), days:n-li, upd:up.length};
   if(dev>=4){ // 只在明显偏离MA20时才回测,偏离小时样本无区分度(几乎每天都符合)
     const dd=[];
     for(let i=20;i<n-3;i++){ const d=(C[i]/ma(i)-1)*100;
@@ -471,8 +498,13 @@ function hitPr(arr,k){ return (arr&&arr.length)?Math.round(arr.filter(x=>x>=k).l
 function vwapOf(f){ // v4.71: 分时均价=成交额/成交量, 做T的"水位线"。f[37]=成交额(万)
   if(!f) return null; const v=+f[36], amt=+f[37];
   return (v>0&&amt>0)? amt*100/v : null; }
-function anchorOf(code,p,prev){ if(prev==null) return p; const f=GET(code), op=F(f,5), a=atrOf(code); if(op!=null&&a!=null&&Math.abs(op-prev)>=0.5*a) return op; return prev; }
-function anchorNote(code,prev){ const f=GET(code), op=F(f,5), a=atrOf(code); if(prev!=null&&op!=null&&a!=null&&Math.abs(op-prev)>=0.5*a) return '跳空'+sg(((op/prev-1)*100).toFixed(1))+'%开盘·锚=今开'+P(op); return '锚=昨收'+P(prev); }
+// v4.80: 收盘后(含周末)档位自动滚成"明日计划",锚=今收=明日昨收。
+// 不这么做的话:今天跌6%,收盘后仍按昨收出档,低吸档会挂在现价上方 —— 一张废计划。
+function planNext(){ const d=new Date(), w=d.getDay(), t=d.getHours()*60+d.getMinutes();
+  if(w<1||w>5) return true; return t>900; }
+function refCloseOf(p,prev){ return (planNext()&&p!=null&&p>0)?p:prev; }
+function anchorOf(code,p,prev){ if(planNext()&&p!=null&&p>0) return p; if(prev==null) return p; const f=GET(code), op=F(f,5), a=atrOf(code); if(op!=null&&op>0&&a!=null&&Math.abs(op-prev)>=0.5*a) return op; return prev; } // v4.79: op>0 —— 盘前腾讯返今开0.00,不加这个判断全部档位会锚成0
+function anchorNote(code,prev){ if(planNext()) return '明日计划·锚=今收'; const f=GET(code), op=F(f,5), a=atrOf(code); if(prev!=null&&op!=null&&op>0&&a!=null&&Math.abs(op-prev)>=0.5*a) return '跳空'+sg(((op/prev-1)*100).toFixed(1))+'%开盘·锚=今开'+P(op); return '锚=昨收'+P(prev); }
 function ampBase(code,todayAmp){
   const o=ATR[code];
   if(o!=null){
@@ -1080,7 +1112,8 @@ function feeOf(sell,buy,sq,bq){
 }
 
 function renderT(){
-  document.getElementById('tbody').innerHTML = PF.holds.map(h=>{
+  // v4.78: 按"谁最快触发"排序,每档标历史触及概率
+  const _rt=PF.holds.map(h=>{
     const f=GET(h.code); const p=F(f,3),pct=F(f,32),hi=F(f,33),lo=F(f,34),prev=F(f,4);
     const todayAmp=(hi!=null&&lo!=null)?hi-lo:null;
     const base=ampBase(h.code,todayAmp);
@@ -1100,15 +1133,33 @@ function renderT(){
       const fee=dir>0?feeOf(a,x,tq,tq).fee:feeOf(x,a,tq,tq).fee;
       const net=diff*tq-fee;
       const bp=dir>0?x:a, nr=bp?net/(bp*tq)*100:0;
-      return `<br><span class="sub" style="font-size:10px">${est?'约':''}${diff>=0?'+':''}${diff.toFixed(2)}/股 <b style="color:${net>=0?'#dc2626':'#16a34a'}">净${sg(Math.round(net))}(${nr>=0?'+':''}${nr.toFixed(1)}%)</b>·${tq}股</span>`;
+      return `<br><span class="sub" style="font-size:10px">${est?'约':''}净<b style="color:${net>=0?'#dc2626':'#16a34a'}">${sg(Math.round(net))}</b>/${tq}股</span>`;
     };
-    const bs=tr.buys.length?tr.buys.map((x,j)=>`<span class="tk" onclick="fillT('${h.code}',${x},'buy')">${tr.buys.length>1?'①②③'[j]:''}${P(x)}${ann(x,1,j)}</span>`).join(' / '):'—';
-    const ss=tr.sells.length?tr.sells.map((x,j)=>`<span class="tk" onclick="fillT('${h.code}',${x},'sell')">${tr.sells.length>1?'①②③'[j]:''}${P(x)}${ann(x,-1,j)}</span>`).join(' / '):'—';
-    return `<tr><td class="l">${h.name}${tf.lv>0?' <span class="badge '+tf.cls+'" style="margin:0">'+(tf.lv>=2?'⚠':(tf.label==='大盘异动'?'异动':tf.label.replace('趋势偏','趋')))+'</span>':''}</td>
-      <td class="flat">${ampPct!=null?ampPct.toFixed(2)+'%':'—'}${atrUse!=null?'<br><span class="sub">ATR用'+atrUse+'%'+(nb.narrow?'·窄档':'')+'</span>':''}</td>
+    const _nx=planNext(), _rc=refCloseOf(p,prev);
+    const _dp2=DPOS[h.code];
+    const prb=(x,side)=>{ if(!_dp2||!_rc) return '';
+      const pr=hitPr(side==='buy'?_dp2.DN:_dp2.UP, Math.abs(x/_rc-1)*100);
+      return pr!=null?`<span class="prb2${pr>=50?' hi':(pr<=20?' lo':'')}">${pr}%</span>`:''; };
+    const gapS2=x=>{ if(p==null||p<=0) return ''; const g=(x/p-1)*100;
+      return `<span class="gp">${sg(g.toFixed(1))}%</span>`; };
+    const bs=tr.buys.length?tr.buys.map((x,j)=>`<span class="tk" onclick="fillT('${h.code}',${x},'buy')">${tr.buys.length>1?'①②③'[j]:''}${P(x)} ${gapS2(x)} ${prb(x,'buy')}${ann(x,1,j)}</span>`).join(' '):'—';
+    const ss=tr.sells.length?tr.sells.map((x,j)=>`<span class="tk" onclick="fillT('${h.code}',${x},'sell')">${tr.sells.length>1?'①②③'[j]:''}${P(x)} ${gapS2(x)} ${prb(x,'sell')}${ann(x,-1,j)}</span>`).join(' '):'—';
+    const html=`<tr><td class="l">${h.name}${tf.lv>0?' <span class="badge '+tf.cls+'" style="margin:0">'+(tf.lv>=2?'⚠':(tf.label==='大盘异动'?'异动':tf.label.replace('趋势偏','趋')))+'</span>':''}</td>
+      <td class="flat">${_nx?((_rc&&nb.base)?'预期'+(nb.base/_rc*100).toFixed(1)+'%':'—'):(ampPct!=null?ampPct.toFixed(2)+'%':'—')}<br><span class="sub">${_nx?'今日'+(ampPct!=null?ampPct.toFixed(1)+'%':'—'):(atrUse!=null?'ATR用'+atrUse+'%'+(nb.narrow?'·窄档':''):'')}</span></td>
       <td class="down">${bs}</td><td class="up">${ss}</td></tr>`;
-  }).join('') || '<tr><td class="sub" colspan="4">暂无持仓</td></tr>';
-  document.getElementById('tSum').textContent = (MKT!=null?(Math.abs(MKT)>=1.2?'大行情:已加宽档位':'常规档位'):'')+' · 档位锚=昨收,全天锁定';
+    // 最快触发距离: 现价到最近一个未越过档位的%
+    let dist=999;
+    if(p!=null&&p>0){
+      tr.buys.forEach(x=>{ if(x<p) dist=Math.min(dist,(1-x/p)*100); });
+      tr.sells.forEach(x=>{ if(x>p) dist=Math.min(dist,(x/p-1)*100); });
+    }
+    return {html:html, dist:dist};
+  });
+  _rt.sort((x,y)=>x.dist-y.dist);
+  document.getElementById('tbody').innerHTML = _rt.map(x=>x.html).join('') || '<tr><td class="sub" colspan="4">暂无持仓</td></tr>';
+  const _nxt=planNext(), _tt=document.getElementById('tTitle');
+  if(_tt) _tt.textContent=(_nxt?'明日做T计划':'今日做T计划')+' · %=该档历史触及概率';
+  document.getElementById('tSum').textContent = (mktLive()?nowHM()+' 盘中 · ':(_nxt?'已收盘 · 下方是明早开盘可直接挂的档位 · ':''))+'按最快触发排序 · '+(MKT!=null?(Math.abs(MKT)>=1.2?'大行情:已加宽档位':'常规档位'):'')+' · 锚'+(_nxt?'今收':'昨收');
   const sel=document.getElementById('tSel');
   if(sel && sel.options.length!==PF.holds.length){
     sel.innerHTML=PF.holds.map((h,i)=>`<option value="${i}">${h.name}</option>`).join('');
@@ -1712,6 +1763,8 @@ function doRender(){
     // v4.71: 做T量化条。基准=分时均价VWAP(水位线),不是昨收。均价随成交实时移动,
     // 所以价格突破区间后区间自己跟着走,不会像昨收锚那样整天失效——这就是"过了怎么跟上"。
     const _vw=vwapOf(f), _a=atrOf(h.code), _atrp=(_a!=null&&prev)?_a/prev*100:null;
+    // v4.79: 开盘头15分钟VWAP只由极少数成交撑起来,带子会乱跳,标注为未成熟并停掉自动到价提醒
+    const _vwok=!(mktLive()&&mktMin()<15), _vwmin=mktMin();
     const actBar=(()=>{
       if(p==null||!_vw) return '';
       const dev=(p/_vw-1)*100;
@@ -1734,11 +1787,11 @@ function doRender(){
         const _pr=(o.k==='s')?hitPr(_dp&&_dp.U,_gk):((o.k==='b')?hitPr(_dp&&_dp.D,_gk):null);
         const _prS=(_pr!=null)?'<span class="pr'+(_pr>=50?' hi':(_pr<=20?' lo':''))+'">'+_pr+'%</span> ':'';
         const _cx=(o.k==='s')?(p>=o.x):((o.k==='b')?(p<=o.x):false);
-        if(_cx&&(o.k==='s'||o.k==='b')) alertHit(h.code+o.t+today(), h.name+' 到'+o.t+' '+P(o.x)+(o.k==='s'?' 可卖':' 可接'));
+        if(_cx&&_vwok&&(o.k==='s'||o.k==='b')) alertHit(h.code+o.t+today(), h.name+' 到'+o.t+' '+P(o.x)+(o.k==='s'?' 可卖':' 可接'));
         if(o.k==='s') st=_prS+(_cx?'<b style="color:#dc2626">越过</b>':((hi!=null&&hi>=o.x)?'到过':'未到'));
         else if(o.k==='b') st=_prS+(_cx?'<b style="color:#16a34a">越过</b>':((lo!=null&&lo<=o.x)?'到过':'未到'));
         else if(o.k==='c'){ const pl=(p/h.cost-1)*100; st='<b class="'+cls(pl)+'">'+sg(pl.toFixed(1))+'%</b>'; }
-        else st='基准';
+        else st=_vwok?'基准':'<b style="color:#d97706">构建中'+_vwmin+'分</b>';
         rows+='<tr class="'+(o.k==='c'?'cst':(o.k==='m'?'mid':''))+'"><td class="qk">'+o.t+'</td>'
           +'<td class="qv"><b>'+P(o.x)+'</b></td><td class="qg '+((o.k==='m'||o.k==='c')?'dim':cls(g))+'">'
           +sg(g.toFixed(1))+'%</td><td class="qs">'+st+'</td></tr>';
@@ -1760,7 +1813,7 @@ function doRender(){
         doneS='<br>今日已做 <b class="'+cls(nt)+'">'+sg(Math.round(nt))+'元</b>'
           +'<span class="dim"> 卖'+ns+'/接'+nb+'股 · 费'+Math.round(fe)+'</span>';
       }
-      const wl=dev<=-0.15?'水下':(dev>=0.15?'水上':'贴线');
+      const wl=(!_vwok?'⚠':'')+(dev<=-0.15?'水下':(dev>=0.15?'水上':'贴线'));
       const foot=mp.length? '⚡挂单到价 '+mp.length+'笔 · '+mp.map(x=>(x.side==='sell'?'卖':'买')+P(x.price)).join(' ')
         : '下一触发 ↓'+(dn?dn.t+' '+P(dn.x)+' 跌'+Math.abs((dn.x/p-1)*100).toFixed(1)+'%':'—')
           +'  ↑'+(up?up.t+' '+P(up.x)+' 涨'+((up.x/p-1)*100).toFixed(1)+'%':'—');
@@ -1775,7 +1828,7 @@ function doRender(){
       }
       return '<div class="qb">'
         +'<div class="qh"><span><b class="px '+cls(pct)+'">'+P(p)+'</b> <b>'+wl+sg(dev.toFixed(2))+'%</b></span>'
-        +'<span class="dim">H'+(hi!=null?P(hi):'—')+' L'+(lo!=null?P(lo):'—')+' σ'+(_atrp?_atrp.toFixed(1):'—')+'%'+(mktLive()?' '+nowHM():' 收')+'</span></div>'
+        +'<span class="dim">H'+(hi!=null?P(hi):'—')+' L'+(lo!=null?P(lo):'—')+' σ'+(_atrp?_atrp.toFixed(1):'—')+'%'+' '+sessLbl()+'</span></div>'
         +'<table class="qt2">'+rows+'</table><div class="qf">'+roundS+doneS+'</div>'+'<div class="qf">'+foot+'<span class="dim"> · %=该幅度250日内当天摸到概率</span></div>'+dline+'</div>';
     })();
     return `<div class="card">${delBtn}
