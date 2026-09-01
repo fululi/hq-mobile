@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#f5f6f8">
-<title>我的持仓 · 行情 v4.89</title>
+<title>我的持仓 · 行情 v4.90</title>
 <style>
 :root { color-scheme: light; }
 * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
@@ -261,6 +261,9 @@ details.fold:not([open]) > summary { margin-bottom:0; }
 
 <div class="sec"><span>做T回测 · 样本外</span><span class="sub" id="btSum"></span></div>
 <div id="btBox" class="card"><div class="sub">首次加载后自动算(本机,约1秒)</div></div>
+<div class="sec"><span>实盘复盘 · 你自己的成交</span><span class="sub" id="rvSum"></span></div>
+<div id="rvBox" class="card"><div class="sub">读你自己的台账,不改任何数据</div></div>
+
 <div class="sec"><span id="tTitle">做T计划</span><span class="sub" id="tSum"></span>
   <span class="sub">概率窗口
     <select id="prwSel" onchange="setPRW(this.value)" style="font-size:11px;padding:1px 2px">
@@ -576,6 +579,70 @@ function btSweep(code,name,rows){
   return {K:bK, cur:cur, opt:opt, flt:flt, hold:hold, best:best,
           beat: best>0 && best>hold*0.3,
           d0:rows[sp][0], d1:rows[n-1][0]};
+}
+function rvParse(ex){ // exec 字符串 → 各边偏离方向: 1=对你有利, -1=不利, 0=照挂单成交
+  const r={};
+  if(!ex) return r;
+  if(/卖≈挂单/.test(ex)) r.s=0;
+  else { const m=ex.match(/卖(高|低)于挂单/); if(m) r.s=(m[1]==='高'?1:-1); }
+  if(/买≈挂单/.test(ex)) r.b=0;
+  else { const m=ex.match(/买(高|低)于挂单/); if(m) r.b=(m[1]==='低'?1:-1); }
+  return r;
+}
+function renderRV(){
+  const box=document.getElementById('rvBox'), sum=document.getElementById('rvSum');
+  if(!box) return;
+  const L=(typeof TLOG!=='undefined'&&TLOG)?TLOG:[];
+  const MIN=10;
+  if(sum) sum.textContent=L.length?L.length+'笔台账':'';
+  if(!L.length){ box.innerHTML='<div class="sub">台账还是空的。这里读的是你自己记的每一笔成交,记满'+MIN+'笔才开始出统计。</div>'; return; }
+  const pc=x=>(x>0?'+':'')+x.toFixed(1)+'%';
+  let H='';
+
+  // ① 你到底按不按档位走 —— 纯描述,不含因果
+  let noPlan=0, same=0, off=0, offGood=0;
+  L.forEach(r=>{ const q=rvParse(r.exec);
+    const d=[q.s,q.b].filter(x=>x!=null);
+    if(!d.length){ noPlan++; return; }
+    if(d.every(x=>x===0)) same++; else { off++; if(d.reduce((a,b)=>a+b,0)>0) offGood++; } });
+  const withPlan=same+off;
+  H+='<div style="border-top:1px solid #eee;padding:7px 0"><b>① 你按档位走吗</b>'
+   +'<div class="sub" style="margin-top:3px">'
+   +(withPlan?('对得上挂单的 <b>'+withPlan+'</b> 笔:照挂单成交 <b>'+same+'</b> 笔,偏离 <b>'+off+'</b> 笔'
+      +(off?'(其中 '+offGood+' 笔偏在对你有利的方向)':'')+'<br>'):'')
+   +'完全没有对应挂单的 <b>'+noPlan+'</b> 笔 —— 这些是纯盘中临时决定。'
+   +'</div><div class="sub" style="color:#6b7280;margin-top:2px">只是描述你的习惯,不代表哪种更好。</div></div>';
+
+  // ② 卖飞检查 —— 回测认定的亏损来源,拿你的真实成交验一遍
+  const sells=L.filter(r=>r.sell>0&&r.code);
+  let vN=0, flew=0, gaps=[], skip=0;
+  sells.forEach(r=>{ const f=GET(r.code), px=F(f,3);
+    if(px==null||!(px>0)){ skip++; return; }
+    vN++; const g=(px/r.sell-1)*100; gaps.push(g); if(g>0.3) flew++; });
+  H+='<div style="border-top:1px solid #eee;padding:7px 0"><b>② 卖飞检查</b>';
+  if(vN<MIN){ H+='<div class="sub" style="margin-top:3px">卖出记录只有 <b>'+vN+'</b> 笔,不够 '+MIN+' 笔,不出结论 —— 样本太小的数字比没有数字更害人。</div>'; }
+  else { const avg=gaps.reduce((a,b)=>a+b,0)/gaps.length;
+    const rate=Math.round(flew/vN*100);
+    H+='<div class="sub" style="margin-top:3px"><b>'+vN+'</b> 笔卖出里,<b class="'+(rate>=50?'up':'down')+'">'+flew+' 笔('+rate+'%)</b>现价已经高于你的卖出价。'
+     +'<br>全部卖出价 vs 现价,平均 <b class="'+(avg>0?'up':'down')+'">'+pc(avg)+'</b>。'
+     +(rate>=60?'<br><b style="color:#b91c1c">→ 卖飞是主要问题,跟回测结论一致:你卖得太早,不是卖得太贵。</b>'
+       :(rate<=40?'<br><b style="color:#16a34a">→ 卖出时机整体站得住,回测里"系统性卖飞"这条在你实盘上不成立。</b>'
+       :'<br>→ 一半一半,没有明显方向。'))+'</div>';
+    H+='<div class="sub" style="color:#6b7280;margin-top:2px">只看今天这一个时点。现价高于卖出价 ≠ 当时该拿着(你可能已在更低价接回);现价低 ≠ 卖对了。</div>'; }
+  if(skip) H+='<div class="sub" style="color:#6b7280">('+skip+' 笔的代码不在当前行情列表里,取不到现价,已跳过)</div>';
+  H+='</div>';
+
+  // ③ 手续费体检 —— 回测说"亏的不是手续费",用真钱验一遍
+  let net=0, fee=0, nP=0;
+  L.forEach(r=>{ if(r.profit!=null){ net+=r.profit; nP++; } if(r.fee) fee+=r.fee; });
+  H+='<div style="border-top:1px solid #eee;padding:7px 0"><b>③ 手续费体检</b>'
+   +'<div class="sub" style="margin-top:3px">台账已实现净收益合计 <b class="'+(net>0?'up':'down')+'">'
+   +(net>0?'+':'')+Math.round(net).toLocaleString()+'</b> 元(已扣费,'+nP+' 笔)<br>'
+   +'同期手续费合计 <b>'+Math.round(fee).toLocaleString()+'</b> 元'
+   +(Math.abs(net)>1?' · 相当于净收益的 <b>'+Math.round(fee/Math.abs(net)*100)+'%</b>':'')
+   +'</div></div>';
+
+  box.innerHTML=H;
 }
 function renderBT(){
   const box=document.getElementById('btBox'); if(!box) return;
@@ -1482,7 +1549,7 @@ function feeOf(sell,buy,sq,bq){
 }
 let CODE_FEE='';  // feeOf 的调用点没传code,记账界面选股时置位
 
-function renderT(){ try{ renderBT(); }catch(e){}
+function renderT(){ try{ renderBT(); }catch(e){} try{ renderRV(); }catch(e){}
 
   // v4.78: 按"谁最快触发"排序,每档标历史触及概率
   const _rt=PF.holds.map(h=>{
