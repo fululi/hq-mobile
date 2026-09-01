@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#f5f6f8">
-<title>我的持仓 · 行情 v4.59</title>
+<title>我的持仓 · 行情 v4.60</title>
 <style>
 :root { color-scheme: light; }
 * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
@@ -224,7 +224,7 @@ details.fold:not([open]) > summary { margin-bottom:0; }
 <div class="trec"><span>今日复盘(本机台账自动算)</span><span class="v" id="tStat">—</span></div>
 <div class="trec"><span>本周做T(周一起)</span><span class="v" id="tWeek">—</span></div>
 <div class="trec"><span>本月做T</span><span class="v" id="tMonth">—</span></div>
-<div class="trec"><span>行为样本(攒够30笔才开模式分析)</span><span class="v" id="tSamp">—</span></div>
+<div class="trec"><span>行为样本 <span class="sub">(满30笔开模式分析)</span></span><span class="v" id="tSamp">—</span></div>
 <div class="sec"><span>清仓档案 · 数据沉淀</span><span class="sub" id="clSum"></span></div>
 <div class="card tbl" id="closedList" style="display:none"></div>
 <div class="sec"><span>历史记录</span><span class="sub" id="tCum"></span></div>
@@ -1298,11 +1298,20 @@ function renderLog(){
   const moKey=td.slice(0,7);
   const wEl=document.getElementById('tWeek'); if(wEl){ const rows=TLOG.filter(r=>r.d>=wkKey); wEl.textContent=statStr(rows); wEl.className='v '+cls(rows.reduce((s2,r)=>s2+r.profit,0)); }
   const mEl=document.getElementById('tMonth'); if(mEl){ const rows=TLOG.filter(r=>r.d.slice(0,7)===moKey); mEl.textContent=statStr(rows); mEl.className='v '+cls(rows.reduce((s2,r)=>s2+r.profit,0)); }
-  const sEl=document.getElementById('tSamp'); if(sEl){ const n=TLOG.length; sEl.textContent=n>=30?('✓ '+n+'笔 · 模式分析可开启'):(n+'/30 · 还差'+(30-n)+'笔 · 只记录不下结论'); sEl.className='v'+(n>=30?' up':''); }
-  if(cum){ const parts=PF.holds.filter(h=>byCode[h.code]).map(h=>{
+  const sEl=document.getElementById('tSamp'); if(sEl){ const n=TLOG.length; sEl.textContent=n>=30?('✓ '+n+'笔'):(n+'/30'); sEl.className='v'+(n>=30?' up':''); }
+  if(cum){
+    // v4.60: 只显摊低幅度≥0.5%的(0.005元/股这种噪音不占屏),按幅度排序,最多3个
+    const items=PF.holds.filter(h=>byCode[h.code]).map(h=>{
       const tot=byCode[h.code], perShr=h.shares?tot/h.shares:0;
-      return h.name+' 摊低 '+perShr.toFixed(3)+'元/股';
-    }); cum.textContent=parts.length?parts.join(' · '):'还没记录'; }
+      const pct=h.cost>0?perShr/h.cost*100:0;
+      return {name:h.name, perShr, pct};
+    }).filter(x=>x.pct>=0.5).sort((a,b)=>b.pct-a.pct);
+    if(!items.length){ cum.textContent=PF.holds.some(h=>byCode[h.code])?'摊低幅度均<0.5%':'还没记录'; }
+    else{
+      const top=items.slice(0,3).map(x=>x.name+' <b>-'+x.perShr.toFixed(2)+'</b>('+x.pct.toFixed(1)+'%)').join(' · ');
+      cum.innerHTML=top+(items.length>3?' <span class="sub">等'+items.length+'只</span>':'');
+    }
+  }
   const box=document.getElementById('tlog'); if(!box) return;
   if(!TLOG.length){ box.innerHTML='<div class="sub" style="padding:14px">还没有做T记录。做完一轮高抛低吸就来记一笔,自动扣费算摊低成本。</div>'; return; }
   // 按日分组+当日小计,一眼看清每天战果
@@ -1441,16 +1450,23 @@ function doRender(){
   const me=document.getElementById('mkt');
   if(me){
     const _ip=IDX.map(([c,n])=>({n,v:(GET(c)?F(GET(c),32):null)})).filter(x=>x.v!=null);
-    const _allDn=_ip.length>=2&&_ip.every(x=>x.v<=-1.2);
-    const _allUp=_ip.length>=2&&_ip.every(x=>x.v>=1.2);
     const _nums=_ip.map(x=>x.n+'<b class="'+cls(x.v)+'">'+sg(x.v.toFixed(2))+'%</b>').join(' · ');
+    // v4.60: 你的持仓加权涨跌才是对你有意义的数字(上证没跌不代表你没亏)
+    let _pw=null;
+    { let mv=0,pl=0;
+      PF.holds.forEach(h=>{ const f=GET(h.code),p=F(f,3),pc=F(f,32);
+        if(p!=null&&pc!=null&&h.shares>0){ const v=p*h.shares; mv+=v; pl+=v*pc/100; } });
+      if(mv>0) _pw=pl/mv*100;
+    }
+    const _wk=_ip.length?_ip.reduce((a,b)=>a.v<b.v?a:b):null;   // 最弱指数
     if(_ip.length===0){ me.textContent=''; }
-    else if(_allDn){
-      me.innerHTML='<span style="display:inline-block;background:#fee2e2;color:#991b1b;padding:1px 8px;border-radius:4px;font-weight:700;margin-right:6px">⬇ 单边下跌</span>'+_nums;
-    } else if(_allUp){
-      me.innerHTML='<span style="display:inline-block;background:#dcfce7;color:#166534;padding:1px 8px;border-radius:4px;font-weight:700;margin-right:6px">⬆ 单边上涨</span>'+_nums;
-    } else {
-      me.innerHTML=_nums+(MKT!=null?' · '+(Math.abs(MKT)>=1.2?'指数分化':'平稳'):'');
+    else {
+      let tag='';
+      if(_pw!=null&&_pw<=-1.2) tag='<span style="display:inline-block;background:#fee2e2;color:#991b1b;padding:1px 8px;border-radius:4px;font-weight:700;margin-right:6px">⬇ 持仓'+sg(_pw.toFixed(2))+'%</span>';
+      else if(_pw!=null&&_pw>=1.2) tag='<span style="display:inline-block;background:#dcfce7;color:#166534;padding:1px 8px;border-radius:4px;font-weight:700;margin-right:6px">⬆ 持仓'+sg(_pw.toFixed(2))+'%</span>';
+      else if(_pw!=null) tag='<span class="sub" style="margin-right:6px">持仓<b class="'+cls(_pw)+'">'+sg(_pw.toFixed(2))+'%</b></span>';
+      const extra=(_wk&&_wk.v<=-1.2)?' · <b style="color:#991b1b">'+_wk.n+'达极端日</b>':'';
+      me.innerHTML=tag+_nums+extra;
     }
   }
 
