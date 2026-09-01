@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#f5f6f8">
-<title>我的持仓 · 行情 v4.96</title>
+<title>我的持仓 · 行情 v4.97</title>
 <style>
 :root { color-scheme: light; }
 * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
@@ -818,7 +818,7 @@ function refCloseOf(p,prev){ return (planNext()&&p!=null&&p>0)?p:prev; }
 // v4.96: 这份行情快照是哪一天的(盘前腾讯还给上一场的收盘,'今日实际'不能硬写今日)
 function qDay(code){ const t=F(GET(code),30); if(t==null) return ''; const z=String(Math.round(t)); return /^\d{8}/.test(z)?z.slice(4,6)+'-'+z.slice(6,8):''; }
 function anchorOf(code,p,prev){ if(planNext()&&p!=null&&p>0) return p; if(prev==null) return p; const f=GET(code), op=F(f,5), a=atrOf(code); if(op!=null&&op>0&&a!=null&&Math.abs(op-prev)>=0.5*a) return op; return prev; } // v4.79: op>0 —— 盘前腾讯返今开0.00,不加这个判断全部档位会锚成0
-function anchorNote(code,prev){ if(planNext()) return planLbl()+'计划·锚=上一收盘'; const f=GET(code), op=F(f,5), a=atrOf(code); if(prev!=null&&op!=null&&op>0&&a!=null&&Math.abs(op-prev)>=0.5*a) return '跳空'+sg(((op/prev-1)*100).toFixed(1))+'%开盘·锚=今开'+P(op); return '锚=昨收'+P(prev); }
+function anchorNote(code,prev,p){ if(planNext()) return planLbl()+'计划·锚='+((p!=null&&p>0)?'现价'+P(p):'上一收盘'); const f=GET(code), op=F(f,5), a=atrOf(code); if(prev!=null&&op!=null&&op>0&&a!=null&&Math.abs(op-prev)>=0.5*a) return '跳空'+sg(((op/prev-1)*100).toFixed(1))+'%开盘·锚=今开'+P(op); return '锚=昨收'+P(prev); } // v4.97: 标签要跟refCloseOf实际用的基准一致,planNext()下现价有效就该说"锚=现价",别一律说"锚=上一收盘"误导
 function ampBase(code,todayAmp){
   const o=ATR[code];
   if(o!=null){
@@ -2346,7 +2346,7 @@ function doRender(){
         <div class="kv"><div class="k">持仓市值</div><div class="val flat">${mv!=null?Math.round(mv).toLocaleString():'—'}</div></div>
         <div class="kv"><div class="k">今日振幅</div><div class="val flat">${ampPct!=null?ampPct.toFixed(2)+'%':'—'}</div></div>
       </div>
-      <div class="proj"><span>${planNext()?planLbl():'今日'}预判 <b class="flat">${preStr}</b><span class="qm" onclick="preWhy('${h.code}','${h.name}')">?</span>${PREHIT[h.code]?`<span class="sub" style="font-size:10px"> 实测${PREHIT[h.code].inr}%不出界</span>`:''}</span><span class="sub">${posTxt}${ampNote} · ${anchorNote(h.code,prev)}</span></div>
+      <div class="proj"><span>${planNext()?planLbl():'今日'}预判 <b class="flat">${preStr}</b><span class="qm" onclick="preWhy('${h.code}','${h.name}')">?</span>${PREHIT[h.code]?`<span class="sub" style="font-size:10px"> 实测${PREHIT[h.code].inr}%不出界</span>`:''}</span><span class="sub">${posTxt}${ampNote} · ${anchorNote(h.code,prev,p)}</span></div>
       <div class="proj" style="margin-top:2px"><span>${_actLbl}实际 <b class="flat">${lo!=null?P(lo):'—'} ~ ${hi!=null?P(hi):'—'}</b></span><span class="sub">${hi!=null&&_aHi!=null?(hi>=_aHi?'最高摸到预判上沿':'最高距上沿还差'+P(_aHi-hi)):''}${lo!=null&&_aLo!=null?(lo<=_aLo?' · 最低击穿预判下沿':' · 最低距下沿还差'+P(lo-_aLo)):''}${_nxP?' <span class="sub">(该场次自己的预判 '+P(_aLo)+'~'+P(_aHi)+')</span>':''}</span></div>
       <div class="proj vrd"><span>📋 <b style="color:${vCls(vd)}">${vd}</b></span></div>
       ${tradeZone}
