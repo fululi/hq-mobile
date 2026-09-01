@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#f5f6f8">
-<title>我的持仓 · 行情 v4.88</title>
+<title>我的持仓 · 行情 v4.89</title>
 <style>
 :root { color-scheme: light; }
 * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
@@ -361,7 +361,10 @@ if(!Array.isArray(PF.holds)) PF.holds=[];
 if(!Array.isArray(PF.watch)) PF.watch=[];
 let TLOG; try{ TLOG=JSON.parse(localStorage.getItem(LOG))||[]; }catch(e){ TLOG=[]; }
 let PLAN; try{ PLAN=JSON.parse(localStorage.getItem('tplan_v1'))||[]; }catch(e){ PLAN=[]; }
-function savePlan(){ localStorage.setItem('tplan_v1', JSON.stringify(PLAN)); }
+function lsSet(k,v){ try{ localStorage.setItem(k,v); return true; }catch(e){
+  try{ alert('本机存储写入失败,这一笔没保存下来。\n常见原因:浏览器隐私/无痕模式,或存储空间满。\n先别关页面。'); }catch(e2){}
+  return false; } }
+function savePlan(){ lsSet('tplan_v1', JSON.stringify(PLAN)); }
 // v4.48: 未成交挂单复盘档案(系统不只学成交,也学犹豫)
 let MLOG; try{ MLOG=JSON.parse(localStorage.getItem('mlog_v1'))||[]; }catch(e){ MLOG=[]; }
 function saveMLog(){ try{ localStorage.setItem('mlog_v1', JSON.stringify(MLOG.slice(0,50))); }catch(e){} }
@@ -406,8 +409,8 @@ try{ const f=JSON.parse(localStorage.getItem(FEEK)); if(f&&f.comm!=null) FEE=f; 
 try{ const a=JSON.parse(localStorage.getItem(ATRK)); if(a&&a.date===today()){ ATR=a.atr||{}; ATR_DATE=a.date; } }catch(e){}
 PF.holds.forEach(h=>{ if(h.ref===undefined){ const d=DEFAULT.holds.find(x=>x.code===h.code); if(d&&d.ref) h.ref=d.ref; } });
 if(!localStorage.getItem(LS)){ try{ localStorage.setItem(LS, JSON.stringify(PF)); }catch(e){} } // 首次打开即落盘本机
-function save(){ localStorage.setItem(LS, JSON.stringify(PF)); }
-function saveLog(){ localStorage.setItem(LOG, JSON.stringify(TLOG)); }
+function save(){ lsSet(LS, JSON.stringify(PF)); }
+function saveLog(){ lsSet(LOG, JSON.stringify(TLOG)); }
 function saveFee(){ FEE.comm=parseFloat(document.getElementById('feeComm').value)||0;
   FEE.stamp=parseFloat(document.getElementById('feeStamp').value)||0;
   localStorage.setItem(FEEK, JSON.stringify(FEE)); renderLog(); }
@@ -1969,6 +1972,7 @@ function render(){
 }
 function doRender(){
   const _ae=document.activeElement, _aid=_ae&&_ae.id, _av=_ae&&_ae.value, _as=_ae&&_ae.selectionStart;
+  const _fo={}; document.querySelectorAll('details[data-fk]').forEach(d=>{ if(d.open) _fo[d.getAttribute('data-fk')]=1; });
   let when='';
   document.getElementById('idx').innerHTML = IDX.map(([c,n])=>{
     const f=GET(c); if(!f) return ''; const p=F(f,3),pct=F(f,32),prev=F(f,4); if(f[30]&&f[30].length>=14) when=f[30];
@@ -2119,7 +2123,7 @@ function doRender(){
         const fee5=feeOf(s5,b5,100,100).fee, net5=(s5-b5)*100-fee5;
         pairs.push(`${'①②③'[j]}买${P(b5)}→卖${P(s5)} 差+${(s5-b5).toFixed(2)}元(${((s5-b5)/b5*100).toFixed(1)}%)·100股净${sg(Math.round(net5))}元`);
       }
-      roundTxt=`<details class="fold"><summary>一轮净赚(已扣费) · ${pairs.length}种配对</summary><div class="sub" style="color:#374151">${pairs.join('<br>')}</div></details>`;
+      roundTxt=`<details class="fold" data-fk="rt-${h.code}"><summary>一轮净赚(已扣费) · ${pairs.length}种配对</summary><div class="sub" style="color:#374151">${pairs.join('<br>')}</div></details>`;
     }
 
     // v4.68: 档位还够得着吗? 离现价>3%当天基本回不去,罗列它们=会后PDF
@@ -2242,7 +2246,7 @@ function doRender(){
       <div class="proj vrd"><span>📋 <b style="color:${vCls(vd)}">${vd}</b></span></div>
       ${tradeZone}
       <a href="https://fululi.github.io/k-station/?code=${h.code}&lines=${tr.buys.map(x=>'b'+x.toFixed(2)).concat(tr.sells.map(x=>'s'+x.toFixed(2))).join(',')}" style="display:block;text-align:center;margin-top:8px;padding:8px;border-radius:8px;background:#2563eb;color:#fff;text-decoration:none;font-size:13px;font-weight:600">📈 看K线（做T价位已自动画好）</a>
-      <details class="fold"><summary>波动数据 · 信号跟踪 · 分档理由（想深究再点）</summary>
+      <details class="fold" data-fk="vd-${h.code}"><summary>波动数据 · 信号跟踪 · 分档理由（想深究再点）</summary>
       ${legTxt}
       <div class="atrnote">${atrTxt}</div>
       ${ffTxt}
@@ -2309,10 +2313,10 @@ function doRender(){
       <br><span class="sub">${w.theme||'未标题材'}</span>
       <br><span class="sub sig1">${_sg2.join(' ')}</span>${addTxt}
       <br><span class="vd">📋 <b style="color:${vCls(verdict(w.code))}">${verdict(w.code)}</b></span>
-      ${_det?`<details class="wdt"><summary class="sub">信号细节</summary><span class="sub">${_det}</span></details>`:''}</td>
+      ${_det?`<details class="wdt" data-fk="ws-${w.code}"><summary class="sub">信号细节</summary><span class="sub">${_det}</span></details>`:''}</td>
       <td>${P(p)}</td><td class="${cls(pct)}">${pct!=null?sg(pct.toFixed(2))+'%':'—'}</td>
       <td class="etd">${_entry}</td>${del}</tr>`;
-  }).join('') + (PF.watch.length?'<tr><td colspan="4"><details class="wdt"><summary class="sub" style="font-size:10px">档位口径与信号说明</summary><span class="sub" style="font-size:10px">买档='+(planNext()?planLbl():'今日')+'可挂的低吸价,%为该跌幅250日内当天摸到的概率 · 顺势=信号与大周期同向 · 反弹/回调=与大周期反向(日线信号看周线,15分信号看日线) · ⚠极端=偏离20日线≥2×ATR或RSI≤30/≥70,勿追涨杀跌,等不再创新低/新高</span></details></td></tr>':'');
+  }).join('') + (PF.watch.length?'<tr><td colspan="4"><details class="wdt" data-fk="wtip"><summary class="sub" style="font-size:10px">档位口径与信号说明</summary><span class="sub" style="font-size:10px">买档='+(planNext()?planLbl():'今日')+'可挂的低吸价,%为该跌幅250日内当天摸到的概率 · 顺势=信号与大周期同向 · 反弹/回调=与大周期反向(日线信号看周线,15分信号看日线) · ⚠极端=偏离20日线≥2×ATR或RSI≤30/≥70,勿追涨杀跌,等不再创新低/新高</span></details></td></tr>':'');
 
   const sumEl=document.getElementById('sum'); sumEl.style.display='flex';
   document.getElementById('sumMv').textContent = Math.round(totMv).toLocaleString();
@@ -2331,6 +2335,7 @@ function doRender(){
     return p!=null&&prev!=null&&ia!=null&&p<=(prev-ia)&&h.shares>0;
   }).length;
   document.title=_brkN>0?'⚠'+_brkN+'票破下沿 · 我的持仓':'我的持仓 · 行情';
+  document.querySelectorAll('details[data-fk]').forEach(d=>{ if(_fo[d.getAttribute('data-fk')]) d.open=true; });
   if(_aid){ setTimeout(()=>{
     const el=document.getElementById(_aid);
     if(el&&el.tagName==="INPUT"){ el.value=_av||""; try{ el.setSelectionRange(_as,_as); }catch(e){} el.focus(); }
