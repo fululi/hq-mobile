@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#f5f6f8">
-<title>我的持仓 · 行情 v4.80</title>
+<title>我的持仓 · 行情 v4.81b</title>
 <style>
 :root { color-scheme: light; }
 * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
@@ -133,10 +133,18 @@ td { border-top:1px solid #f2f4f6; }
 .tchip s.prb.hi { color:#16a34a; }
 .tchip s.prb.lo { color:#d97706; }
 .deadn { margin-top:6px; font-size:11.5px; color:#7c2d12; background:#fff7ed; padding:4px 6px; border-radius:5px; line-height:1.5; }
+.etd { padding:2px 3px !important; }
+.etk { font-size:11px; line-height:1.5; white-space:nowrap; }
+.etk b { font-size:12px; margin:0 3px 0 2px; }
+.etk .gp, .etk .prb2 { margin-left:4px; }
+.sig1 b { margin-right:4px; }
+.vd { font-size:12px; }
+.wdt { margin-top:2px; }
+.wdt summary { font-size:10px; color:#9ca3af; cursor:pointer; }
 .prb2 { font-size:10px; color:#6b7280; font-weight:700; }
 .prb2.hi { color:#16a34a; }
 .prb2.lo { color:#d97706; }
-.gp { font-size:10px; color:#9ca3af; }
+.gp { font-size:10px; color:#9ca3af; margin-left:3px; }
 .dl { margin-top:4px; padding-top:3px; border-top:1px solid #eef0f3; font-size:11px; color:#6b7280; line-height:1.5; font-variant-numeric:tabular-nums; }
 .dl.hot { color:#7c2d12; background:#fff7ed; padding:4px 5px; border-radius:5px; border-top:none; }
 .qf { font-size:11.5px; color:#374151; margin-top:4px; padding-top:3px; border-top:1px solid #eef0f3; font-variant-numeric:tabular-nums; }
@@ -213,7 +221,7 @@ details.fold:not([open]) > summary { margin-bottom:0; }
   <button onclick="confirmAdd('watch')">确认添加观察</button>
 </div>
 <div class="card tbl">
-  <table><thead><tr><th class="l">名称</th><th>现价</th><th>涨跌%</th><th>参考低~高</th><th id="wdelh"></th></tr></thead>
+  <table><thead><tr><th class="l">名称</th><th>现价</th><th>涨跌%</th><th>可入档位</th><th id="wdelh"></th></tr></thead>
   <tbody id="watch"></tbody></table>
 </div>
 
@@ -1657,14 +1665,15 @@ function doRender(){
     const _tb=TLOG.filter(r=>r.code===h.code&&r.d===today()&&r.buy>0&&r.bq>0);
     const _bq=_tb.reduce((s,r)=>s+r.bq,0);
     const avgBuy=_bq?_tb.reduce((s,r)=>s+r.buy*r.bq,0)/_bq:null;
+    const _rch=refCloseOf(p,prev), _nxh=planNext();   // v4.81: 收盘后档位是明日的,基准要用今收
     const fmtTier=(arr,side)=>arr.map((x,j)=>{
-      const pctS=prev?sg(((x/prev-1)*100).toFixed(1))+'%':'';
+      const pctS=_rch?sg(((x/_rch-1)*100).toFixed(1))+'%':'';
       const ord=arr.length>1?'①②③'[j]:'•';
       const hit=side==='buy'?(lo!=null&&lo<=x):(hi!=null&&hi>=x);
       // v4.76: 该档历史触及概率(250日,相对昨收口径)
       const _dq=DPOS[h.code];
       let prS='';
-      if(_dq&&prev>0){ const gk=Math.abs(x/prev-1)*100;
+      if(_dq&&_rch>0){ const gk=Math.abs(x/_rch-1)*100;
         const pr=hitPr(side==='buy'?_dq.DN:_dq.UP, gk);
         if(pr!=null) prS=' <s class="prb'+(pr>=50?' hi':(pr<=20?' lo':''))+'">'+pr+'%概率到</s>'; }
       // v4.62 主信号: 距现价还差多少 —— 买档高于现价=追高,卖档低于现价=已错过
@@ -1691,7 +1700,7 @@ function doRender(){
           +(uw!=null?`(昨收${sg(uw.toFixed(1))}%)`:'')
           +` → 卖这档这笔净${tr2>=0?'赚':'亏'}${Math.abs(tr2).toFixed(1)}%</u>`;
       }
-      return `<div class="tchip" onclick="fillT('${h.code}',${x},'${side}')"><i>${ord}</i><b>${P(x)}</b>${gapS}<s>昨收${pctS}</s>${costS}${prS}${hit?(' <s style="color:#d97706;font-weight:700">✓到过'+((p!=null&&Math.abs(x/p-1)*100>3)?'·已错过':'')+'</s>'):''}${tS}</div>`; }).join('');
+      return `<div class="tchip" onclick="fillT('${h.code}',${x},'${side}')"><i>${ord}</i><b>${P(x)}</b>${gapS}<s>${_nxh?'今收':'昨收'}${pctS}</s>${costS}${prS}${(hit&&!_nxh)?(' <s style="color:#d97706;font-weight:700">✓到过'+((p!=null&&Math.abs(x/p-1)*100>3)?'·已错过':'')+'</s>'):''}${tS}</div>`; }).join('');
     const sellStr = tr.sells.length?fmtTier(tr.sells,'sell'):`<div class="tchip"><b>${P(projHi)}</b></div>`;
     const buyStr = tr.buys.length?fmtTier(tr.buys,'buy'):`<div class="tchip"><b>${P(projLo)}</b></div>`;
     const cleared=(h.shares===0);
@@ -1871,6 +1880,18 @@ function doRender(){
     const pjLoN=(prev!=null&&a2!=null)?Math.max(prev*(1-lpw),prev-1.0*a2):((p!=null&&base!=null)?p-K_DN*base:null);
     const pjHiN=(prev!=null&&a2!=null)?Math.min(prev*(1+lpw),prev+1.0*a2):((p!=null&&base!=null)?p+K_UP*base:null);
     const pj=(pjLoN!=null)?P(pjLoN)+'~'+P(pjHiN):'—';
+    // v4.81: 观察区也给可执行档位(与持仓同一套引擎),不再只给一个模糊区间
+    const _tfw=trendFlag(pct,(todayAmp!=null&&prev)?todayAmp/prev*100:null,mktOf(w));
+    const _rcw=refCloseOf(p,prev);
+    const _trw=tiers(anchorOf(w.code,p,prev),narrowBase(w.code,base,todayAmp).base,_rcw,_tfw.lv,w.code,w.name);
+    const _dpw=DPOS[w.code];
+    const _entry=_trw.buys.length?_trw.buys.map((x,j)=>{
+      const g=(p!=null&&p>0)?(x/p-1)*100:null;
+      let pr=null; if(_dpw&&_rcw) pr=hitPr(_dpw.DN, Math.abs(x/_rcw-1)*100);
+      return `<div class="etk">${_trw.buys.length>1?'①②③'[j]:'•'}<b>${P(x)}</b>`
+        +(g!=null?`<span class="gp">${sg(g.toFixed(1))}%</span>`:'')
+        +(pr!=null?`<span class="prb2${pr>=50?' hi':(pr<=20?' lo':'')}">${pr}%</span>`:'')+`</div>`;
+    }).join(''):`<div class="etk sub">${pj}</div>`;
     const wt=WT[w.code], wtC=wt>0?'up':(wt<0?'down':'flat');
     const al=(p!=null&&pjHiN!=null)?(p>=pjHiN?[' ▲破上沿','up']:(p<=pjLoN?[' ▼破下沿','down']:['',''])):['',''];
     const sig=PAPER.find(x=>x.code===w.code&&x.status==='open');
@@ -1886,10 +1907,25 @@ function doRender(){
     const ffW=FF[w.code], ffWTxt=ffW?` · 主力<b class="${cls(ffW.amt)}">${ffW.amt>=0?'+':''}${fmtAmt(ffW.amt)}</b>`:'';
     const ffhW=ffhTxt(w.code);
     const addTxt=(w.addedP!=null&&p!=null)?`<br><span class="sub">${(w.addedD||'').slice(5)}加 @${P(w.addedP)} · 以来<b class="${cls((p/w.addedP-1)*100)}">${sg(((p/w.addedP-1)*100).toFixed(1))}%</b>${w.addedFF!=null?` · 入时主力<b class="${cls(w.addedFF)}">${w.addedFF>=0?'+':''}${fmtAmt(w.addedFF)}</b>`:''}</span>`:'';
-    return `<tr><td class="l" style="cursor:pointer" onclick="openK('${w.code}')">${w.name}<br><span class="sub">${w.code.replace(/^(sh|sz)/,'')}</span><br><span class="sub">${w.theme||'未标题材'} · <b class="${wtC}">${wtTxt(w.code)}</b>${dtW}<b class="${al[1]}">${al[0]}</b>${sigTxt}${wsgTxt}${m15Txt}${gzW}${extWTxt}${lnkWTxt}${ffWTxt}</span>${addTxt}${ffhW?`<br><span class="sub">${ffhW}</span>`:''}<br><span class="sub" style="font-size:12px">📋 <b style="color:${vCls(verdict(w.code))}">${verdict(w.code)}</b></span></td>
+    // v4.81: 信号压成一行短标签,细节收进折叠,别再堆一屏小字
+    const _sg2=[`<b class="${wtC}">${wtTxt(w.code)}</b>`];
+    if(dtw!=null) _sg2.push(`<b class="${dtC2}">${dtTxt(w.code)}</b>`);
+    if(al[0]) _sg2.push(`<b class="${al[1]}">${al[0].trim()}</b>`);
+    if(sig) _sg2.push(`<b class="${sig.dir>0?'up':'down'}">△日${sig.dir>0?'↑':'↓'}</b>`);
+    if(wsg) _sg2.push(`<b class="${wsg>0?'up':'down'}">△周${wsg>0?'↑':'↓'}</b>`);
+    if(m15) _sg2.push(`<b class="${m15>0?'up':'down'}">△15${m15>0?'↑':'↓'}</b>`);
+    if(gzW) _sg2.push('<b class="flat">周日同向</b>');
+    if(extW) _sg2.push('<b style="color:#d97706">⚠极端</b>');
+    if(ffW) _sg2.push(`主力<b class="${cls(ffW.amt)}">${ffW.amt>=0?'+':''}${fmtAmt(ffW.amt)}</b>`);
+    const _det=[sigTxt,wsgTxt,m15Txt,extWTxt,lnkWTxt,ffhW?' · '+ffhW:''].filter(Boolean).join('');
+    return `<tr><td class="l" style="cursor:pointer" onclick="openK('${w.code}')">${w.name}<span class="sub"> ${w.code.replace(/^(sh|sz)/,'')}</span>
+      <br><span class="sub">${w.theme||'未标题材'}</span>
+      <br><span class="sub sig1">${_sg2.join(' ')}</span>${addTxt}
+      <br><span class="vd">📋 <b style="color:${vCls(verdict(w.code))}">${verdict(w.code)}</b></span>
+      ${_det?`<details class="wdt"><summary class="sub">信号细节</summary><span class="sub">${_det}</span></details>`:''}</td>
       <td>${P(p)}</td><td class="${cls(pct)}">${pct!=null?sg(pct.toFixed(2))+'%':'—'}</td>
-      <td class="sub">${pj}</td>${del}</tr>`;
-  }).join('') + (PF.watch.length?'<tr><td colspan="4" class="sub" style="font-size:10px">顺势=信号与大周期同向 · 反弹/回调性质=与大周期反向（日线信号看周线，15分钟信号看日线）· ⚠极端=偏离20日线≥2×ATR或RSI≤30/≥70，该区域内反向波动概率上升，勿追涨杀跌，等结构确认（不再创新低/新高）</td></tr>':'');
+      <td class="etd">${_entry}</td>${del}</tr>`;
+  }).join('') + (PF.watch.length?'<tr><td colspan="4"><details class="wdt"><summary class="sub" style="font-size:10px">档位口径与信号说明</summary><span class="sub" style="font-size:10px">买档='+(planNext()?'明日':'今日')+'可挂的低吸价,%为该跌幅250日内当天摸到的概率 · 顺势=信号与大周期同向 · 反弹/回调=与大周期反向(日线信号看周线,15分信号看日线) · ⚠极端=偏离20日线≥2×ATR或RSI≤30/≥70,勿追涨杀跌,等不再创新低/新高</span></details></td></tr>':'');
 
   const sumEl=document.getElementById('sum'); sumEl.style.display='flex';
   document.getElementById('sumMv').textContent = Math.round(totMv).toLocaleString();
