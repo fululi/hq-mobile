@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#f5f6f8">
-<title>我的持仓 · 行情 v4.90</title>
+<title>我的持仓 · 行情 v4.91</title>
 <style>
 :root { color-scheme: light; }
 * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
@@ -48,6 +48,8 @@ body { margin:0; padding:14px 12px 40px; background:#f5f6f8; color:#1a1d21;
 .proj.vrd { font-size:13px; margin-top:8px; }
 .badge { font-size:10.5px; font-weight:700; padding:1px 7px; border-radius:6px; margin-left:7px; vertical-align:2px; }
 .badge.up { background:#fdecea; color:#d0342c; } .badge.down { background:#e7f5ee; color:#12924a; } .badge.flat { background:#eef0f3; color:#4b5563; }
+.tier.ts.mute{background:#fafafa}
+.tier.ts.mute .tchip{opacity:.5}
 .tnote { margin-top:6px; font-size:11px; color:#9a6a1a; background:#fff8e8; border-radius:6px; padding:5px 8px; }
 .atrnote { margin-top:6px; font-size:11px; color:#4b5563; }
 details.mini > summary { font-size:11px; color:#8b95a5; cursor:pointer; list-style:none; padding:4px 0; user-select:none; }
@@ -673,6 +675,11 @@ try{ const _b=JSON.parse(localStorage.getItem(BTK)||'null'); if(_b&&_b.date===to
 function calcPos(rows){ // v4.73 日线位置:分位/MA20偏离/起涨/历史同等偏离后3日回撤统计
   // v4.79: 盘中拉到的最后一根是"今天未收盘"的K,只能拿它当现价,绝不能混进历史样本
   const px0=rows.length?+rows[rows.length-1][4]:0;
+  let _up20=false;
+  { const _r=(rows.length&&rows[rows.length-1][0]===today()&&!planNext())?rows.slice(0,-1):rows;
+    const _C=_r.map(r=>+r[4]), _n=_C.length;
+    if(_n>=26){ const _mk=k=>{ let t=0; for(let j=k-20;j<k;j++) t+=_C[j]; return t/20; };
+      const _m0=_mk(_n), _m5=_mk(_n-5); _up20=(_C[_n-1]>_m0 && _m0>_m5); } }
   if(rows.length&&rows[rows.length-1][0]===today()) rows=rows.slice(0,-1);
   const n=rows.length; if(n<90) return null;
   const C=rows.map(r=>+r[4]), H=rows.map(r=>+r[2]), L=rows.map(r=>+r[3]);
@@ -683,7 +690,7 @@ function calcPos(rows){ // v4.73 日线位置:分位/MA20偏离/起涨/历史同
   const dev=(px/ma(n)-1)*100;
   let li=n-60; for(let i=n-60;i<n;i++) if(L[i]<L[li]) li=i;
   const up=[]; for(let i=n-1;i>0&&C[i]>C[i-1];i--) up.push(1);
-  const R={pctl:Math.round(pctl), dev:+dev.toFixed(1), lowPx:+L[li].toFixed(2), lowD:rows[li][0],
+  const R={up20:_up20, pctl:Math.round(pctl), dev:+dev.toFixed(1), lowPx:+L[li].toFixed(2), lowD:rows[li][0],
            rise:+((px/L[li]-1)*100).toFixed(1), days:n-li, upd:up.length};
   if(dev>=4){ // 只在明显偏离MA20时才回测,偏离小时样本无区分度(几乎每天都符合)
     const dd=[];
@@ -754,6 +761,19 @@ function preWhy(c,nm){
     t+='它是「常态波动范围」,不是保证,更不是买卖信号。';
   } else t+='【实测】还在算 —— 要拉近300根日线才能统计,首次打开或刚换网络时会慢几秒。\n下拉刷新一次;如果刷新几次还是这句,多半是行情接口把这个代码的日线拒了。';
   alert(t);
+}
+function trendWhy(c,nm){
+  const d=DPOS[c]||{};
+  alert('【'+(nm||c)+' 高抛区为什么是灰的】\n\n'
+   +'当前状态: 昨收在20日均线上方,且20日均线比5天前还高 —— 上升趋势中。\n\n'
+   +'样本外回测(2025-08-29~2026-09-01,每次做T 100股):\n'
+   +'  永鼎  现行规则 −11,150   涨势中不高抛 −3,310   躺着不动 +2,732\n'
+   +'  巨石  现行规则 −15,598   涨势中不高抛 −3,773   躺着不动 +2,777\n'
+   +'亏的不是手续费,是卖飞:上涨行情里卖单天天成交、买单几乎不成交,平均扛7~9天。\n\n'
+   +'★ 档位没有藏起来,照样能点。高开那种时候你需要看到价格。\n'
+   +'这里只是把回测结果摆给你,卖不卖你自己定。\n\n'
+   +'边界: 日线回测每天最多一轮往返,看不见你日内多次做T。\n'
+   +'它只能否定"挂单等成交",否定不了你盘中的相机决策。');
 }
 function tierWhy(){
   alert('【档位这几个数字分别是什么】\n\n'
@@ -2205,9 +2225,10 @@ function doRender(){
         +' · 低吸'+P(bN)+'在现价上方'+((bN/p-1)*100).toFixed(1)+'%'
         +(LV2?' — 此刻两头都够不着':' — 今日两头都没够着');
     }
+    const _up20=!!(DPOS[h.code]&&DPOS[h.code].up20);
     const tradeZone=cleared?'<div class="atrnote" style="color:#c2410c;font-weight:700">✓ 已清仓 · 实现盈亏见下方台账 · 分档与快捷单已收起(接回后点编辑重填股数/成本)</div>'
       :(_dead?`<div class="deadn">${deadSum}</div>`:'')
-      +`<div class="tierbox"><div class="tier tb"><div class="tl">低吸区 · 点价直接填单<span class="qm" onclick="tierWhy()">?</span></div>${buyStr}</div><div class="tier ts"><div class="tl">高抛区 · 点价直接填单<span class="qm" onclick="tierWhy()">?</span></div>${sellStr}</div></div>
+      +`<div class="tierbox"><div class="tier tb"><div class="tl">低吸区 · 点价直接填单<span class="qm" onclick="tierWhy()">?</span></div>${buyStr}</div><div class="tier ts${_up20?' mute':''}"><div class="tl">${_up20?`高抛区 · <b style="color:#b91c1c">回测说此刻别卖</b>`:'高抛区 · 点价直接填单'}<span class="qm" onclick="${_up20?`trendWhy('${h.code}','${h.name}')`:'tierWhy()'}">?</span></div>${sellStr}</div></div>
       <div class="qbox"><input id="qs_${h.code}" type="number" step="0.001" placeholder="卖出价" oninput="qPrev('${h.code}')"><input id="qb_${h.code}" type="number" step="0.001" placeholder="接回(空=只卖)" oninput="qPrev('${h.code}')"><input id="qq_${h.code}" type="number" step="100" placeholder="股数(不填=1/4仓)" oninput="qPrev('${h.code}')"><button onclick="qTrade('${h.code}')">记</button></div>
       <div class="sub qpv" id="qp_${h.code}"></div>
       ${roundTxt}`;
