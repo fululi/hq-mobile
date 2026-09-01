@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#f5f6f8">
-<title>我的持仓 · 行情 v4.60</title>
+<title>我的持仓 · 行情 v4.63</title>
 <style>
 :root { color-scheme: light; }
 * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
@@ -106,7 +106,9 @@ td { border-top:1px solid #f2f4f6; }
 .tier.ts { background:#fef2f2; border:1.5px solid #fca5a5; }
 .tier .tl { font-size:11px; font-weight:700; margin-bottom:4px; }
 .tier.tb .tl { color:#15803d; } .tier.ts .tl { color:#b91c1c; }
-.tchip { display:flex; align-items:baseline; gap:5px; padding:4px 2px; cursor:pointer; }
+.tchip { display:flex; align-items:baseline; gap:5px; padding:4px 2px; cursor:pointer; flex-wrap:wrap; }
+.tchip em { font-style:normal; font-size:13px; font-weight:700; font-variant-numeric:tabular-nums; }
+.tchip u { flex-basis:100%; text-decoration:none; font-size:11.5px; font-weight:700; margin-top:-1px; }
 .tchip:active { opacity:.6; }
 .tchip i { font-style:normal; font-size:11px; font-weight:700; color:#9ca3af; }
 .tchip b { font-size:19px; font-weight:800; font-variant-numeric:tabular-nums; letter-spacing:.2px; }
@@ -337,7 +339,7 @@ function limitPct(code,name){
 function trendFlag(pct,ampPct,mkt){
   if(pct==null) return {lv:0,label:'',cls:'flat'};
   const a=Math.abs(pct), m=mkt!=null?Math.abs(mkt):0;
-  if(a>=6 || (ampPct!=null&&ampPct>=8)) return {lv:2,label:pct>0?'⚡涨超6%':'⚡跌超6%',cls:pct>0?'up':'down'};
+  if(a>=6 || (ampPct!=null&&ampPct>=8)) return {lv:2,label:pct>0?'⚠涨超6%':'⚠跌超6%',cls:pct>0?'up':'down'};
   if(a>=3 || (ampPct!=null&&ampPct>=5) || m>=1.2) return {lv:1,label:pct>0?'涨超3%':(pct<0?'跌超3%':'大盘异动'),cls:cls(pct)};
   return {lv:0,label:'',cls:'flat'};
 }
@@ -741,7 +743,7 @@ function renderSync(data){
   const pa=F(GET(A.code),32), pb2=F(GET(B.code),32);
   if(pa!=null&&pb2!=null){ const d=Math.abs(pa-pb2);
     if(d>=1.5){ const strong=pa>pb2?A.name:B.name, weak=pa>pb2?B.name:A.name;
-      html+=`<div style="margin-top:4px;color:#b45309">⚡ 实时背离 ${d.toFixed(1)}%: ${strong} 强于 ${weak}。高同步品种背离大了,弱的那只有跟随惯性——但也可能是个股单独利空,先看一眼新闻再动手。</div>`; } }
+      html+=`<div style="margin-top:4px;color:#b45309">↔ 实时背离 ${d.toFixed(1)}%: ${strong} 强于 ${weak}。高同步品种背离大了,弱的那只有跟随惯性——但也可能是个股单独利空,先看一眼新闻再动手。</div>`; } }
   html+='<div class="sub" style="margin-top:6px">同步率=5分钟涨跌相关系数(0~1):≥0.7高度同步,0.4~0.7中度,&lt;0.4各走各的。</div>';
   document.getElementById('syncBody').innerHTML=html;
 }
@@ -861,7 +863,7 @@ function renderPlan(){
   }
   if(dirty) savePlan();
   const ph=document.getElementById('pHit');
-  if(ph) ph.textContent=hits?('⚡ '+hits+'笔到价,点「填入」去成交'):'没成交也能记,成交后点「填入」';
+  if(ph) ph.textContent=hits?('⚡ '+hits+'笔到价,点「填入」去成交'):'⚡=挂单到价该动手 · ▲▼=破位 · △=破三角 · ⚠=异动';
 }
 function fillPlan(idx){
   const p=PLAN[idx]; if(!p) return;
@@ -1010,7 +1012,7 @@ function renderT(){
     };
     const bs=tr.buys.length?tr.buys.map((x,j)=>`<span class="tk" onclick="fillT('${h.code}',${x},'buy')">${tr.buys.length>1?'①②③'[j]:''}${P(x)}${ann(x,1,j)}</span>`).join(' / '):'—';
     const ss=tr.sells.length?tr.sells.map((x,j)=>`<span class="tk" onclick="fillT('${h.code}',${x},'sell')">${tr.sells.length>1?'①②③'[j]:''}${P(x)}${ann(x,-1,j)}</span>`).join(' / '):'—';
-    return `<tr><td class="l">${h.name}${tf.lv>0?' <span class="badge '+tf.cls+'" style="margin:0">'+(tf.lv>=2?'⚡':(tf.label==='大盘异动'?'异动':tf.label.replace('趋势偏','趋')))+'</span>':''}</td>
+    return `<tr><td class="l">${h.name}${tf.lv>0?' <span class="badge '+tf.cls+'" style="margin:0">'+(tf.lv>=2?'⚠':(tf.label==='大盘异动'?'异动':tf.label.replace('趋势偏','趋')))+'</span>':''}</td>
       <td class="flat">${ampPct!=null?ampPct.toFixed(2)+'%':'—'}${atrUse!=null?'<br><span class="sub">ATR用'+atrUse+'%'+(nb.narrow?'·窄档':'')+'</span>':''}</td>
       <td class="down">${bs}</td><td class="up">${ss}</td></tr>`;
   }).join('') || '<tr><td class="sub" colspan="4">暂无持仓</td></tr>';
@@ -1382,12 +1384,19 @@ function renderDayChg(){
     const warn=[];
     Object.keys(byC).forEach(c=>{
       const o=byC[c], h=PF.holds.find(x=>x.code===c);
-      if(!h||!o.start) return;
+      if(!h) return;
       const rs=rows.filter(r=>r.code===c);
       const net=rs.reduce((s,r)=>s+((r.bq||0)-(r.qty||0)),0);
-      const should=o.start.shares+net;
-      const gap=(h.shares||0)-should;
-      if(Math.abs(gap)>=100) warn.push(o.name+' 台账推算'+should+'股·实际'+(h.shares||0)+'股·差'+(gap>0?'+':'')+gap+'股');
+      if(o.start&&o.start.shares!=null){
+        const should=o.start.shares+net, gap=(h.shares||0)-should;
+        if(Math.abs(gap)>=100) warn.push(o.name+' 台账推算'+should+'股·实际'+(h.shares||0)+'股·差'+(gap>0?'+':'')+gap+'股');
+      } else {  // v4.61: 旧备份无posBefore,改判成本与今日成交价背离
+        const px=rs.map(r=>r.sell||r.buy||0).filter(x=>x>0);
+        if(px.length&&h.cost>0){
+          const mx=Math.max(...px), dev=(h.cost-mx)/mx*100;
+          if(dev>=15) warn.push(o.name+' 成本'+h.cost+'高出今日成交价'+dev.toFixed(0)+'%,台账缺开盘股数,请核对是否漏记补仓');
+        }
+      }
     });
     if(warn.length) missWarn='<div style="background:#fee2e2;color:#991b1b;padding:6px 9px;border-radius:6px;font-size:12px;margin-bottom:6px;font-weight:600">⚠ 可能漏记账: '+warn.join(' ｜ ')+'</div>';
   }
@@ -1397,8 +1406,18 @@ function renderDayChg(){
     let posLine='';
     if(o.start&&o.end){ const ds=o.end.shares-o.start.shares;
       posLine=o.start.shares+'股→'+o.end.shares+'股'+(o.end.shares===0?'(已清仓)':(ds>0?'(净加'+ds+'股)':(ds<0?'(净减'+(-ds)+'股)':'')))+' · 成本'+o.start.cost+'→'+(o.end.shares===0?'—':o.end.cost); }
-    html+='<div class="prow" style="padding:7px 0"><span><b>'+o.name+'</b>'+(posLine?' <span class="sub">'+posLine+'</span>':'')+'</span><b class="'+cls(-cash)+'">'+(cash>0?'投入 ':'回笼 ')+Math.round(Math.abs(cash)).toLocaleString()+'</b></div>'; });
-  html+='<div class="prow" style="border-top:1px solid #e6e8ec;padding-top:8px"><span><b>合计</b> <span class="sub">已实现(做T+清仓) <b class="'+cls(totP)+'">'+sg(Math.round(totP))+'</b> 元</span></span><b class="'+cls(-totCash)+'" style="font-size:16px">'+(totCash>0?'净投入 +':'净回笼 +')+Math.round(Math.abs(totCash)).toLocaleString()+' 元</b></div>';
+    html+='<div class="prow" style="padding:7px 0"><span><b>'+o.name+'</b>'+(posLine?' <span class="sub">'+posLine+'</span>':'')
+      +'</span><span><b class="'+cls(o.profit)+'">'+sg(Math.round(o.profit))+'</b>'
+      +'<span class="sub" style="margin-left:6px">'+(cash>0?'投':'回')+Math.round(Math.abs(cash)).toLocaleString()+'</span></span></div>'; });
+  // v4.61: 利润=赚的钱(大字), 回笼=本金进出(小字), 两者不是一回事
+  let totQ=0;
+  Object.keys(byC).forEach(c=>{ totQ+=rows.filter(r=>r.code===c).reduce((s,r)=>s+((r.bq||0)-(r.qty||0)),0); });
+  html+='<div style="border-top:1px solid #e6e8ec;margin-top:6px;padding-top:8px">'
+    +'<div style="display:flex;justify-content:space-between;align-items:baseline">'
+      +'<b style="font-size:14px">今日做T净利润</b>'
+      +'<b class="'+cls(totP)+'" style="font-size:20px">'+sg(Math.round(totP).toLocaleString())+' 元</b></div>'
+    +'<div class="sub" style="margin-top:2px">本金'+(totCash>0?'投入':'回笼')+' '+Math.round(Math.abs(totCash)).toLocaleString()
+      +' 元(不是利润) · '+(totQ>0?'加仓+':(totQ<0?'减仓':'股数持平'))+(totQ?totQ+'股':'')+'</div></div>';
   el.innerHTML=html; el.style.display='block';
 }
 
@@ -1444,7 +1463,7 @@ function doRender(){
     if(c==='sh000001') MKT=pct;
     const ia=atrOf(c);
     const ipre=(prev!=null&&ia!=null)?(prev-ia).toFixed(0)+'~'+(prev+ia).toFixed(0):'—';
-    const ipos=(p!=null&&prev!=null&&ia!=null)?(p>=prev+ia?' <b class="up">⚡破上沿</b>':(p<=prev-ia?' <b class="down">⚡破下沿</b>':'')):'';
+    const ipos=(p!=null&&prev!=null&&ia!=null)?(p>=prev+ia?' <b class="up">▲破上沿</b>':(p<=prev-ia?' <b class="down">▼破下沿</b>':'')):'';
     return `<div class="c"><div class="n">${n}</div><div class="v ${cls(pct)}">${p!=null?p.toFixed(2):'—'}</div><div class="g ${cls(pct)}">${pct!=null?sg(pct.toFixed(2))+'%':''}</div><div class="g sub" style="font-weight:400">预判${ipre}${ipos}</div></div>`;
   }).join('');
   const me=document.getElementById('mkt');
@@ -1485,23 +1504,45 @@ function doRender(){
     const badge = tf.lv>0 ? `<span class="badge ${tf.cls}">${tf.label}</span>` : '';
     const wth=WT[h.code], wtCh=wth>0?'up':(wth<0?'down':'flat');
     const wtBadge = `<span class="badge ${wtCh}">${wtTxt(h.code)}</span>`;
-    const wsgH=WSIG[h.code], wsgTxtH=wsgH?`<span class="badge ${wsgH>0?'up':'down'}">⚡周线破三角${wsgH>0?'上沿':'下沿'}${sigCtx(wsgH, DT[h.code], '日线')}</span>`:'';
-    const m15H=MSIG[h.code], m15Badge=m15H?`<span class="badge ${m15H>0?'up':'down'}">⚡15分破三角${m15H>0?'上沿':'下沿'}${sigCtx(m15H, DT[h.code], '日线')}</span>`:'';
+    const wsgH=WSIG[h.code], wsgTxtH=wsgH?`<span class="badge ${wsgH>0?'up':'down'}">△周线破三角${wsgH>0?'上沿':'下沿'}${sigCtx(wsgH, DT[h.code], '日线')}</span>`:'';
+    const m15H=MSIG[h.code], m15Badge=m15H?`<span class="badge ${m15H>0?'up':'down'}">△15分破三角${m15H>0?'上沿':'下沿'}${sigCtx(m15H, DT[h.code], '日线')}</span>`:'';
     const dth=DT[h.code], dtCh=dth>0?'up':(dth<0?'down':'flat');
     const dtBadgeH=dth!=null?`<span class="badge ${dtCh}">${dtTxt(h.code)}</span>`:'';
     const gzH=(wth!=null&&dth!=null&&wth===dth&&wth!==0)?'<span class="badge flat">周日同向</span>':'';
     const extH=EXT[h.code], extBadge=extH?`<span class="badge flat">${extTxt(h.code)}</span>`:'';
+    // v4.62: 今日该票的买入均价 —— 用来算"我水下买的,涨到这档一共赚几个点"
+    const _tb=TLOG.filter(r=>r.code===h.code&&r.d===today()&&r.buy>0&&r.bq>0);
+    const _bq=_tb.reduce((s,r)=>s+r.bq,0);
+    const avgBuy=_bq?_tb.reduce((s,r)=>s+r.buy*r.bq,0)/_bq:null;
     const fmtTier=(arr,side)=>arr.map((x,j)=>{
       const pctS=prev?sg(((x/prev-1)*100).toFixed(1))+'%':'';
       const ord=arr.length>1?'①②③'[j]:'•';
       const hit=side==='buy'?(lo!=null&&lo<=x):(hi!=null&&hi>=x);
-      // v4.58: 卖档直接标"较你成本"真实收益率(扣费后),这才是你到手的%
+      // v4.62 主信号: 距现价还差多少 —— 买档高于现价=追高,卖档低于现价=已错过
+      let gapS='';
+      if(p!=null&&p>0){
+        const g=(x/p-1)*100, ag=Math.abs(g).toFixed(1);
+        if(side==='buy') gapS=g<0?`<em style="color:#16a34a">再跌${ag}%到</em>`
+          :`<em style="color:#b45309">⚠比现价高${ag}%</em>`;
+        else gapS=g>0?`<em style="color:#dc2626">再涨${ag}%到</em>`
+          :`<em style="color:#b45309">⚠现价已越过${ag}%</em>`;
+      }
+      // 卖档: 相对持仓成本的净收益(扣费)
       let costS='';
       if(side==='sell'&&h.cost>0&&h.shares>0){
-        const gr=(x-h.cost)/h.cost*100, ft=feeOf(x,h.cost,100,100).fee, nr=((x-h.cost)*100-ft)/(h.cost*100)*100;
+        const ft=feeOf(x,h.cost,100,100).fee, nr=((x-h.cost)*100-ft)/(h.cost*100)*100;
         costS=`<s style="color:${nr>=0?'#dc2626':'#16a34a'};font-weight:700">成本${nr>=0?'+':''}${nr.toFixed(1)}%</s>`;
       }
-      return `<div class="tchip" onclick="fillT('${h.code}',${x},'${side}')"><i>${ord}</i><b>${P(x)}</b><s>${pctS}</s>${costS}${hit?' <s style="color:#d97706;font-weight:700">✓到过</s>':''}</div>`; }).join('');
+      // v4.62 第二行: 今日你在哪买的→卖这档这一笔真实赚几个点(这才是做T收益)
+      let tS='';
+      if(side==='sell'&&avgBuy&&x>0){
+        const ft=feeOf(x,avgBuy,100,100).fee, tr2=((x-avgBuy)*100-ft)/(avgBuy*100)*100;
+        const uw=prev?(avgBuy/prev-1)*100:null;
+        tS=`<u style="color:${tr2>=0?'#dc2626':'#16a34a'}">今日你${avgBuy.toFixed(2)}买`
+          +(uw!=null?`(昨收${sg(uw.toFixed(1))}%)`:'')
+          +` → 卖这档这笔净${tr2>=0?'赚':'亏'}${Math.abs(tr2).toFixed(1)}%</u>`;
+      }
+      return `<div class="tchip" onclick="fillT('${h.code}',${x},'${side}')"><i>${ord}</i><b>${P(x)}</b>${gapS}<s>昨收${pctS}</s>${costS}${hit?' <s style="color:#d97706;font-weight:700">✓到过</s>':''}${tS}</div>`; }).join('');
     const sellStr = tr.sells.length?fmtTier(tr.sells,'sell'):`<div class="tchip"><b>${P(projHi)}</b></div>`;
     const buyStr = tr.buys.length?fmtTier(tr.buys,'buy'):`<div class="tchip"><b>${P(projLo)}</b></div>`;
     const cleared=(h.shares===0);
@@ -1528,7 +1569,7 @@ function doRender(){
     const preHi=(prev!=null&&a2!=null)?Math.min(prev*(1+lp2),prev+ampF*a2):null;
     const preLo=(prev!=null&&a2!=null)?Math.max(prev*(1-lp2),prev-ampF*a2):null;
     const preStr=(preHi!=null)?P(preLo)+' ~ '+P(preHi):'—';
-    const posTxt=(p!=null&&preHi!=null&&preLo!=null)?(p>=preHi?'⚡现价破预判上沿':(p<=preLo?'⚡现价破预判下沿':'在预判区间内')):'';
+    const posTxt=(p!=null&&preHi!=null&&preLo!=null)?(p>=preHi?'▲现价破预判上沿':(p<=preLo?'▼现价破预判下沿':'在预判区间内')):'';
     const lg=legOf(h.code);
     const legGain=(lg&&p!=null)?(p/lg.base-1)*100:null;
     const lvH=LV[h.code]||{}, devA=(p!=null&&lvH.de!=null&&atrV)?(p-lvH.de)/atrV:null;
@@ -1545,8 +1586,28 @@ function doRender(){
       }
       roundTxt=`<div class="sub" style="margin-top:6px;color:#374151">一轮净赚(已扣费): ${pairs.join('<br>')}</div>`;
     }
+    // v4.63: 档位失效判定 —— 锚定今开后单边走,现价跌穿/涨过全部档位则整套作废
+    let deadTier='';
+    if(!cleared&&p!=null&&tr.buys.length&&tr.sells.length){
+      const op=F(f,5), gap=(op!=null&&prev)?(op/prev-1)*100:null;
+      const anch=anchorOf(h.code,p,prev);
+      const belowAll=tr.buys.every(x=>x>p), aboveAll=tr.sells.every(x=>x<p);
+      if(belowAll||aboveAll){
+        const drift=anch?(p/anch-1)*100:null;
+        const dir=belowAll?'跌穿':'涨过';
+        const zone=belowAll?'低吸':'高抛';
+        const lst=(belowAll?tr.buys:tr.sells).map(x=>P(x)).join('/');
+        deadTier='<div style="background:#7f1d1d;color:#fff;padding:9px 11px;border-radius:8px;margin:6px 0">'
+          +'<div style="font-size:15px;font-weight:800">⚠ 今日'+zone+'档已全部失效</div>'
+          +'<div style="font-size:12.5px;margin-top:3px;line-height:1.5">'
+          +(gap!=null&&Math.abs(gap)>=1?('今日'+(gap>0?'高开+':'低开')+gap.toFixed(1)+'%,'):'')
+          +'锚点'+P(anch)+' → 现价'+P(p)
+          +(drift!=null?'(较锚点'+sg(drift.toFixed(1))+'%)':'')
+          +'<br>'+zone+'档 '+lst+' 已被现价'+dir+',<b>今日别按这套档位下单</b>,等明日重新锚定</div></div>';
+      }
+    }
     const tradeZone=cleared?'<div class="atrnote" style="color:#c2410c;font-weight:700">✓ 已清仓 · 实现盈亏见下方台账 · 分档与快捷单已收起(接回后点编辑重填股数/成本)</div>'
-      :`<div class="tierbox"><div class="tier tb"><div class="tl">低吸区 · 点价直接填单</div>${buyStr}</div><div class="tier ts"><div class="tl">高抛区 · 点价直接填单</div>${sellStr}</div></div>
+      :deadTier+`<div class="tierbox"><div class="tier tb"><div class="tl">低吸区 · 点价直接填单</div>${buyStr}</div><div class="tier ts"><div class="tl">高抛区 · 点价直接填单</div>${sellStr}</div></div>
       <div class="qbox"><input id="qs_${h.code}" type="number" step="0.001" placeholder="卖出价" oninput="qPrev('${h.code}')"><input id="qb_${h.code}" type="number" step="0.001" placeholder="接回(空=只卖)" oninput="qPrev('${h.code}')"><input id="qq_${h.code}" type="number" step="100" placeholder="股数" oninput="qPrev('${h.code}')"><button onclick="qTrade('${h.code}')">记</button></div>
       <div class="sub qpv" id="qp_${h.code}"></div>
       ${roundTxt}`;
@@ -1600,12 +1661,12 @@ function doRender(){
     const pjHiN=(prev!=null&&a2!=null)?Math.min(prev*(1+lpw),prev+1.0*a2):((p!=null&&base!=null)?p+K_UP*base:null);
     const pj=(pjLoN!=null)?P(pjLoN)+'~'+P(pjHiN):'—';
     const wt=WT[w.code], wtC=wt>0?'up':(wt<0?'down':'flat');
-    const al=(p!=null&&pjHiN!=null)?(p>=pjHiN?[' ⚡破上沿','up']:(p<=pjLoN?[' ⚡破下沿','down']:['',''])):['',''];
+    const al=(p!=null&&pjHiN!=null)?(p>=pjHiN?[' ▲破上沿','up']:(p<=pjLoN?[' ▼破下沿','down']:['',''])):['',''];
     const sig=PAPER.find(x=>x.code===w.code&&x.status==='open');
-    const sigTxt=sig?` <b class="${sig.dir>0?'up':'down'}">⚡收盘破三角${sig.dir>0?'上沿':'下沿'}${sigCtx(sig.dir, WT[w.code], '周线')}</b>`:'';
+    const sigTxt=sig?` <b class="${sig.dir>0?'up':'down'}">△收盘破三角${sig.dir>0?'上沿':'下沿'}${sigCtx(sig.dir, WT[w.code], '周线')}</b>`:'';
     const del = editMode ? `<td><button class="wdel" onclick="delItem(this,'watch',${i})">删</button><br><input style="width:58px;font-size:11px;margin-top:4px" placeholder="题材" value="${w.theme||''}" onchange="editField('watch',${i},'theme',this.value)"></td>` : '';
-    const wsg=WSIG[w.code], wsgTxt=wsg?` <b class="${wsg>0?'up':'down'}">⚡周线破三角${wsg>0?'上沿':'下沿'}${sigCtx(wsg, DT[w.code], '日线')}</b>`:'';
-    const m15=MSIG[w.code], m15Txt=m15?` <b class="${m15>0?'up':'down'}">⚡15分破三角${m15>0?'上沿':'下沿'}${sigCtx(m15, DT[w.code], '日线')}</b>`:'';
+    const wsg=WSIG[w.code], wsgTxt=wsg?` <b class="${wsg>0?'up':'down'}">△周线破三角${wsg>0?'上沿':'下沿'}${sigCtx(wsg, DT[w.code], '日线')}</b>`:'';
+    const m15=MSIG[w.code], m15Txt=m15?` <b class="${m15>0?'up':'down'}">△15分破三角${m15>0?'上沿':'下沿'}${sigCtx(m15, DT[w.code], '日线')}</b>`:'';
     const dtw=DT[w.code], dtC2=dtw>0?'up':(dtw<0?'down':'flat');
     const dtW=dtw!=null?` · <b class="${dtC2}">${dtTxt(w.code)}</b>`:'';
     const gzW=(wt!=null&&dtw!=null&&wt===dtw&&wt!==0)?' <b class="flat">周日同向</b>':'';
