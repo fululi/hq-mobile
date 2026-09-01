@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#f5f6f8">
-<title>我的持仓 · 行情 v4.76</title>
+<title>我的持仓 · 行情 v4.77</title>
 <style>
 :root { color-scheme: light; }
 * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
@@ -448,12 +448,12 @@ function calcPos(rows){ // v4.73 日线位置:分位/MA20偏离/起涨/历史同
   const up=[]; for(let i=n-1;i>0&&C[i]>C[i-1];i--) up.push(1);
   const R={pctl:Math.round(pctl), dev:+dev.toFixed(1), lowPx:+L[li].toFixed(2), lowD:rows[li][0],
            rise:+((px/L[li]-1)*100).toFixed(1), days:n-1-li, upd:up.length};
-  if(dev>0.5){ // 只在偏高时做回撤回测
+  if(dev>=4){ // 只在明显偏离MA20时才回测,偏离小时样本无区分度(几乎每天都符合)
     const dd=[];
     for(let i=20;i<n-3;i++){ const d=(C[i]/ma(i)-1)*100;
-      if(d>=dev*0.85){ const lo3=Math.min(L[i+1],L[i+2],L[i+3]); dd.push((lo3/C[i]-1)*100); } }
+      if(d>=dev*0.9){ const lo3=Math.min(L[i+1],L[i+2],L[i+3]); dd.push((lo3/C[i]-1)*100); } }
     const bad=dd.filter(x=>x<=-2);
-    if(dd.length>=8){ R.n=dd.length; R.prob=Math.round(bad.length/dd.length*100);
+    if(dd.length>=10&&dd.length<=200){ R.n=dd.length; R.prob=Math.round(bad.length/dd.length*100);
       R.avg=bad.length?+(bad.reduce((s,x)=>s+x,0)/bad.length).toFixed(1):0; }
   }
   // 触及概率样本:每日 高/典型价-1 与 1-低/典型价 (典型价=(H+L+C)/3,当日均价代理)
