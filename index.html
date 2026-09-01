@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#f5f6f8">
-<title>我的持仓 · 行情 v4.92</title>
+<title>我的持仓 · 行情 v4.93</title>
 <style>
 :root { color-scheme: light; }
 * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
@@ -1376,12 +1376,12 @@ function maybeConfirmT_(){
   if(!h||(!hasS&&!hasB)){ box.style.display='none'; return; }
   box.style.display='block';
   if(hasS&&hasB){
-    const diff=sell-buy, rate=buy?diff/buy*100:0, tq0=Math.max(100,Math.round(((h&&h.shares)||400)/4/100)*100), per100=diff*tq0-feeOf(sell,buy,tq0,tq0).fee;
+    const diff=sell-buy, rate=buy?diff/buy*100:0, tq0=Math.max(100,Math.round(((h&&h.shares)||400)/4/100)*100), per100=diff*tq0-feeOf(sell,buy,tq0,tq0,h.code).fee;
     const rc=diff>=0?'#dc2626':'#16a34a', rt=`<b style="color:${rc}">${diff>=0?'+':''}${rate.toFixed(2)}%</b>`;
     if(isNaN(qty)||qty<=0){ box.innerHTML=`价差 <b>${diff.toFixed(2)} 元/股</b> · 差价率 ${rt} · <b>${tq0}股净赚 ≈ <span style="color:${per100>=0?'#dc2626':'#16a34a'}">${sg(Math.round(per100))} 元</span></b><span class="sub">（已扣费,按1/4仓估）· 还差股数,点上面快捷键</span>`; return; }
     const bq=(isNaN(q2v)||q2v<=0)?qty:q2v;
     const mq=Math.min(qty,bq), red=qty-bq;
-    const fee=feeOf(sell,buy,qty,bq).fee, net=(sell-buy)*mq-fee;
+    const fee=feeOf(sell,buy,qty,bq,h.code).fee, net=(sell-buy)*mq-fee;
     box.innerHTML=`待确认(预览,点绿按钮才入账):<b>${h.name}</b> 卖 ${sell}×${qty}股 → 接 ${buy}×${bq}股<br>价差 <b>${diff.toFixed(2)} 元/股</b> · 差价率 ${rt} · 做T净收益 <b style="color:${net>=0?'#dc2626':'#16a34a'}">${sg(Math.round(net))} 元</b>${net<0?' <b style="color:#c2410c">⚠ 差价不够费</b>':''} <span class="sub">（按配对${mq}股算·费${Math.round(fee)}全扣${red>0?' · 另减仓'+red+'股回笼'+Math.round(sell*red):(red<0?' · 另加仓'+(-red)+'股投入'+Math.round(buy*(-red)):'')}）</span><button class="b" onclick="addTrade()">✓ 确认记账</button>`;
     return;
   }
@@ -1569,9 +1569,10 @@ function evenPx(code,cost,shares){
   for(let k=0;k<3;k++) x=cost+feeSide(code,x,shares,1)/shares;
   return x;
 }
-function feeOf(sell,buy,sq,bq){
+function feeOf(sell,buy,sq,bq,code){
   if(bq==null||isNaN(bq)||bq<=0) bq=sq;
-  return {fee: feeSide(CODE_FEE,sell,sq,1) + feeSide(CODE_FEE,buy,bq,0)};
+  const _c=(code!=null&&code!=='')?code:CODE_FEE;
+  return {fee: feeSide(_c,sell,sq,1) + feeSide(_c,buy,bq,0)};
 }
 let CODE_FEE='';  // feeOf 的调用点没传code,记账界面选股时置位
 
@@ -1595,7 +1596,7 @@ function renderT(){ try{ renderBT(); }catch(e){} try{ renderRV(); }catch(e){}
       if(!isSel||isNaN(a)||a<=0){ const opp=dir>0?tr.sells:tr.buys; a=opp[Math.min(j||0,opp.length-1)]; est=true; }
       if(a==null||isNaN(a)||a<=0) return '';
       const diff=dir>0?a-x:x-a;
-      const fee=dir>0?feeOf(a,x,tq,tq).fee:feeOf(x,a,tq,tq).fee;
+      const fee=dir>0?feeOf(a,x,tq,tq,h.code).fee:feeOf(x,a,tq,tq,h.code).fee;
       const net=diff*tq-fee;
       const bp=dir>0?x:a, nr=bp?net/(bp*tq)*100:0;
       return `<br><span class="sub" style="font-size:10px">${est?'约':''}净<b style="color:${net>=0?'#dc2626':'#16a34a'}">${sg(Math.round(net))}</b>/${tq}股</span>`;
@@ -1642,7 +1643,7 @@ function qPrev(code){
   if(!hasS&&!hasB){ el.innerHTML=''; return; }
   const q=(isNaN(qty)||qty<=0)?Math.max(100,Math.round((h.shares||400)/4/100)*100):qty;
   let t='';
-  if(hasS&&hasB){ const fee=feeOf(sell,buy,q,q).fee, net=(sell-buy)*q-fee;
+  if(hasS&&hasB){ const fee=feeOf(sell,buy,q,q,code).fee, net=(sell-buy)*q-fee;
     t='差'+(sell-buy).toFixed(2)+'/股 · '+q+'股净 ≈ '+sg(Math.round(net))+'元('+(net>=0?'+':'')+(net/(buy*q)*100).toFixed(1)+'%)'+(net<0?' ⚠不够费':'')+((isNaN(qty)||qty<=0)?' · 按1/4仓估':''); }
   else if(hasS){ const c=h.cost||0;
     if(c<=0) t='成本未填,先点「编辑」填成本';
@@ -1703,7 +1704,7 @@ function addTrade(){
     if(isNaN(qty)||qty<=0){ toast('卖出股数要填'); return; }
     const bq=(isNaN(q2v)||q2v<=0)?qty:q2v;
     const mq=Math.min(qty,bq), red=qty-bq;
-    const fee=feeOf(sell,buy,qty,bq).fee, profit=(sell-buy)*mq-fee;
+    const fee=feeOf(sell,buy,qty,bq,h.code).fee, profit=(sell-buy)*mq-fee;
     const redCash=red>0?sell*red:(red<0?buy*(-red):0);
     const exec=[execScore('sell',sell),execScore('buy',buy),chaseChk(buy)].filter(x=>x).join(' · ');
     rec={d:d0,code:h.code,name:h.name,sell,buy,qty,bq,gross:sell*qty-buy*bq,fee,red,redCash,note,profit,exec};
@@ -2161,13 +2162,13 @@ function doRender(){
       // 卖档: 相对持仓成本的净收益(扣费)
       let costS='';
       if(side==='sell'&&h.cost>0&&h.shares>0){
-        const ft=feeOf(x,h.cost,100,100).fee, nr=((x-h.cost)*100-ft)/(h.cost*100)*100;
+        const ft=feeOf(x,h.cost,100,100,h.code).fee, nr=((x-h.cost)*100-ft)/(h.cost*100)*100;
         costS=`<s style="color:${nr>=0?'#dc2626':'#16a34a'};font-weight:700">成本${nr>=0?'+':''}${nr.toFixed(1)}%</s>`;
       }
       // v4.62 第二行: 今日你在哪买的→卖这档这一笔真实赚几个点(这才是做T收益)
       let tS='';
       if(side==='sell'&&avgBuy&&x>0&&p!=null&&Math.abs(x/p-1)*100<=3){
-        const ft=feeOf(x,avgBuy,100,100).fee, tr2=((x-avgBuy)*100-ft)/(avgBuy*100)*100;
+        const ft=feeOf(x,avgBuy,100,100,h.code).fee, tr2=((x-avgBuy)*100-ft)/(avgBuy*100)*100;
         const uw=prev?(avgBuy/prev-1)*100:null;
         tS=`<u style="color:${tr2>=0?'#dc2626':'#16a34a'}">今日你${avgBuy.toFixed(2)}买`
           +(uw!=null?`(昨收${sg(uw.toFixed(1))}%)`:'')
@@ -2213,7 +2214,7 @@ function doRender(){
       const pairs=[];
       for(let j=0;j<Math.min(tr.buys.length,tr.sells.length);j++){
         const b5=tr.buys[j], s5=tr.sells[j];
-        const fee5=feeOf(s5,b5,100,100).fee, net5=(s5-b5)*100-fee5;
+        const fee5=feeOf(s5,b5,100,100,h.code).fee, net5=(s5-b5)*100-fee5;
         pairs.push(`${'①②③'[j]}买${P(b5)}→卖${P(s5)} 差+${(s5-b5).toFixed(2)}元(${((s5-b5)/b5*100).toFixed(1)}%)·100股净${sg(Math.round(net5))}元`);
       }
       roundTxt=`<details class="fold" data-fk="rt-${h.code}"><summary>一轮净赚(已扣费) · ${pairs.length}种配对</summary><div class="sub" style="color:#374151">${pairs.join('<br>')}</div></details>`;
@@ -2284,7 +2285,7 @@ function doRender(){
       if(!shown) rows+=nowRow;
       // v4.75: 一眼看做T —— 前瞻(这一轮能赚多少) + 今日已做(实际赚了多少)
       const _B1=_vw*(1-k1/100), _S1=_vw*(1+k1/100);
-      const _lot=100, _ft=feeOf(_S1,_B1,_lot,_lot).fee, _net=(_S1-_B1)*_lot-_ft;
+      const _lot=100, _ft=feeOf(_S1,_B1,_lot,_lot,h.code).fee, _net=(_S1-_B1)*_lot-_ft;
       const roundS='一轮 B1→S1 <b class="up">+'+((_S1-_B1)/_B1*100).toFixed(1)+'点</b> 每手净<b>'
         +sg(Math.round(_net))+'元</b><span class="dim">(已扣费)</span>';
       const _tt=TLOG.filter(r=>r.code===h.code&&r.d===today());
@@ -2292,7 +2293,7 @@ function doRender(){
       if(_tt.length){
         let g=0, fe=0, nb=0, ns=0;
         _tt.forEach(r=>{ const q=Math.min(r.qty||0,r.bq||0);
-          if(r.sell>0&&r.buy>0&&q>0){ g+=(r.sell-r.buy)*q; fe+=(feeOf(r.sell,r.buy,r.qty||q,r.bq||q)||{fee:0}).fee; }
+          if(r.sell>0&&r.buy>0&&q>0){ g+=(r.sell-r.buy)*q; fe+=(feeOf(r.sell,r.buy,r.qty||q,r.bq||q,h.code)||{fee:0}).fee; }
           nb+=r.bq||0; ns+=r.qty||0; });
         const nt=g-fe;
         doneS='<br>今日已做 <b class="'+cls(nt)+'">'+sg(Math.round(nt))+'元</b>'
