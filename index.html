@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#f5f6f8">
-<title>我的持仓 · 行情 v4.84</title>
+<title>我的持仓 · 行情 v4.85</title>
 <style>
 :root { color-scheme: light; }
 * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
@@ -129,6 +129,12 @@ td { border-top:1px solid #f2f4f6; }
 .qt2 .pr.hi { color:#16a34a; font-weight:700; }
 .qt2 .pr.lo { color:#d97706; }
 .qt2 td.qs { min-width:74px; }
+.acch{display:flex;justify-content:space-between;align-items:baseline;gap:8px;
+  margin:12px 0 6px;padding:5px 10px;border-radius:7px;background:#eef2ff;
+  border-left:3px solid #6366f1;font-size:12px;color:#3730a3}
+.acch b{font-size:13px;font-weight:700}
+.acch span{font-size:11px;color:#4b5563;font-weight:600}
+.acch i{font-style:normal;font-weight:700}
 .qm{display:inline-block;min-width:13px;height:13px;line-height:13px;text-align:center;
   border-radius:50%;background:#cbd5e1;color:#fff;font-size:10px;font-weight:700;
   margin-left:4px;padding:0 1px;cursor:pointer;vertical-align:middle}
@@ -216,6 +222,23 @@ details.fold:not([open]) > summary { margin-bottom:0; }
   <button onclick="confirmAdd('hold')">确认添加持仓</button>
 </div>
 <div id="holds"></div>
+<details class="fold" id="foldImp" style="margin-bottom:10px">
+<summary class="sec"><span>持仓导入 / 导出（多账户）</span><span class="sub">券商对不上时用这个</span></summary>
+<div class="card">
+  <div class="sub" style="line-height:1.7;margin-bottom:6px">每行一只，<b>账户,代码,名称,成本,股数</b>（账户可省；逗号/空格/制表都认）。<br>
+  例：<code>招商,600176,中国巨石,41.169,300</code></div>
+  <textarea id="impTa" rows="5" style="width:100%;box-sizing:border-box;font-size:12px;font-family:ui-monospace,Menlo,monospace;padding:6px;border:1px solid #d1d5db;border-radius:6px" placeholder="招商,600176,中国巨石,41.169,300&#10;东财,515880,通信ETF,0.667,3000"></textarea>
+  <div class="qtys" style="margin-top:6px">
+    <select id="impMode" style="font-size:12px;padding:2px 4px">
+      <option value="merge">合并(同账户同代码则更新)</option>
+      <option value="replace">替换(清空后重建)</option>
+    </select>
+    <button onclick="importHolds()">📥 导入</button>
+    <button onclick="importTpl()">填示例</button>
+    <button onclick="exportHolds()">📤 导出持仓+计划CSV</button>
+  </div>
+</div>
+</details>
 <div class="card" id="dayChg" style="display:none"></div>
 
 <div class="sec"><span>观察</span><button class="add" onclick="addSec('watch')">＋添加观察</button></div>
@@ -1295,8 +1318,114 @@ function delItem(btn,type,i){
 }
 function editField(type,i,field,val){
   if(type==='watch'){ PF.watch[i][field]=val; save(); render(); return; }
+  // v4.85: acct/name 是文本,不能走 parseFloat(否则账户名被清成0)
+  if(field==='acct'||field==='name'){ PF.holds[i][field]=String(val||'').trim(); save(); render(); return; }
   const v=parseFloat(val); PF.holds[i][field]=isNaN(v)?0:v; save();
   render();
+}
+
+// ---- v4.85 账户分组 ----
+// 同一个人可能在招商/东财各开一户,App 原来只装得下一份,持仓永远和券商对不上。
+// acct 为空 = 未分组,老数据零改动照常显示(只有一个空账户时连分组头都不画)。
+let ACCS={};
+function acctOf(h){ return (h.acct||'').trim(); }
+function acctList(){ const r=[]; PF.holds.forEach(h=>{ const a=acctOf(h); if(r.indexOf(a)<0) r.push(a); }); return r; }
+function acctMulti(){ const l=acctList(); return l.length>1||(l.length===1&&l[0]!==''); }
+function acctHdr(a){
+  if(!acctMulti()) return '';
+  const o=ACCS[a]; if(!o) return '';
+  return '<div class="acch"><b>'+(a||'未分组')+'</b><span>'+o.n+'只 · 市值'+Math.round(o.mv).toLocaleString()
+    +' · 今日<i class="'+cls(o.day)+'">'+sg(Math.round(o.day))+'</i> · 浮盈<i class="'+cls(o.pnl)+'">'+sg(Math.round(o.pnl))+'</i></span></div>';
+}
+
+// ---- v4.85 批量导入持仓: 从券商App抄一遍太累,支持整段粘贴 ----
+// 每行: 账户,代码,名称,成本,股数   (账户可省 → 4列; 分隔符逗号/制表/空格都认)
+function importHolds(){
+  const ta=document.getElementById('impTa'); const raw=(ta.value||'').trim();
+  if(!raw){ toast('先粘贴内容'); return; }
+  const rep2=document.getElementById('impMode').value==='replace';
+  const out=[]; const bad=[];
+  raw.split(/\n+/).forEach(line=>{
+    const t=line.trim(); if(!t||/^[#/]/.test(t)) return;
+    const c=t.split(/[,,\t;；]+|\s{1,}/).map(x=>x.trim()).filter(x=>x!=='');
+    if(c.length<4){ bad.push(t); return; }
+    let acct='', rest=c;
+    if(!/^\d{6}$|^(sh|sz)\d{6}$/i.test(c[0])){ acct=c[0]; rest=c.slice(1); }
+    if(rest.length<3){ bad.push(t); return; }
+    const code=prefix(String(rest[0]).replace(/[^0-9a-zA-Z]/g,''));
+    if(!/^(sh|sz)\d{6}$/.test(code)){ bad.push(t); return; }
+    let name=rest[1], cost=parseFloat(rest[2]), shares=parseInt(rest[3]);
+    if(isNaN(cost)){ cost=parseFloat(rest[1]); name=code.slice(2); shares=parseInt(rest[2]); }
+    if(isNaN(cost)||isNaN(shares)){ bad.push(t); return; }
+    out.push({code,name:String(name).slice(0,8),cost,shares,acct});
+  });
+  if(!out.length){ toast('一行都没解析出来,看下格式'); return; }
+  if(rep2){ PF.holds=out; }
+  else out.forEach(n=>{ let ex=PF.holds.find(h=>h.code===n.code&&acctOf(h)===n.acct);
+    // 那行没写账户时别硬造一条"未分组"重复:已有唯一同代码持仓就更新它。
+    // 同一只票真在两个券商都有时,必须写账户才分得开——这是有意的。
+    if(!ex&&!n.acct){ const same=PF.holds.filter(h=>h.code===n.code); if(same.length===1) ex=same[0]; }
+    if(ex){ ex.cost=n.cost; ex.shares=n.shares; ex.name=n.name; if(n.acct) ex.acct=n.acct; } else PF.holds.push(n); });
+  save(); ATR_DATE=''; render(); ta.value='';
+  toast('已'+(rep2?'替换':'合并')+' '+out.length+' 只'+(bad.length?(' · '+bad.length+'行没认出来'):''));
+}
+function importTpl(){
+  document.getElementById('impTa').value=
+    '招商,600176,中国巨石,41.169,300\n招商,600105,永鼎股份,46.123,2500\n东财,515880,通信ETF,0.667,3000';
+  toast('这是格式示例,改成你自己的数字再导入');
+}
+
+// ---- v4.85 导出持仓+明日做T计划(UTF-8带BOM,WPS/Excel直接打开) ----
+function exportHolds(){
+  if(!PF.holds.length){ toast('暂无持仓'); return; }
+  const L=[], nx=planNext(), lbl=nx?planLbl():'今日';
+  L.push('—— ① 持仓明细('+today()+') ——');
+  L.push('账户,代码,名称,成本,股数,现价,市值,浮动盈亏,浮动盈亏%,今日涨跌%');
+  const byA={};
+  PF.holds.forEach(h=>{
+    const f=GET(h.code), px=F(f,3), pc=F(f,32);
+    const mv=px!=null?px*h.shares:null, pl=(px!=null&&h.cost>0)?(px-h.cost)*h.shares:null;
+    const a=acctOf(h)||'未分组'; const o=byA[a]||(byA[a]={mv:0,pl:0,n:0});
+    o.n++; if(mv!=null){ o.mv+=mv; o.pl+=pl||0; }
+    L.push([a,h.code.slice(2),h.name,h.cost,h.shares,px!=null?px.toFixed(3):'',
+      mv!=null?Math.round(mv):'', pl!=null?Math.round(pl):'',
+      (pl!=null&&h.cost>0)?((px/h.cost-1)*100).toFixed(2):'', pc!=null?pc.toFixed(2):''].join(','));
+  });
+  L.push('');
+  L.push('—— ② 分账户小计 ——');
+  L.push('账户,只数,市值,浮动盈亏');
+  Object.keys(byA).forEach(a=>{ const o=byA[a]; L.push([a,o.n,Math.round(o.mv),Math.round(o.pl)].join(',')); });
+  L.push('');
+  L.push('—— ③ '+lbl+'做T计划(挂单价直接抄) ——');
+  L.push('账户,名称,代码,现价,基准,预判下沿,预判上沿,方向,档位,挂单价,距现价%,'+PRW+'日内到过概率%');
+  PF.holds.forEach(h=>{
+    const f=GET(h.code); if(!f) return;
+    const px=F(f,3), prev=F(f,4), hi=F(f,33), lo=F(f,34);
+    const rc=refCloseOf(px,prev), a2=atrOf(h.code);
+    const todayAmp=(hi!=null&&lo!=null)?hi-lo:null;
+    const base=ampBase(h.code,todayAmp);
+    const lp=limitPct(h.code,h.name)/100;
+    const pLo=(rc!=null&&a2!=null)?Math.max(rc*(1-lp),rc-a2):null;
+    const pHi=(rc!=null&&a2!=null)?Math.min(rc*(1+lp),rc+a2):null;
+    const tf=trendFlag(F(f,32),(todayAmp!=null&&prev)?todayAmp/prev*100:null,mktOf(h));
+    const tr=tiers(anchorOf(h.code,px,prev),narrowBase(h.code,base,todayAmp).base,rc,tf.lv,h.code,h.name);
+    const dq=DPOS[h.code];
+    const row=(side,arr,j,x)=>{
+      const pr=(dq&&rc>0)?hitPr(side==='买'?dq.DN:dq.UP,Math.abs(x/rc-1)*100):null;
+      L.push([acctOf(h)||'未分组',h.name,h.code.slice(2),px!=null?px.toFixed(3):'',
+        rc!=null?rc.toFixed(3):'', pLo!=null?pLo.toFixed(3):'', pHi!=null?pHi.toFixed(3):'',
+        side, (arr.length>1?['①','②','③'][j]:'•'), x.toFixed(3),
+        (px>0)?((x/px-1)*100).toFixed(2):'', pr!=null?pr:''].join(','));
+    };
+    tr.buys.forEach((x,j)=>row('买',tr.buys,j,x));
+    tr.sells.forEach((x,j)=>row('卖',tr.sells,j,x));
+  });
+  L.push('');
+  L.push('注: 挂单价=基准±ATR分档;概率=经验频率(近'+PRW+'个交易日当天摸到该幅度的天数占比),非预测。');
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob(['\ufeff'+L.join('\n')],{type:'text/csv'}));
+  a.download='持仓与'+lbl+'计划_'+today()+'.csv'; a.click();
+  toast('已导出 '+PF.holds.length+' 只持仓 + '+lbl+'做T计划');
 }
 function GET(c){ const r=window['v_'+c]; return r?r.split('~'):null; }
 function openK(c){ location.href='https://fululi.github.io/k-station/?code='+c; }
@@ -1845,9 +1974,18 @@ function doRender(){
   }
 
   let totMv=0, totPnl=0;
+  // v4.85: 先算好每个账户的小计,再按账户把持仓排成组(排的是下标,editField/delItem 的 i 不受影响)
+  ACCS={};
+  PF.holds.forEach(h=>{ const a=acctOf(h), f=GET(h.code), px=F(f,3), pc=F(f,32);
+    const o=ACCS[a]||(ACCS[a]={n:0,mv:0,pnl:0,day:0});
+    o.n++;
+    if(px!=null&&h.shares>0){ const v=px*h.shares; o.mv+=v;
+      if(pc!=null) o.day+=v*pc/100;
+      if(h.cost>0) o.pnl+=(px-h.cost)*h.shares; } });
+  const _ord=[]; acctList().forEach(a=>{ PF.holds.forEach((h,i)=>{ if(acctOf(h)===a) _ord.push(i); }); });
   const qVals={};
   PF.holds.forEach(h=>{ ['qs_','qb_','qq_'].forEach(pf=>{ const e=document.getElementById(pf+h.code); if(e&&e.value) qVals[pf+h.code]=e.value; }); });
-  document.getElementById('holds').innerHTML = PF.holds.map((h,i)=>{
+  document.getElementById('holds').innerHTML = _ord.map(i=>{ const h=PF.holds[i];
     const f=GET(h.code); const p=F(f,3),pct=F(f,32),hi=F(f,33),lo=F(f,34),prev=F(f,4);
     const todayAmp=(hi!=null&&lo!=null)?hi-lo:null;
     const base=ampBase(h.code,todayAmp);
@@ -1973,6 +2111,7 @@ function doRender(){
     const editRow = editMode ? `<div class="editbox">
         <label>成本<input type="number" step="0.001" value="${h.cost}" onchange="editField('hold',${i},'cost',this.value)"></label>
         <label>股数<input type="number" step="100" value="${h.shares}" onchange="editField('hold',${i},'shares',this.value)"></label>
+        <label>账户<input type="text" style="width:66px" placeholder="如招商" value="${h.acct||''}" onchange="editField('hold',${i},'acct',this.value)"></label>
       </div>` : '';
     const delBtn = editMode ? `<button class="del" onclick="delItem(this,'hold',${i})">删除</button>` : '';
     // v4.65: 早上起床只看这一行 —— 今天这只票该干什么
@@ -2074,7 +2213,9 @@ function doRender(){
       </details>
       ${editRow}
     </div>`;
-  }).join('') || '<div class="card sub">暂无持仓,点右上编辑或＋添加</div>';
+  }).map((_html,_k)=>{ const _a=acctOf(PF.holds[_ord[_k]]);
+      return ((_k===0||acctOf(PF.holds[_ord[_k-1]])!==_a)?acctHdr(_a):'')+_html; })
+    .join('') || '<div class="card sub">暂无持仓,点右上编辑或＋添加</div>';
   Object.keys(qVals).forEach(id=>{ const e=document.getElementById(id); if(e) e.value=qVals[id]; });
 
   document.getElementById('watch').innerHTML = PF.watch.map((w,i)=>{
