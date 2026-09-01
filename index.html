@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#f5f6f8">
-<title>我的持仓 · 行情 v4.52</title>
+<title>我的持仓 · 行情 v4.53</title>
 <style>
 :root { color-scheme: light; }
 * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
@@ -170,7 +170,7 @@ details.fold:not([open]) > summary { margin-bottom:0; }
   <tbody id="tbody"></tbody></table>
 </div>
 
-<details class="fold" id="foldPlan">
+<details class="fold" id="foldPlan" open>
 <summary class="sec"><span>挂单计划 · 先记着</span><span class="sub" id="pHit">没成交也能记,成交后点「填入」</span></summary>
 <div class="tbox">
   <div class="r">
@@ -219,8 +219,7 @@ details.fold:not([open]) > summary { margin-bottom:0; }
 <div class="trec"><span>本周做T(周一起)</span><span class="v" id="tWeek">—</span></div>
 <div class="trec"><span>本月做T</span><span class="v" id="tMonth">—</span></div>
 <div class="trec"><span>行为样本(攒够30笔才开模式分析)</span><span class="v" id="tSamp">—</span></div>
-<details class="fold">
-<summary class="sec"><span>历史记录</span><span class="sub" id="tCum"></span></summary>
+<div class="sec"><span>历史记录</span><span class="sub" id="tCum"></span></div>
 <div class="qtys" style="margin:-4px 0 8px"><span>台账:</span>
   <button onclick="exportCSV()">📤 导出CSV(Excel)</button>
   <button onclick="copyCoach()">🤖 复盘数据包</button>
@@ -228,6 +227,8 @@ details.fold:not([open]) > summary { margin-bottom:0; }
   <button onclick="document.getElementById('rstFile').click()">📂 恢复备份</button>
   <input type="file" id="rstFile" accept=".json" style="display:none" onchange="restoreJSON(event)">
 </div>
+<details class="fold" id="foldLog">
+<summary class="sec"><span>台账明细（按日分组 · 当日小计）</span><span class="sub">点开看逐笔</span></summary>
 <div class="card tbl" id="tlog"></div>
 </details>
 
@@ -753,17 +754,25 @@ function toggleEdit(){ editMode=!editMode;
 }
 // 点档位价格 → 自动填进"记一笔"(低吸价→接回价, 高抛价→卖出价)
 function fillT(code, price, side){
+  const el=document.getElementById(side==='sell'?'qs_'+code:'qb_'+code);
+  if(el){ // v4.53: 点价直接填进这张卡片的快捷单,原地记账不跳底部
+    el.value=price;
+    const q=document.getElementById('qq_'+code);
+    if(q&&!q.value) q.value=localStorage.getItem('tlog_lastqty')||'100';
+    qPrev(code);
+    const other=document.getElementById(side==='sell'?'qb_'+code:'qs_'+code);
+    toast((side==='sell'?'卖出价 ':'接回价 ')+price+' 已填到卡片'+(other&&other.value?'':' · 再点一个'+(side==='sell'?'低吸价':'高抛价')+'凑一轮'));
+    return;
+  }
   const i=PF.holds.findIndex(h=>h.code===code); if(i<0) return;
   const sel=document.getElementById('tSel');
   if(sel.options.length!==PF.holds.length) sel.innerHTML=PF.holds.map((h,j)=>`<option value="${j}">${h.name}</option>`).join('');
   sel.value=i;
   document.getElementById(side==='sell'?'tSell':'tBuy').value=price;
-  const q=document.getElementById('tQty');
-  if(!q.value){ q.value=localStorage.getItem('tlog_lastqty')||'100'; }
-  document.getElementById('tboxMain').scrollIntoView({behavior:'smooth',block:'center'});
+  const q2=document.getElementById('tQty');
+  if(!q2.value){ q2.value=localStorage.getItem('tlog_lastqty')||'100'; }
   maybeConfirmT();
-  const other=document.getElementById(side==='sell'?'tBuy':'tSell').value;
-  toast((side==='sell'?'卖出价 ':'接回价 ')+price+' 已填'+(other?'':' → 再点一个'+(side==='sell'?'低吸价':'高抛价')));
+  toast((side==='sell'?'卖出价 ':'接回价 ')+price+' 已填');
 }
 // 挂单让价参考: 点价位直接填入,第一档=最易成交(让价优先成交率)
 function planHint(){
@@ -1366,9 +1375,10 @@ function render(){
     const gzH=(wth!=null&&dth!=null&&wth===dth&&wth!==0)?'<span class="badge flat">周日同向</span>':'';
     const extH=EXT[h.code], extBadge=extH?`<span class="badge flat">${extTxt(h.code)}</span>`:'';
     const fmtTier=(arr,side)=>arr.map((x,j)=>{
-      const pctS=p?sg(((x/p-1)*100).toFixed(1))+'%':'';
+      const pctS=prev?sg(((x/prev-1)*100).toFixed(1))+'%':'';
       const ord=arr.length>1?'①②③'[j]:'•';
-      return `<div class="tchip" onclick="fillT('${h.code}',${x},'${side}')"><i>${ord}</i><b>${P(x)}</b><s>${pctS}</s></div>`; }).join('');
+      const hit=side==='buy'?(lo!=null&&lo<=x):(hi!=null&&hi>=x);
+      return `<div class="tchip" onclick="fillT('${h.code}',${x},'${side}')"><i>${ord}</i><b>${P(x)}</b><s>${pctS}</s>${hit?' <s style="color:#d97706;font-weight:700">✓到过</s>':''}</div>`; }).join('');
     const sellStr = tr.sells.length?fmtTier(tr.sells,'sell'):`<div class="tchip"><b>${P(projHi)}</b></div>`;
     const buyStr = tr.buys.length?fmtTier(tr.buys,'buy'):`<div class="tchip"><b>${P(projLo)}</b></div>`;
     const dd=(p!=null&&h.cost)?(p-h.cost)/h.cost*100:null;
@@ -1398,7 +1408,19 @@ function render(){
     const lg=legOf(h.code);
     const legGain=(lg&&p!=null)?(p/lg.base-1)*100:null;
     const lvH=LV[h.code]||{}, devA=(p!=null&&lvH.de!=null&&atrV)?(p-lvH.de)/atrV:null;
-    const legTxt=(legGain!=null||devA!=null)?`<div class="atrnote"${legGain>=25?' style="color:#d9a441"':''}>📏 ${legGain!=null?`本段自${lg.from}低点${lg.base.toFixed(2)}以来 <b class="${cls(legGain)}">${sg(legGain.toFixed(1))}%</b>${legGain>=25?' · 过25%参考线(历史行情段P75)':''}${legGain>=45?' · 已进前10%段':''}`:''}${devA!=null?` · 20日线${lvH.de} 偏离 <b>${devA>=0?'+':''}${devA.toFixed(1)}×ATR</b>${Math.abs(devA)>=2?' · 极端区':''}`:''}</div>`:'';
+    const devY=(p!=null&&lvH.de!=null)?p-lvH.de:null, devPct=(devY!=null&&lvH.de)?devY/lvH.de*100:null;
+    const posW=devA==null?'':(Math.abs(devA)>=2?' · <b>偏离过大=极端区,勿追涨杀跌</b>':(Math.abs(devA)>=1?' · 偏离偏大':' · 正常区间'));
+    const legTxt=(legGain!=null||devA!=null)?`<div class="atrnote"${legGain>=25?' style="color:#d9a441"':''}>📏 ${legGain!=null?`本段自${lg.from}低点${lg.base.toFixed(2)}以来 <b class="${cls(legGain)}">${sg(legGain.toFixed(1))}%</b>${legGain>=25?' · 过25%参考线(历史行情段P75)':''}${legGain>=45?' · 已进前10%段':''}`:''}${devA!=null?` · 20日平均线${lvH.de} · 现价${devY>=0?'高出':'低于'}${Math.abs(devY).toFixed(2)}元(${sg(devPct.toFixed(1))}%)≈${Math.abs(devA).toFixed(1)}倍日波动${posW}`:''}</div>`:'';
+    let roundTxt='';
+    if(tr.buys.length&&tr.sells.length){
+      const pairs=[];
+      for(let j=0;j<Math.min(tr.buys.length,tr.sells.length);j++){
+        const b5=tr.buys[j], s5=tr.sells[j];
+        const fee5=feeOf(s5,b5,100,100).fee, net5=(s5-b5)*100-fee5;
+        pairs.push(`${'①②③'[j]}买${P(b5)}→卖${P(s5)} 差+${(s5-b5).toFixed(2)}元(${((s5-b5)/b5*100).toFixed(1)}%)·100股净${sg(Math.round(net5))}元`);
+      }
+      roundTxt=`<div class="sub" style="margin-top:6px;color:#374151">一轮净赚(已扣费): ${pairs.join('<br>')}</div>`;
+    }
     const editRow = editMode ? `<div class="editbox">
         <label>成本<input type="number" step="0.001" value="${h.cost}" onchange="editField('hold',${i},'cost',this.value)"></label>
         <label>股数<input type="number" step="100" value="${h.shares}" onchange="editField('hold',${i},'shares',this.value)"></label>
@@ -1416,11 +1438,13 @@ function render(){
         <div class="kv"><div class="k">今日振幅</div><div class="val flat">${ampPct!=null?ampPct.toFixed(2)+'%':'—'}</div></div>
       </div>
       <div class="proj"><span>今日预判 <b class="flat">${preStr}</b></span><span class="sub">${posTxt}${ampNote}</span></div>
+      <div class="proj" style="margin-top:2px"><span>今日实际 <b class="flat">${lo!=null?P(lo):'—'} ~ ${hi!=null?P(hi):'—'}</b></span><span class="sub">${hi!=null&&preHi!=null?(hi>=preHi?'最高摸到预判上沿':'最高距上沿还差'+P(preHi-hi)):''}${lo!=null&&preLo!=null?(lo<=preLo?' · 最低击穿预判下沿':' · 最低距下沿还差'+P(lo-preLo)):''}</span></div>
       <div class="proj vrd"><span>📋 <b style="color:${vCls(vd)}">${vd}</b></span></div>
       ${legTxt}
       <div class="tierbox"><div class="tier tb"><div class="tl">低吸区 · 点价直接填单</div>${buyStr}</div><div class="tier ts"><div class="tl">高抛区 · 点价直接填单</div>${sellStr}</div></div>
       <div class="qbox"><input id="qs_${h.code}" type="number" step="0.001" placeholder="卖出价" oninput="qPrev('${h.code}')"><input id="qb_${h.code}" type="number" step="0.001" placeholder="接回(空=只卖)" oninput="qPrev('${h.code}')"><input id="qq_${h.code}" type="number" step="100" placeholder="股数" oninput="qPrev('${h.code}')"><button onclick="qTrade('${h.code}')">记</button></div>
       <div class="sub qpv" id="qp_${h.code}"></div>
+      ${roundTxt}
       <a href="https://fululi.github.io/k-station/?code=${h.code}&lines=${tr.buys.map(x=>'b'+x.toFixed(2)).concat(tr.sells.map(x=>'s'+x.toFixed(2))).join(',')}" style="display:block;text-align:center;margin-top:8px;padding:8px;border-radius:8px;background:#2563eb;color:#fff;text-decoration:none;font-size:13px;font-weight:600">📈 看K线（做T价位已自动画好）</a>
       <div class="atrnote">${atrTxt}${lk?` · 跟${lk.i} r${lk.r}${(lk.ad||lk.au)?'·极端日×'+(lk.ad||lk.au):''}`:''}</div>
       ${ffTxt}
