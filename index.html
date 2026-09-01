@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#f5f6f8">
-<title>我的持仓 · 行情 v4.81b</title>
+<title>我的持仓 · 行情 v4.82</title>
 <style>
 :root { color-scheme: light; }
 * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
@@ -508,11 +508,17 @@ function vwapOf(f){ // v4.71: 分时均价=成交额/成交量, 做T的"水位�
   return (v>0&&amt>0)? amt*100/v : null; }
 // v4.80: 收盘后(含周末)档位自动滚成"明日计划",锚=今收=明日昨收。
 // 不这么做的话:今天跌6%,收盘后仍按昨收出档,低吸档会挂在现价上方 —— 一张废计划。
+// 只要不在交易时段内,档位就锚"最近一次已收盘的收盘价"。
+// 开盘前也必须走这条:那时腾讯的昨收字段可能还没滚到上一交易日,用它做锚会锚到上上个交易日。
 function planNext(){ const d=new Date(), w=d.getDay(), t=d.getHours()*60+d.getMinutes();
-  if(w<1||w>5) return true; return t>900; }
+  if(w<1||w>5) return true; return t<570||t>900; }
+// 这套档位是给哪一场用的
+function planLbl(){ const d=new Date(), w=d.getDay(), t=d.getHours()*60+d.getMinutes();
+  if(w<1||w>5) return '下个交易日';
+  return t>900?'明日':'今日'; }
 function refCloseOf(p,prev){ return (planNext()&&p!=null&&p>0)?p:prev; }
 function anchorOf(code,p,prev){ if(planNext()&&p!=null&&p>0) return p; if(prev==null) return p; const f=GET(code), op=F(f,5), a=atrOf(code); if(op!=null&&op>0&&a!=null&&Math.abs(op-prev)>=0.5*a) return op; return prev; } // v4.79: op>0 —— 盘前腾讯返今开0.00,不加这个判断全部档位会锚成0
-function anchorNote(code,prev){ if(planNext()) return '明日计划·锚=今收'; const f=GET(code), op=F(f,5), a=atrOf(code); if(prev!=null&&op!=null&&op>0&&a!=null&&Math.abs(op-prev)>=0.5*a) return '跳空'+sg(((op/prev-1)*100).toFixed(1))+'%开盘·锚=今开'+P(op); return '锚=昨收'+P(prev); }
+function anchorNote(code,prev){ if(planNext()) return planLbl()+'计划·锚=上一收盘'; const f=GET(code), op=F(f,5), a=atrOf(code); if(prev!=null&&op!=null&&op>0&&a!=null&&Math.abs(op-prev)>=0.5*a) return '跳空'+sg(((op/prev-1)*100).toFixed(1))+'%开盘·锚=今开'+P(op); return '锚=昨收'+P(prev); }
 function ampBase(code,todayAmp){
   const o=ATR[code];
   if(o!=null){
@@ -1166,8 +1172,8 @@ function renderT(){
   _rt.sort((x,y)=>x.dist-y.dist);
   document.getElementById('tbody').innerHTML = _rt.map(x=>x.html).join('') || '<tr><td class="sub" colspan="4">暂无持仓</td></tr>';
   const _nxt=planNext(), _tt=document.getElementById('tTitle');
-  if(_tt) _tt.textContent=(_nxt?'明日做T计划':'今日做T计划')+' · %=该档历史触及概率';
-  document.getElementById('tSum').textContent = (mktLive()?nowHM()+' 盘中 · ':(_nxt?'已收盘 · 下方是明早开盘可直接挂的档位 · ':''))+'按最快触发排序 · '+(MKT!=null?(Math.abs(MKT)>=1.2?'大行情:已加宽档位':'常规档位'):'')+' · 锚'+(_nxt?'今收':'昨收');
+  if(_tt) _tt.textContent=(_nxt?planLbl()+'做T计划':'今日做T计划(盘中)')+' · %=该档历史触及概率';
+  document.getElementById('tSum').textContent = (mktLive()?nowHM()+' 盘中 · ':(_nxt?sessLbl()+' · 下方是'+planLbl()+'开盘可直接挂的档位 · ':''))+'按最快触发排序 · '+(MKT!=null?(Math.abs(MKT)>=1.2?'大行情:已加宽档位':'常规档位'):'')+' · 锚'+(_nxt?'上一收盘':'昨收');
   const sel=document.getElementById('tSel');
   if(sel && sel.options.length!==PF.holds.length){
     sel.innerHTML=PF.holds.map((h,i)=>`<option value="${i}">${h.name}</option>`).join('');
@@ -1925,7 +1931,7 @@ function doRender(){
       ${_det?`<details class="wdt"><summary class="sub">信号细节</summary><span class="sub">${_det}</span></details>`:''}</td>
       <td>${P(p)}</td><td class="${cls(pct)}">${pct!=null?sg(pct.toFixed(2))+'%':'—'}</td>
       <td class="etd">${_entry}</td>${del}</tr>`;
-  }).join('') + (PF.watch.length?'<tr><td colspan="4"><details class="wdt"><summary class="sub" style="font-size:10px">档位口径与信号说明</summary><span class="sub" style="font-size:10px">买档='+(planNext()?'明日':'今日')+'可挂的低吸价,%为该跌幅250日内当天摸到的概率 · 顺势=信号与大周期同向 · 反弹/回调=与大周期反向(日线信号看周线,15分信号看日线) · ⚠极端=偏离20日线≥2×ATR或RSI≤30/≥70,勿追涨杀跌,等不再创新低/新高</span></details></td></tr>':'');
+  }).join('') + (PF.watch.length?'<tr><td colspan="4"><details class="wdt"><summary class="sub" style="font-size:10px">档位口径与信号说明</summary><span class="sub" style="font-size:10px">买档='+(planNext()?planLbl():'今日')+'可挂的低吸价,%为该跌幅250日内当天摸到的概率 · 顺势=信号与大周期同向 · 反弹/回调=与大周期反向(日线信号看周线,15分信号看日线) · ⚠极端=偏离20日线≥2×ATR或RSI≤30/≥70,勿追涨杀跌,等不再创新低/新高</span></details></td></tr>':'');
 
   const sumEl=document.getElementById('sum'); sumEl.style.display='flex';
   document.getElementById('sumMv').textContent = Math.round(totMv).toLocaleString();
