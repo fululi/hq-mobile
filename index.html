@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#f5f6f8">
-<title>我的持仓 · 行情 v4.95</title>
+<title>我的持仓 · 行情 v4.96</title>
 <style>
 :root { color-scheme: light; }
 * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
@@ -815,6 +815,8 @@ function planLbl(){ const d=new Date(), w=d.getDay(), t=d.getHours()*60+d.getMin
   if(w<1||w>5) return '下个交易日';
   return t>900?'明日':'今日'; }
 function refCloseOf(p,prev){ return (planNext()&&p!=null&&p>0)?p:prev; }
+// v4.96: 这份行情快照是哪一天的(盘前腾讯还给上一场的收盘,'今日实际'不能硬写今日)
+function qDay(code){ const t=F(GET(code),30); if(t==null) return ''; const z=String(Math.round(t)); return /^\d{8}/.test(z)?z.slice(4,6)+'-'+z.slice(6,8):''; }
 function anchorOf(code,p,prev){ if(planNext()&&p!=null&&p>0) return p; if(prev==null) return p; const f=GET(code), op=F(f,5), a=atrOf(code); if(op!=null&&op>0&&a!=null&&Math.abs(op-prev)>=0.5*a) return op; return prev; } // v4.79: op>0 —— 盘前腾讯返今开0.00,不加这个判断全部档位会锚成0
 function anchorNote(code,prev){ if(planNext()) return planLbl()+'计划·锚=上一收盘'; const f=GET(code), op=F(f,5), a=atrOf(code); if(prev!=null&&op!=null&&op>0&&a!=null&&Math.abs(op-prev)>=0.5*a) return '跳空'+sg(((op/prev-1)*100).toFixed(1))+'%开盘·锚=今开'+P(op); return '锚=昨收'+P(prev); }
 function ampBase(code,todayAmp){
@@ -2040,8 +2042,8 @@ function copyPlan(){
     const ampPct=(todayAmp!=null&&prev)?todayAmp/prev*100:null;
     const tf=trendFlag(pct,ampPct,mktOf(h));
     const tr=tiers(anchorOf(h.code,p,prev),narrowBase(h.code,base,todayAmp).base,prev,tf.lv,h.code,h.name);
-    const a2=atrOf(h.code), lp3=limitPct(h.code,h.name)/100;
-    const pre=(prev!=null&&a2!=null)?' 预判['+P(Math.max(prev*(1-lp3),prev-1.0*a2))+'~'+P(Math.min(prev*(1+lp3),prev+1.0*a2))+']':'';
+    const a2=atrOf(h.code), lp3=limitPct(h.code,h.name)/100, _rcx=refCloseOf(p,prev);
+    const pre=(_rcx!=null&&a2!=null)?' 预判['+P(Math.max(_rcx*(1-lp3),_rcx-1.0*a2))+'~'+P(Math.min(_rcx*(1+lp3),_rcx+1.0*a2))+']':'';
     lines.push(h.name+' 现价'+P(p)+pre+' 低吸['+tr.buys.map(P).join('/')+'] 高抛['+tr.sells.map(P).join('/')+']');
   });
   const txt=lines.join('\n');
@@ -2199,10 +2201,18 @@ function doRender(){
     const lk=LNK[h.code], lpct=idxPctOf(lk);
     let ampF=1, ampNote='';
     if(lk&&lpct!=null&&Math.abs(lpct)>=1.5){ const av=lpct>0?(lk.au||2):(lk.ad||2); ampF=Math.min(Math.max(av,1),3)/2; ampNote=' · 联动'+lk.i+'极端日·区间按该票历史放大×'+ampF.toFixed(2); }
-    const preHi=(prev!=null&&a2!=null)?Math.min(prev*(1+lp2),prev+ampF*a2):null;
-    const preLo=(prev!=null&&a2!=null)?Math.max(prev*(1-lp2),prev-ampF*a2):null;
+    // v4.96: 预判基准统一走 refCloseOf(与做T档位、preWhy说明一致)
+    //        收盘后/盘前它就是"下一场"的区间,不能再拿上上一个收盘去算
+    const _nxP=planNext();
+    const _mkP=(b)=>(b!=null&&a2!=null)?{hi:Math.min(b*(1+lp2),b+ampF*a2), lo:Math.max(b*(1-lp2),b-ampF*a2)}:null;
+    const _preP=_mkP(refCloseOf(p,prev));   // 第一行: 给下一场用的预判
+    const _actP=_nxP?_mkP(prev):_preP;      // 第二行: 与"实际"同一场次的预判,跨日不能相减
+    const preHi=_preP?_preP.hi:null, preLo=_preP?_preP.lo:null;
+    const _aHi=_actP?_actP.hi:null, _aLo=_actP?_actP.lo:null;
+    const _qd=qDay(h.code), _actLbl=_nxP?(_qd||'上一交易日'):'今日';
     const preStr=(preHi!=null)?P(preLo)+' ~ '+P(preHi):'—';
-    const posTxt=(p!=null&&preHi!=null&&preLo!=null)?(p>=preHi?'▲现价破预判上沿':(p<=preLo?'▼现价破预判下沿':'在预判区间内')):'';
+    // 盘前/收盘后 p 就是基准本身,拿它比自己永远"在区间内",没信息量,直接不显示
+    const posTxt=_nxP?'':((p!=null&&preHi!=null&&preLo!=null)?(p>=preHi?'▲现价破预判上沿':(p<=preLo?'▼现价破预判下沿':'在预判区间内')):'');
     const lg=legOf(h.code);
     const legGain=(lg&&p!=null)?(p/lg.base-1)*100:null;
     const lvH=LV[h.code]||{}, devA=(p!=null&&lvH.de!=null&&atrV)?(p-lvH.de)/atrV:null;
@@ -2337,7 +2347,7 @@ function doRender(){
         <div class="kv"><div class="k">今日振幅</div><div class="val flat">${ampPct!=null?ampPct.toFixed(2)+'%':'—'}</div></div>
       </div>
       <div class="proj"><span>${planNext()?planLbl():'今日'}预判 <b class="flat">${preStr}</b><span class="qm" onclick="preWhy('${h.code}','${h.name}')">?</span>${PREHIT[h.code]?`<span class="sub" style="font-size:10px"> 实测${PREHIT[h.code].inr}%不出界</span>`:''}</span><span class="sub">${posTxt}${ampNote} · ${anchorNote(h.code,prev)}</span></div>
-      <div class="proj" style="margin-top:2px"><span>今日实际 <b class="flat">${lo!=null?P(lo):'—'} ~ ${hi!=null?P(hi):'—'}</b></span><span class="sub">${hi!=null&&preHi!=null?(hi>=preHi?'最高摸到预判上沿':'最高距上沿还差'+P(preHi-hi)):''}${lo!=null&&preLo!=null?(lo<=preLo?' · 最低击穿预判下沿':' · 最低距下沿还差'+P(lo-preLo)):''}</span></div>
+      <div class="proj" style="margin-top:2px"><span>${_actLbl}实际 <b class="flat">${lo!=null?P(lo):'—'} ~ ${hi!=null?P(hi):'—'}</b></span><span class="sub">${hi!=null&&_aHi!=null?(hi>=_aHi?'最高摸到预判上沿':'最高距上沿还差'+P(_aHi-hi)):''}${lo!=null&&_aLo!=null?(lo<=_aLo?' · 最低击穿预判下沿':' · 最低距下沿还差'+P(lo-_aLo)):''}${_nxP?' <span class="sub">(该场次自己的预判 '+P(_aLo)+'~'+P(_aHi)+')</span>':''}</span></div>
       <div class="proj vrd"><span>📋 <b style="color:${vCls(vd)}">${vd}</b></span></div>
       ${tradeZone}
       <a href="https://fululi.github.io/k-station/?code=${h.code}&lines=${tr.buys.map(x=>'b'+x.toFixed(2)).concat(tr.sells.map(x=>'s'+x.toFixed(2))).join(',')}" style="display:block;text-align:center;margin-top:8px;padding:8px;border-radius:8px;background:#2563eb;color:#fff;text-decoration:none;font-size:13px;font-weight:600">📈 看K线（做T价位已自动画好）</a>
@@ -2525,6 +2535,12 @@ function renderPaper(){
 refresh();
 setInterval(()=>{ const d=new Date(),t=d.getHours()*60+d.getMinutes(),w=d.getDay();
   if(!document.hidden&&!editMode&&w>=1&&w<=5&&((t>=565&&t<=690)||(t>=780&&t<=900))) refresh(); }, 20000);
+// v4.95: "今日预判/明日预判"这类日期label只在render()真正跑时才重算,
+// 而上面那个刷新计时器只在盘中窗口内转——离开这个窗口(盘前/盘后/周末/挂着不动)label会冻结在上次render那一刻,
+// 跟当下时间对不上(不是数据错,是label没跟着醒)。这里补一个只重画不请求网络的轻量心跳,把它叫醒。
+setInterval(()=>{ if(!document.hidden&&!editMode) render(); }, 60000);
+document.addEventListener('visibilitychange', ()=>{ if(!document.hidden&&!editMode) render(); });
+window.addEventListener('focus', ()=>{ if(!editMode) render(); });
 </script>
 </body>
 </html>
