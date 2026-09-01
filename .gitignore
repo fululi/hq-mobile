@@ -1,0 +1,8 @@
+# 含真实持仓数据的本地调试文件,绝不上传
+_test.html
+_realseed.html
+_seed*.html
+*备份*.json
+*backup*.json
+_b*.py
+.DS_Store
