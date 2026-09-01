@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#f5f6f8">
-<title>我的持仓 · 行情 v4.57</title>
+<title>我的持仓 · 行情 v4.59</title>
 <style>
 :root { color-scheme: light; }
 * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
@@ -50,6 +50,11 @@ body { margin:0; padding:14px 12px 40px; background:#f5f6f8; color:#1a1d21;
 .badge.up { background:#fdecea; color:#d0342c; } .badge.down { background:#e7f5ee; color:#12924a; } .badge.flat { background:#eef0f3; color:#4b5563; }
 .tnote { margin-top:6px; font-size:11px; color:#9a6a1a; background:#fff8e8; border-radius:6px; padding:5px 8px; }
 .atrnote { margin-top:6px; font-size:11px; color:#4b5563; }
+details.mini > summary { font-size:11px; color:#8b95a5; cursor:pointer; list-style:none; padding:4px 0; user-select:none; }
+details.mini > summary::-webkit-details-marker { display:none; }
+details.mini > summary::after { content:' ▾'; }
+details.mini[open] > summary::after { content:' ▴'; }
+details.mini > div { padding-top:2px; }
 .mkt { font-size:12px; color:#5a6270; margin:-6px 2px 12px; }
 .mkt b { font-weight:700; }
 .tlog-row { display:grid; grid-template-columns:1.4fr 1fr 1fr 1fr auto; gap:6px; align-items:center; padding:8px 10px; border-top:1px solid #f2f4f6; font-size:13px; }
@@ -1073,6 +1078,15 @@ function addTrade(){
     if(side==='sell') return dev>0?('卖高于挂单+'+dev.toFixed(1)+'%'):('卖低于挂单'+dev.toFixed(1)+'%');
     return dev<0?('买低于挂单+'+(-dev).toFixed(1)+'%'):('买高于挂单+'+dev.toFixed(1)+'%');
   };
+  // v4.58: 接回价 vs 本人当日最低卖价 —— 补"优于挂单却是追高"的盲区
+  const chaseChk=(px)=>{
+    if(!px) return '';
+    const sells=TLOG.filter(r=>r.code===h.code&&r.d===d0&&r.sell>0).map(r=>r.sell);
+    if(!sells.length) return '';
+    const loSell=Math.min(...sells);
+    if(px>loSell){ const up=(px/loSell-1)*100; return '⚠追高:接回价比今日最低卖价'+loSell.toFixed(2)+'高'+up.toFixed(1)+'%'; }
+    return '';
+  };
   const posBefore={cost:h.cost||0, shares:h.shares||0};
   let rec=null;
   if(hasS&&hasB){
@@ -1081,7 +1095,7 @@ function addTrade(){
     const mq=Math.min(qty,bq), red=qty-bq;
     const fee=feeOf(sell,buy,qty,bq).fee, profit=(sell-buy)*mq-fee;
     const redCash=red>0?sell*red:(red<0?buy*(-red):0);
-    const exec=[execScore('sell',sell),execScore('buy',buy)].filter(x=>x).join(' · ');
+    const exec=[execScore('sell',sell),execScore('buy',buy),chaseChk(buy)].filter(x=>x).join(' · ');
     rec={d:d0,code:h.code,name:h.name,sell,buy,qty,bq,gross:sell*qty-buy*bq,fee,red,redCash,note,profit,exec};
     // 持仓联动: 股数=旧-卖+买; 成本=(旧总额+买入额+费-卖出额)/新股数 → 做T净利+减仓实现盈亏自动摊进成本
     const ns=posBefore.shares-qty+bq;
@@ -1100,7 +1114,7 @@ function addTrade(){
     const bq=(!isNaN(q2v)&&q2v>0)?q2v:qty;
     if(isNaN(bq)||bq<=0){ toast('买入股数要填(接回股数或卖出股数格)'); return; }
     const fee=Math.max(5,buy*bq*FEE.comm/100);
-    rec={d:d0,code:h.code,name:h.name,sell:null,buy,qty:0,bq,gross:-buy*bq,fee,red:-bq,redCash:buy*bq,note,profit:-fee,exec:execScore('buy',buy),solo:'buy'};
+    rec={d:d0,code:h.code,name:h.name,sell:null,buy,qty:0,bq,gross:-buy*bq,fee,red:-bq,redCash:buy*bq,note,profit:-fee,exec:[execScore('buy',buy),chaseChk(buy)].filter(x=>x).join(' · '),solo:'buy'};
     const ns=posBefore.shares+bq;
     h.cost=+(((posBefore.cost*posBefore.shares)+buy*bq+fee)/ns).toFixed(3); h.shares=ns;
   }
@@ -1307,7 +1321,7 @@ function renderLog(){
       const qCell=r.solo==='buy'?('买'+r.bq+'股'):(r.solo==='sell'?('卖'+r.qty+'股'):(r.bq&&r.bq!==r.qty?('卖'+r.qty+'/接'+r.bq):(r.qty+'股')));
       const pLbl=r.solo==='sell'?'实现 ':'';
       html+='<div class="tlog-row">'
-        +'<span class="l">'+r.name+(r.note?' <span class="sub">✎'+esc(r.note)+'</span>':'')+(r.exec?' <span class="sub" style="color:#d9a441">◎'+esc(r.exec)+'</span>':'')+'<br><span class="sub">'+r.d+'</span></span>'
+        +'<span class="l">'+r.name+(r.note?' <span class="sub">✎'+esc(r.note)+'</span>':'')+(r.exec?' <span class="sub" style="color:'+(/追高/.test(r.exec)?'#dc2626':'#d9a441')+'">'+(/追高/.test(r.exec)?'':'◎')+esc(r.exec)+'</span>':'')+'<br><span class="sub">'+r.d+'</span></span>'
         +'<span class="sub">'+pxCell+'<br>'+bxCell+'</span>'
         +'<span class="sub">'+qCell+'<br>费'+(r.fee!=null?Math.round(r.fee):'—')+'</span>'
         +'<span class="'+cls(r.profit)+'" style="font-weight:700">'+pLbl+sg(Math.round(r.profit).toLocaleString())+(r.red&&r.solo==null?('<br><span class="sub" style="font-weight:400">'+(r.red>0?('另减'+r.red+'股回笼'+Math.round(r.redCash||0)):('另加'+(-r.red)+'股投入'+Math.round(r.redCash||0)))+'</span>'):'')+'</span>'
@@ -1353,7 +1367,22 @@ function renderDayChg(){
     if(r.posAfter&&!o.end) o.end=r.posAfter;       // 台账最新在前: 第一笔的after=当前状态
     if(r.posBefore) o.start=r.posBefore;           // 最后一笔(最旧)的before=今日开盘前
   });
-  let html='<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px"><b style="font-size:14px">今日仓位变动</b><span class="sub">'+td+' · 据台账自动算</span></div>';
+  // v4.58: 漏记账检测 —— 台账推算股数 vs 实际持仓差≥100股就红条告警
+  let missWarn='';
+  {
+    const warn=[];
+    Object.keys(byC).forEach(c=>{
+      const o=byC[c], h=PF.holds.find(x=>x.code===c);
+      if(!h||!o.start) return;
+      const rs=rows.filter(r=>r.code===c);
+      const net=rs.reduce((s,r)=>s+((r.bq||0)-(r.qty||0)),0);
+      const should=o.start.shares+net;
+      const gap=(h.shares||0)-should;
+      if(Math.abs(gap)>=100) warn.push(o.name+' 台账推算'+should+'股·实际'+(h.shares||0)+'股·差'+(gap>0?'+':'')+gap+'股');
+    });
+    if(warn.length) missWarn='<div style="background:#fee2e2;color:#991b1b;padding:6px 9px;border-radius:6px;font-size:12px;margin-bottom:6px;font-weight:600">⚠ 可能漏记账: '+warn.join(' ｜ ')+'</div>';
+  }
+  let html=missWarn+'<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px"><b style="font-size:14px">今日仓位变动</b><span class="sub">'+td+' · 据台账自动算</span></div>';
   let totCash=0, totP=0;
   Object.keys(byC).forEach(c=>{ const o=byC[c]; const cash=o.buy-o.sell; totCash+=cash; totP+=o.profit;
     let posLine='';
@@ -1450,7 +1479,13 @@ function doRender(){
       const pctS=prev?sg(((x/prev-1)*100).toFixed(1))+'%':'';
       const ord=arr.length>1?'①②③'[j]:'•';
       const hit=side==='buy'?(lo!=null&&lo<=x):(hi!=null&&hi>=x);
-      return `<div class="tchip" onclick="fillT('${h.code}',${x},'${side}')"><i>${ord}</i><b>${P(x)}</b><s>${pctS}</s>${hit?' <s style="color:#d97706;font-weight:700">✓到过</s>':''}</div>`; }).join('');
+      // v4.58: 卖档直接标"较你成本"真实收益率(扣费后),这才是你到手的%
+      let costS='';
+      if(side==='sell'&&h.cost>0&&h.shares>0){
+        const gr=(x-h.cost)/h.cost*100, ft=feeOf(x,h.cost,100,100).fee, nr=((x-h.cost)*100-ft)/(h.cost*100)*100;
+        costS=`<s style="color:${nr>=0?'#dc2626':'#16a34a'};font-weight:700">成本${nr>=0?'+':''}${nr.toFixed(1)}%</s>`;
+      }
+      return `<div class="tchip" onclick="fillT('${h.code}',${x},'${side}')"><i>${ord}</i><b>${P(x)}</b><s>${pctS}</s>${costS}${hit?' <s style="color:#d97706;font-weight:700">✓到过</s>':''}</div>`; }).join('');
     const sellStr = tr.sells.length?fmtTier(tr.sells,'sell'):`<div class="tchip"><b>${P(projHi)}</b></div>`;
     const buyStr = tr.buys.length?fmtTier(tr.buys,'buy'):`<div class="tchip"><b>${P(projLo)}</b></div>`;
     const cleared=(h.shares===0);
@@ -1521,10 +1556,17 @@ function doRender(){
       ${legTxt}
       ${tradeZone}
       <a href="https://fululi.github.io/k-station/?code=${h.code}&lines=${tr.buys.map(x=>'b'+x.toFixed(2)).concat(tr.sells.map(x=>'s'+x.toFixed(2))).join(',')}" style="display:block;text-align:center;margin-top:8px;padding:8px;border-radius:8px;background:#2563eb;color:#fff;text-decoration:none;font-size:13px;font-weight:600">📈 看K线（做T价位已自动画好）</a>
-      <div class="atrnote">${atrTxt}${lk?` · 跟${lk.i} r${lk.r}${(lk.ad||lk.au)?'·极端日×'+(lk.ad||lk.au):''}`:''}</div>
+      <div class="atrnote">${atrTxt}${(()=>{
+        if(!lk) return '';
+        const ip=idxPctOf(lk);           // 该股跟随的指数今日涨跌%
+        const ext=ip!=null&&Math.abs(ip)>=1.2;   // 极端日阈值
+        if(!ext) return '';              // v4.59: 不是极端日就不显示,别占屏
+        const mul=lk.ad||lk.au;
+        return ` · <b style="color:#b45309">今日${lk.i}${sg(ip.toFixed(2))}%达极端日</b>,该票历史放大×${mul||'—'}(r${lk.r})`;
+      })()}</div>
       ${ffTxt}
       ${ffhT?`<div class="atrnote">${ffhT}</div>`:''}
-      ${psigH?`<div class="atrnote">⚡三角突破信号在模拟跟踪（${P(psigH.entry)}进·止损${P(psigH.stop)}），与你的底仓${h.cost}分开记账</div>`:''}
+      ${psigH?`<div class="atrnote">△三角突破信号在模拟跟踪（${P(psigH.entry)}进·止损${P(psigH.stop)}），与你的底仓${h.cost}分开记账</div>`:''}
       ${tf.lv>=1?`<div class="tnote">⚠ 为什么分${tf.lv>=2?'3':'2'}档:${Math.abs(pct||0)>=6?'个股单日涨跌超6%':(Math.abs(pct||0)>=3?'个股涨跌超3%':((ampPct!=null&&ampPct>=5)?'今日振幅超5%':'关联板块/大盘异动'))}。分档=分批:①号位先动且少量,留子弹等②号位,别一笔全进全出。</div>`:''}
       ${editRow}
     </div>`;
