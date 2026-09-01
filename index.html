@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#f5f6f8">
-<title>我的持仓 · 行情 v4.94</title>
+<title>我的持仓 · 行情 v4.95</title>
 <style>
 :root { color-scheme: light; }
 * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
@@ -424,7 +424,7 @@ function save(){ lsSet(LS, JSON.stringify(PF)); }
 function saveLog(){ lsSet(LOG, JSON.stringify(TLOG)); }
 function saveFee(){ FEE.comm=parseFloat(document.getElementById('feeComm').value)||0;
   FEE.stamp=parseFloat(document.getElementById('feeStamp').value)||0;
-  localStorage.setItem(FEEK, JSON.stringify(FEE)); renderLog(); }
+  lsSet(FEEK, JSON.stringify(FEE)); renderLog(); }
 function today(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
 // v4.67: 盘中 vs 收盘后 —— 盘中最高最低还会变,不能下"早盘就是顶"这种事后结论
 function mktLive(){ const d=new Date(), w=d.getDay(), t=d.getHours()*60+d.getMinutes();
@@ -1731,8 +1731,8 @@ function addTrade(){
   }
   rec.posBefore=posBefore; rec.posAfter={cost:h.cost, shares:h.shares};
   TLOG.unshift(rec);
-  localStorage.setItem('tlog_lastqty', String(rec.qty||rec.bq||100));
   save(); saveLog();
+  lsSet('tlog_lastqty', String(rec.qty||rec.bq||100));
   PLAN=PLAN.filter(p=>!(p.code===h.code&&((p.side==='sell'&&p.price===sell)||(p.side==='buy'&&p.price===buy))));
   savePlan(); renderPlan();
   document.getElementById('tSell').value=''; document.getElementById('tBuy').value=''; document.getElementById('tQty').value=''; document.getElementById('tQty2').value=''; document.getElementById('tNote').value='';
