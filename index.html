@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#f5f6f8">
-<title>我的持仓 · 行情 v4.85</title>
+<title>我的持仓 · 行情 v4.86</title>
 <style>
 :root { color-scheme: light; }
 * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
@@ -1360,7 +1360,11 @@ function importHolds(){
     out.push({code,name:String(name).slice(0,8),cost,shares,acct});
   });
   if(!out.length){ toast('一行都没解析出来,看下格式'); return; }
-  if(rep2){ PF.holds=out; }
+  if(rep2){ const old=PF.holds.slice();
+    out.forEach(n=>{ const src=old.find(h=>h.code===n.code&&acctOf(h)===n.acct)||old.find(h=>h.code===n.code);
+      if(src) Object.keys(src).forEach(k=>{
+        if(['code','name','cost','shares','acct'].indexOf(k)<0 && n[k]===undefined) n[k]=src[k]; }); });
+    PF.holds=out; }
   else out.forEach(n=>{ let ex=PF.holds.find(h=>h.code===n.code&&acctOf(h)===n.acct);
     // 那行没写账户时别硬造一条"未分组"重复:已有唯一同代码持仓就更新它。
     // 同一只票真在两个券商都有时,必须写账户才分得开——这是有意的。
