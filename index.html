@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#f5f6f8">
-<title>我的持仓 · 行情 v4.91</title>
+<title>我的持仓 · 行情 v4.92</title>
 <style>
 :root { color-scheme: light; }
 * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
@@ -155,6 +155,12 @@ td { border-top:1px solid #f2f4f6; }
 .vd { font-size:12px; }
 .wdt { margin-top:2px; }
 .wdt summary { font-size:10px; color:#9ca3af; cursor:pointer; }
+.wl1 { display:inline; }
+.wl1 > summary { display:inline; cursor:pointer; list-style:none; }
+.wl1 > summary::-webkit-details-marker { display:none; }
+.wl1 > summary::after { content:' ▸'; color:#9ca3af; font-size:10px; }
+.wl1[open] > summary::after { content:' ▾'; }
+.wl1 .wlx { display:block; margin-top:3px; }
 .prb2 { font-size:10px; color:#6b7280; font-weight:700; }
 .prb2.hi { color:#16a34a; }
 .prb2.lo { color:#d97706; }
@@ -2385,7 +2391,7 @@ function doRender(){
     const lkW=LNK[w.code], lnkWTxt=lkW?` <span class="sub">跟${lkW.i} r${lkW.r}</span>`:'';
     const ffW=FF[w.code], ffWTxt=ffW?` · 主力<b class="${cls(ffW.amt)}">${ffW.amt>=0?'+':''}${fmtAmt(ffW.amt)}</b>`:'';
     const ffhW=ffhTxt(w.code);
-    const addTxt=(w.addedP!=null&&p!=null)?`<br><span class="sub">${(w.addedD||'').slice(5)}加 @${P(w.addedP)} · 以来<b class="${cls((p/w.addedP-1)*100)}">${sg(((p/w.addedP-1)*100).toFixed(1))}%</b>${w.addedFF!=null?` · 入时主力<b class="${cls(w.addedFF)}">${w.addedFF>=0?'+':''}${fmtAmt(w.addedFF)}</b>`:''}</span>`:'';
+    const addTxt=(w.addedP!=null&&p!=null)?`<span class="wlx sub">${(w.addedD||'').slice(5)}加 @${P(w.addedP)} · 以来<b class="${cls((p/w.addedP-1)*100)}">${sg(((p/w.addedP-1)*100).toFixed(1))}%</b>${w.addedFF!=null?` · 入时主力<b class="${cls(w.addedFF)}">${w.addedFF>=0?'+':''}${fmtAmt(w.addedFF)}</b>`:''}</span>`:'';
     // v4.81: 信号压成一行短标签,细节收进折叠,别再堆一屏小字
     const _sg2=[`<b class="${wtC}">${wtTxt(w.code)}</b>`];
     if(dtw!=null) _sg2.push(`<b class="${dtC2}">${dtTxt(w.code)}</b>`);
@@ -2398,10 +2404,10 @@ function doRender(){
     if(ffW) _sg2.push(`主力<b class="${cls(ffW.amt)}">${ffW.amt>=0?'+':''}${fmtAmt(ffW.amt)}</b>`);
     const _det=[sigTxt,wsgTxt,m15Txt,extWTxt,lnkWTxt,ffhW?' · '+ffhW:''].filter(Boolean).join('');
     return `<tr><td class="l" style="cursor:pointer" onclick="openK('${w.code}')">${w.name}<span class="sub"> ${w.code.replace(/^(sh|sz)/,'')}</span>
-      <br><span class="sub">${w.theme||'未标题材'}</span>
-      <br><span class="sub sig1">${_sg2.join(' ')}</span>${addTxt}
-      <br><span class="vd">📋 <b style="color:${vCls(verdict(w.code))}">${verdict(w.code)}</b></span>
-      ${_det?`<details class="wdt" data-fk="ws-${w.code}"><summary class="sub">信号细节</summary><span class="sub">${_det}</span></details>`:''}</td>
+      <details class="wl1" data-fk="ws-${w.code}" onclick="event.stopPropagation()"><summary class="vd">📋 <b style="color:${vCls(verdict(w.code))}">${verdict(w.code)}</b></summary>
+      <span class="wlx sub">${w.theme||'未标题材'}</span>
+      <span class="wlx sub sig1">${_sg2.join(' ')}</span>${addTxt}
+      ${_det?`<span class="wlx sub">${_det}</span>`:''}</details></td>
       <td>${P(p)}</td><td class="${cls(pct)}">${pct!=null?sg(pct.toFixed(2))+'%':'—'}</td>
       <td class="etd">${_entry}</td>${del}</tr>`;
   }).join('') + (PF.watch.length?'<tr><td colspan="4"><details class="wdt" data-fk="wtip"><summary class="sub" style="font-size:10px">档位口径与信号说明</summary><span class="sub" style="font-size:10px">买档='+(planNext()?planLbl():'今日')+'可挂的低吸价,%为该跌幅250日内当天摸到的概率 · 顺势=信号与大周期同向 · 反弹/回调=与大周期反向(日线信号看周线,15分信号看日线) · ⚠极端=偏离20日线≥2×ATR或RSI≤30/≥70,勿追涨杀跌,等不再创新低/新高</span></details></td></tr>':'');
