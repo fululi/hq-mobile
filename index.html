@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#f5f6f8">
-<title>我的持仓 · 行情 v4.51</title>
+<title>我的持仓 · 行情 v4.52</title>
 <style>
 :root { color-scheme: light; }
 * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
@@ -109,6 +109,15 @@ td { border-top:1px solid #f2f4f6; }
 .tchip s { text-decoration:none; font-size:11px; color:#6b7280; font-variant-numeric:tabular-nums; }
 .ffb { display:inline-block; width:8px; height:8px; border-radius:2px; margin:0 1px; vertical-align:-1px; }
 .tip { background:#fffdf5; border:1px solid #f0e6c8; border-radius:10px; padding:10px 12px; font-size:12px; color:#6b5d34; line-height:1.6; margin:2px 0 12px; }
+.qbox { display:flex; gap:6px; margin-top:9px; }
+.qbox input { flex:1; min-width:0; padding:8px 5px; border:1px solid #d7dbe0; border-radius:7px; font-size:14px; text-align:right; font-variant-numeric:tabular-nums; }
+.qbox button { flex:none; border:none; background:#2563eb; color:#fff; border-radius:7px; padding:0 13px; font-size:13px; font-weight:700; }
+.qpv { margin-top:3px; min-height:14px; }
+details.fold > summary { list-style:none; cursor:pointer; position:relative; padding-right:20px; }
+details.fold > summary::-webkit-details-marker { display:none; }
+details.fold > summary::after { content:'\25be'; position:absolute; right:2px; top:0; color:#9aa1ab; display:inline-block; transition:transform .15s; }
+details.fold[open] > summary::after { transform:rotate(180deg); }
+details.fold:not([open]) > summary { margin-bottom:0; }
 .foot { font-size:11px; color:#9aa1ab; line-height:1.6; margin-top:8px; padding:0 2px; }
 </style>
 </head>
@@ -150,8 +159,10 @@ td { border-top:1px solid #f2f4f6; }
   <tbody id="watch"></tbody></table>
 </div>
 
-<div class="sec"><span>模拟建仓 · 每日自动跟踪</span><span class="sub">每天首次打开自动扫一次（按日线收盘）· 纯代码零成本</span></div>
+<details class="fold">
+<summary class="sec"><span>模拟建仓 · 每日自动跟踪</span><span class="sub">每天首次打开自动扫 · 纯代码零成本</span></summary>
 <div class="card" id="paper" style="padding:4px 0"></div>
+</details>
 
 <div class="sec"><span>今日做T计划(随振幅自动给档)</span><span class="sub" id="tSum"></span></div>
 <div class="card tbl">
@@ -159,7 +170,8 @@ td { border-top:1px solid #f2f4f6; }
   <tbody id="tbody"></tbody></table>
 </div>
 
-<div class="sec"><span>挂单计划 · 先记着</span><span class="sub" id="pHit">没成交也能记,成交后点「填入」</span></div>
+<details class="fold" id="foldPlan">
+<summary class="sec"><span>挂单计划 · 先记着</span><span class="sub" id="pHit">没成交也能记,成交后点「填入」</span></summary>
 <div class="tbox">
   <div class="r">
     <label>股票<select id="pSel" onchange="planHint()"></select></label>
@@ -172,15 +184,17 @@ td { border-top:1px solid #f2f4f6; }
   <button class="go" style="background:#475569;margin-top:6px" onclick="copyOrders()">📋 复制为条件单文本（去券商App手动设置）</button>
 </div>
 <div class="card tbl" id="plist"></div>
+</details>
 
 <div class="sec"><span>做T复盘 · 记一笔</span></div>
 <div class="tbox" id="tboxMain">
   <div class="r">
     <label>股票<select id="tSel" onchange="maybeConfirmT()"></select></label>
-    <label>卖出价<div class="step"><button type="button" onclick="stepP('tSell',-1)">－</button><input id="tSell" type="number" step="0.01" placeholder="高抛" oninput="maybeConfirmT()"><button type="button" onclick="stepP('tSell',1)">＋</button></div></label>
-    <label>接回价<div class="step"><button type="button" onclick="stepP('tBuy',-1)">－</button><input id="tBuy" type="number" step="0.01" placeholder="低吸" oninput="maybeConfirmT()"><button type="button" onclick="stepP('tBuy',1)">＋</button></div></label>
+    <label>卖出价<div class="step"><button type="button" onclick="stepP('tSell',-1)">－</button><input id="tSell" type="number" step="0.01" placeholder="卖出(空=纯买)" oninput="maybeConfirmT()"><button type="button" onclick="stepP('tSell',1)">＋</button></div></label>
+    <label>接回价<div class="step"><button type="button" onclick="stepP('tBuy',-1)">－</button><input id="tBuy" type="number" step="0.01" placeholder="接回(空=只卖结算)" oninput="maybeConfirmT()"><button type="button" onclick="stepP('tBuy',1)">＋</button></div></label>
     <label>卖出股数<div class="step"><button type="button" onclick="stepQ('tQty',-1)">－</button><input id="tQty" type="number" step="100" placeholder="100" oninput="maybeConfirmT()"><button type="button" onclick="stepQ('tQty',1)">＋</button></div></label>
     <label>接回股数<div class="step"><button type="button" onclick="stepQ('tQty2',-1)">－</button><input id="tQty2" type="number" step="100" placeholder="空=同卖出" oninput="maybeConfirmT()"><button type="button" onclick="stepQ('tQty2',1)">＋</button></div></label>
+    <label>日期(默认今天,可补记昨天)<input id="tDate" type="date"></label>
   </div>
   <div class="qtys"><span>股数:</span>
     <button onclick="setQty(500)">500</button>
@@ -191,7 +205,7 @@ td { border-top:1px solid #f2f4f6; }
   </div>
   <input id="tNote" placeholder="原因(可选,复盘用):如 冲高减/破位割/接早了" style="width:100%;margin-top:6px">
   <div class="tcf" id="tcf"></div>
-  <button class="go" onclick="addTrade()">＋ 记一笔（卖/买股数可不同，差额自动算）</button>
+  <button class="go" onclick="addTrade()">＋ 记一笔（只卖不接=留空接回价按成本结算 · 持仓股数/成本自动联动）</button>
   <button class="go" style="background:#475569;margin-top:6px" onclick="repeatLast()">↻ 再来一笔（沿用上笔的票/价/股数，改个数就记）</button>
   <div class="fee">费用估算:
     佣金率%<input id="feeComm" type="number" step="0.005" onchange="saveFee()">
@@ -200,11 +214,13 @@ td { border-top:1px solid #f2f4f6; }
   </div>
 </div>
 <div class="trec"><span>今日做T净收益(扣费)</span><span class="v" id="tToday">—</span></div>
+<div class="trec" id="tLegsRow" style="display:none"><span>今日腿状态(未平仓差额 vs 现价)</span><span class="v" id="tLegs" style="font-size:12px;line-height:1.6;text-align:right">—</span></div>
 <div class="trec"><span>今日复盘(本机台账自动算)</span><span class="v" id="tStat">—</span></div>
 <div class="trec"><span>本周做T(周一起)</span><span class="v" id="tWeek">—</span></div>
 <div class="trec"><span>本月做T</span><span class="v" id="tMonth">—</span></div>
 <div class="trec"><span>行为样本(攒够30笔才开模式分析)</span><span class="v" id="tSamp">—</span></div>
-<div class="sec"><span>历史记录</span><span class="sub" id="tCum"></span></div>
+<details class="fold">
+<summary class="sec"><span>历史记录</span><span class="sub" id="tCum"></span></summary>
 <div class="qtys" style="margin:-4px 0 8px"><span>台账:</span>
   <button onclick="exportCSV()">📤 导出CSV(Excel)</button>
   <button onclick="copyCoach()">🤖 复盘数据包</button>
@@ -213,8 +229,9 @@ td { border-top:1px solid #f2f4f6; }
   <input type="file" id="rstFile" accept=".json" style="display:none" onchange="restoreJSON(event)">
 </div>
 <div class="card tbl" id="tlog"></div>
+</details>
 
-<details class="tip" id="tip"><summary style="cursor:pointer;font-weight:600">📖 使用说明：ATR怎么算 · 档位怎么分 · 怎么记账（点我展开）</summary><div style="margin-top:8px">全部数据手机实时自算,不依赖电脑。<b>ATR14=最近14个已收盘交易日"真实波幅"的均值</b>(真实波幅把跳空缺口也算进去:当日高低差、|当日高−昨收|、|当日低−昨收| 三者取最大)。它用的全是<b>截至昨天收盘</b>的数据,每天第一次打开时自动算好并缓存一天,开盘前就已就绪,不存在来不及。<b>今日预判=昨收±1.0×ATR14</b>——这是给<b>今天</b>用的:盘前直接按预判区间挂低吸/高抛单;突破上沿=强势别早卖,跌破下沿=走弱别硬接。开盘后档位自动切换为"当日已走振幅与ATR14×0.75取大者",大波动日档位自动加宽到2~3档,卡片上有黄色提醒条。涨跌停按板块判断(主板10%、创业/科创板20%、北交所30%、ST 5%)。<b>快捷记账:点一个高抛价、再点一个低吸价,自动预填并弹出确认条,核对后点✓一笔记完</b>(实际成交价有滑点可直接手改格子,净收益实时重算;点错了再点正确档位即覆盖;股数记住上次,还有500/1000/半仓/全仓快捷键)。点定一个高抛价(或手填卖出价)后,低吸各档会直接标出"每股净差+一手净赚"(已扣佣金印花税),不用自己心算;反向点定接回价,高抛档同理。记一笔自动扣佣金+印花税算<b>净收益</b>和<b>摊低成本</b>。<b>卖出股数和接回股数可以不同</b>(如卖200接100=高抛+减仓100股,接回股数留空=同卖出);卖出价−接回价的价差和差价率%填价时自动算好;先买后卖(低吸加仓再高抛卖出)同样记,一律按现金差额算盈亏。若某日涨/跌停,次日基准自动取昨日真实波幅的60%加宽,不沿用旧ATR。个股可绑定<b>关联板块</b>(如永鼎→通信ETF):板块异动比大盘灵敏,会提前触发加宽分档,卡片上显示关联板块实时涨跌。删除=点两下确认。改动存在本机浏览器,固定用同一个App打开。红涨绿跌。</div></details>
+<details class="tip" id="tip"><summary style="cursor:pointer;font-weight:600">📖 使用说明：ATR怎么算 · 档位怎么分 · 怎么记账（点我展开）</summary><div style="margin-top:8px">全部数据手机实时自算,不依赖电脑。<b>ATR14=最近14个已收盘交易日"真实波幅"的均值</b>(真实波幅把跳空缺口也算进去:当日高低差、|当日高−昨收|、|当日低−昨收| 三者取最大)。它用的全是<b>截至昨天收盘</b>的数据,每天第一次打开时自动算好并缓存一天,开盘前就已就绪,不存在来不及。<b>今日预判=昨收±1.0×ATR14</b>——这是给<b>今天</b>用的:盘前直接按预判区间挂低吸/高抛单;突破上沿=强势别早卖,跌破下沿=走弱别硬接。开盘后档位自动切换为"当日已走振幅与ATR14×0.75取大者",大波动日档位自动加宽到2~3档,卡片上有黄色提醒条。涨跌停按板块判断(主板10%、创业/科创板20%、北交所30%、ST 5%)。<b>快捷记账:点一个高抛价、再点一个低吸价,自动预填并弹出确认条,核对后点✓一笔记完</b>(实际成交价有滑点可直接手改格子,净收益实时重算;点错了再点正确档位即覆盖;股数记住上次,还有500/1000/半仓/全仓快捷键)。点定一个高抛价(或手填卖出价)后,低吸各档会直接标出"每股净差+一手净赚"(已扣佣金印花税),不用自己心算;反向点定接回价,高抛档同理。记一笔自动扣佣金+印花税算<b>净收益</b>和<b>摊低成本</b>,<b>持仓股数和成本自动跟着台账变</b>(改/删该笔自动还原;该笔之后又手动动过持仓的,只删台账不动持仓,会提醒你核对)。<b>清仓/卖出结算:</b>接回价留空只填卖出,按成本价算实现盈亏,股数自动扣减,清到0显示已清仓;只买不卖(卖出价留空)按买入加权摊成本。<b>做T档位锚定昨收,全天锁定</b>,不随现价漂移,只在振幅扩大时向外加宽;每档下方直接标扣费后的净赚金额和净收益率%,不用心算。<b>卖出股数和接回股数可以不同</b>(如卖200接100=高抛+减仓100股,接回股数留空=同卖出);卖出价−接回价的价差和差价率%填价时自动算好;先买后卖(低吸加仓再高抛卖出)同样记,一律按现金差额算盈亏。若某日涨/跌停,次日基准自动取昨日真实波幅的60%加宽,不沿用旧ATR。个股可绑定<b>关联板块</b>(如永鼎→通信ETF):板块异动比大盘灵敏,会提前触发加宽分档,卡片上显示关联板块实时涨跌。删除=点两下确认。改动存在本机浏览器,固定用同一个App打开。红涨绿跌。</div></details>
 <details class="tip"><summary style="cursor:pointer;font-weight:600">🤖 AI协作咒语（点我展开，复制到新窗口直接用）</summary><div style="margin-top:8px">
 <b>① 整理台账：</b>这是我的做T流水（粘贴记录），整理成表格：时间/股票/买卖/价格/股数，配对算出每笔净收益和差价率，最后给今日总计。数据对不上的地方标出来问我，不要自己猜。<br><br>
 <b>② 收盘复盘：</b>用今天实际开高低收，对照测算和档位，逐条判定命中与否，再给3条改进点。结论先行，不要客套话。<br><br>
@@ -758,7 +775,7 @@ function planHint(){
   const todayAmp=(hi!=null&&lo!=null)?hi-lo:null;
   const nb=narrowBase(h.code, ampBase(h.code,todayAmp), todayAmp);
   const tf=trendFlag(pct,(todayAmp!=null&&prev)?todayAmp/prev*100:null,mktOf(h));
-  const tr=tiers(p,nb.base,prev,tf.lv,h.code,h.name);
+  const tr=tiers((prev!=null?prev:p),nb.base,prev,tf.lv,h.code,h.name);
   if(!tr.buys.length){ el.innerHTML=''; return; }
   const bc=tr.buys.map(x=>`<span class="tk" onclick="document.getElementById('pSide').value='buy';document.getElementById('pPrice').value=${x}">${P(x)}</span>`).join(' / ');
   const sc=tr.sells.map(x=>`<span class="tk" onclick="document.getElementById('pSide').value='sell';document.getElementById('pPrice').value=${x}">${P(x)}</span>`).join(' / ');
@@ -871,15 +888,34 @@ function maybeConfirmT_(){
   const qty=parseInt(document.getElementById('tQty').value);
   const q2v=parseInt(document.getElementById('tQty2').value);
   ['tSell','tBuy','tQty','tQty2'].forEach(id=>document.getElementById(id).classList.toggle('armed', !!document.getElementById(id).value));
-  if(!h||isNaN(sell)||isNaN(buy)){ box.style.display='none'; return; }
+  const hasS=!isNaN(sell)&&sell>0, hasB=!isNaN(buy)&&buy>0;
+  if(!h||(!hasS&&!hasB)){ box.style.display='none'; return; }
   box.style.display='block';
-  const diff=sell-buy, rate=buy?diff/buy*100:0, tq0=Math.max(100,Math.round(((h&&h.shares)||400)/4/100)*100), per100=diff*tq0-feeOf(sell,buy,tq0,tq0).fee;
-  const rc=diff>=0?'#dc2626':'#16a34a', rt=`<b style="color:${rc}">${diff>=0?'+':''}${rate.toFixed(2)}%</b>`;
-  if(isNaN(qty)||qty<=0){ box.innerHTML=`价差 <b>${diff.toFixed(2)} 元/股</b> · 差价率 ${rt} · <b>${tq0}股净赚 ≈ <span style="color:${per100>=0?'#dc2626':'#16a34a'}">${sg(Math.round(per100))} 元</span></b><span class="sub">（已扣费,按1/4仓估）· 还差股数,点上面快捷键</span>`; return; }
-  const bq=(isNaN(q2v)||q2v<=0)?qty:q2v;
-  const mq=Math.min(qty,bq), red=qty-bq;
-  const fee=feeOf(sell,buy,qty,bq).fee, net=(sell-buy)*mq-fee;
-  box.innerHTML=`待确认:<b>${h.name}</b> 卖 ${sell}×${qty}股 → 接 ${buy}×${bq}股<br>价差 <b>${diff.toFixed(2)} 元/股</b> · 差价率 ${rt} · 做T净收益 <b style="color:${net>=0?'#dc2626':'#16a34a'}">${sg(Math.round(net))} 元</b>${net<0?' <b style="color:#c2410c">⚠ 差价不够费</b>':''} <span class="sub">（按配对${mq}股算·费${Math.round(fee)}全扣${red>0?' · 另减仓'+red+'股回笼'+Math.round(sell*red):(red<0?' · 另加仓'+(-red)+'股投入'+Math.round(buy*(-red)):'')}）</span><button class="b" onclick="addTrade()">✓ 确认记账</button>`;
+  if(hasS&&hasB){
+    const diff=sell-buy, rate=buy?diff/buy*100:0, tq0=Math.max(100,Math.round(((h&&h.shares)||400)/4/100)*100), per100=diff*tq0-feeOf(sell,buy,tq0,tq0).fee;
+    const rc=diff>=0?'#dc2626':'#16a34a', rt=`<b style="color:${rc}">${diff>=0?'+':''}${rate.toFixed(2)}%</b>`;
+    if(isNaN(qty)||qty<=0){ box.innerHTML=`价差 <b>${diff.toFixed(2)} 元/股</b> · 差价率 ${rt} · <b>${tq0}股净赚 ≈ <span style="color:${per100>=0?'#dc2626':'#16a34a'}">${sg(Math.round(per100))} 元</span></b><span class="sub">（已扣费,按1/4仓估）· 还差股数,点上面快捷键</span>`; return; }
+    const bq=(isNaN(q2v)||q2v<=0)?qty:q2v;
+    const mq=Math.min(qty,bq), red=qty-bq;
+    const fee=feeOf(sell,buy,qty,bq).fee, net=(sell-buy)*mq-fee;
+    box.innerHTML=`待确认:<b>${h.name}</b> 卖 ${sell}×${qty}股 → 接 ${buy}×${bq}股<br>价差 <b>${diff.toFixed(2)} 元/股</b> · 差价率 ${rt} · 做T净收益 <b style="color:${net>=0?'#dc2626':'#16a34a'}">${sg(Math.round(net))} 元</b>${net<0?' <b style="color:#c2410c">⚠ 差价不够费</b>':''} <span class="sub">（按配对${mq}股算·费${Math.round(fee)}全扣${red>0?' · 另减仓'+red+'股回笼'+Math.round(sell*red):(red<0?' · 另加仓'+(-red)+'股投入'+Math.round(buy*(-red)):'')}）</span><button class="b" onclick="addTrade()">✓ 确认记账</button>`;
+    return;
+  }
+  if(hasS){ // 只卖不接: 按成本结算实现盈亏,股数自动扣减
+    const c=h.cost||0, per=c>0?sell-c:0, rc=per>=0?'#dc2626':'#16a34a';
+    if(c<=0){ box.innerHTML=`<b style="color:#c2410c">⚠ ${h.name} 成本价是0,先去「编辑」填成本,否则实现盈亏没法算</b>`; return; }
+    if(isNaN(qty)||qty<=0){ box.innerHTML=`只卖不接:较成本${c} <b style="color:${rc}">${per>=0?'+':''}${per.toFixed(2)} 元/股(${((sell/c-1)*100).toFixed(2)}%)</b> · 还差股数<button class="b" onclick="addTrade()">✓ 确认记账</button>`; return; }
+    const fee=Math.max(5,sell*qty*FEE.comm/100)+sell*qty*FEE.stamp/100;
+    const net=(sell-c)*qty-fee, left=h.shares-qty;
+    box.innerHTML=`待确认:<b>${h.name}</b> 卖出 ${sell}×${qty}股(不接回)<br>较成本${c} <b style="color:${rc}">${per>=0?'+':''}${per.toFixed(2)} 元/股(${((sell/c-1)*100).toFixed(2)}%)</b> · 实现盈亏 <b style="color:${net>=0?'#dc2626':'#16a34a'}">${sg(Math.round(net))} 元</b>(已扣费${Math.round(fee)})<br><span class="sub">记账后持仓 ${h.shares}股 → <b>${Math.max(0,left)}股</b>${left<=0?' · <b style="color:#c2410c">清仓</b>':''}</span><button class="b" onclick="addTrade()">✓ 确认记账</button>`;
+    return;
+  }
+  // 只买不卖: 纯加仓,按买入加权摊成本
+  const bq=(!isNaN(q2v)&&q2v>0)?q2v:qty;
+  if(isNaN(bq)||bq<=0){ box.innerHTML=`只买不卖:在「接回股数」或「卖出股数」格填买入数<button class="b" onclick="addTrade()">✓ 确认记账</button>`; return; }
+  const fee=Math.max(5,buy*bq*FEE.comm/100);
+  const ns=(h.shares||0)+bq, nc=ns>0?(((h.cost||0)*(h.shares||0))+buy*bq+fee)/ns:0;
+  box.innerHTML=`待确认:<b>${h.name}</b> 买入 ${buy}×${bq}股(纯加仓)<br>投入 <b>${Math.round(buy*bq).toLocaleString()} 元</b>(费${Math.round(fee)}) · 记账后 ${h.shares||0}股 → <b>${ns}股</b> · 成本 ${h.cost||0} → <b>${nc.toFixed(3)}</b><button class="b" onclick="addTrade()">✓ 确认记账</button>`;
 }
 // 内嵌表单添加(WPS等环境不支持prompt弹窗)
 function addSec(type){ document.getElementById(type==='hold'?'fHold':'fWatch').classList.toggle('show'); }
@@ -938,7 +974,7 @@ function renderT(){
     const a3=atrOf(h.code), atrUse=(a3&&todayAmp!=null)?Math.round(todayAmp/a3*100):null;
     const tf=trendFlag(pct,ampPct,mktOf(h));
     const nb=narrowBase(h.code,base,todayAmp);
-    const tr=tiers(p,nb.base,prev,tf.lv,h.code,h.name);
+    const tr=tiers((prev!=null?prev:p),nb.base,prev,tf.lv,h.code,h.name);
     const aS=parseFloat((document.getElementById('tSell')||{}).value), aB=parseFloat((document.getElementById('tBuy')||{}).value);
     const tq=Math.max(100,Math.round((h.shares||400)/4/100)*100);
     const ann=(x,dir,j)=>{ // dir>0 低吸档(锚=卖出价aS:卖aS接x) dir<0 高抛档(锚=接回价aB:接aB卖x); v4.46 未点价时默认配对对侧同序号档,标"约"
@@ -948,7 +984,8 @@ function renderT(){
       const diff=dir>0?a-x:x-a;
       const fee=dir>0?feeOf(a,x,tq,tq).fee:feeOf(x,a,tq,tq).fee;
       const net=diff*tq-fee;
-      return `<br><span class="sub" style="font-size:10px">${est?'约':''}${diff>=0?'+':''}${diff.toFixed(2)}/股 <b style="color:${net>=0?'#dc2626':'#16a34a'}">净${sg(Math.round(net))}</b>·${tq}股</span>`;
+      const bp=dir>0?x:a, nr=bp?net/(bp*tq)*100:0;
+      return `<br><span class="sub" style="font-size:10px">${est?'约':''}${diff>=0?'+':''}${diff.toFixed(2)}/股 <b style="color:${net>=0?'#dc2626':'#16a34a'}">净${sg(Math.round(net))}(${nr>=0?'+':''}${nr.toFixed(1)}%)</b>·${tq}股</span>`;
     };
     const bs=tr.buys.length?tr.buys.map((x,j)=>`<span class="tk" onclick="fillT('${h.code}',${x},'buy')">${tr.buys.length>1?'①②③'[j]:''}${P(x)}${ann(x,1,j)}</span>`).join(' / '):'—';
     const ss=tr.sells.length?tr.sells.map((x,j)=>`<span class="tk" onclick="fillT('${h.code}',${x},'sell')">${tr.sells.length>1?'①②③'[j]:''}${P(x)}${ann(x,-1,j)}</span>`).join(' / '):'—';
@@ -956,12 +993,46 @@ function renderT(){
       <td class="flat">${ampPct!=null?ampPct.toFixed(2)+'%':'—'}${atrUse!=null?'<br><span class="sub">ATR用'+atrUse+'%'+(nb.narrow?'·窄档':'')+'</span>':''}</td>
       <td class="down">${bs}</td><td class="up">${ss}</td></tr>`;
   }).join('') || '<tr><td class="sub" colspan="4">暂无持仓</td></tr>';
-  document.getElementById('tSum').textContent = MKT!=null?(Math.abs(MKT)>=1.2?'大行情:已加宽档位':'常规档位'):'';
+  document.getElementById('tSum').textContent = (MKT!=null?(Math.abs(MKT)>=1.2?'大行情:已加宽档位':'常规档位'):'')+' · 档位锚=昨收,全天锁定';
   const sel=document.getElementById('tSel');
   if(sel && sel.options.length!==PF.holds.length){
     sel.innerHTML=PF.holds.map((h,i)=>`<option value="${i}">${h.name}</option>`).join('');
   }
   renderLog(); renderPlan(); planHint();
+}
+// v4.52: 卡片内快捷记账——每只持仓旁边直接填卖/接/股数,实时预览净赚,复用主表单全部逻辑(单边/联动/还原)
+function qPrev(code){
+  const el=document.getElementById('qp_'+code); if(!el) return;
+  const h=PF.holds.find(x=>x.code===code); if(!h){ el.textContent=''; return; }
+  const sell=parseFloat(document.getElementById('qs_'+code).value);
+  const buy=parseFloat(document.getElementById('qb_'+code).value);
+  const qty=parseInt(document.getElementById('qq_'+code).value);
+  const hasS=!isNaN(sell)&&sell>0, hasB=!isNaN(buy)&&buy>0;
+  if(!hasS&&!hasB){ el.innerHTML=''; return; }
+  const q=(isNaN(qty)||qty<=0)?Math.max(100,Math.round((h.shares||400)/4/100)*100):qty;
+  let t='';
+  if(hasS&&hasB){ const fee=feeOf(sell,buy,q,q).fee, net=(sell-buy)*q-fee;
+    t='差'+(sell-buy).toFixed(2)+'/股 · '+q+'股净 ≈ '+sg(Math.round(net))+'元('+(net>=0?'+':'')+(net/(buy*q)*100).toFixed(1)+'%)'+(net<0?' ⚠不够费':'')+((isNaN(qty)||qty<=0)?' · 按1/4仓估':''); }
+  else if(hasS){ const c=h.cost||0;
+    if(c<=0) t='成本未填,先点「编辑」填成本';
+    else { const fee=Math.max(5,sell*q*FEE.comm/100)+sell*q*FEE.stamp/100, net=(sell-c)*q-fee;
+      t='只卖结算:较成本'+sg((sell-c).toFixed(2))+'/股 · '+q+'股实现 ≈ '+sg(Math.round(net))+'元 · 余'+(h.shares-q)+'股'; } }
+  else { const fee=Math.max(5,buy*q*FEE.comm/100), ns=(h.shares||0)+q, nc=ns>0?(((h.cost||0)*(h.shares||0))+buy*q+fee)/ns:0;
+    t='纯加仓:'+q+'股 · 成本 '+(h.cost||0)+'→'+nc.toFixed(3); }
+  el.innerHTML=t;
+}
+function qTrade(code){
+  const i=PF.holds.findIndex(x=>x.code===code); if(i<0){ toast('持仓里没这只票'); return; }
+  const sel=document.getElementById('tSel');
+  if(sel.options.length!==PF.holds.length) sel.innerHTML=PF.holds.map((h,j)=>`<option value="${j}">${h.name}</option>`).join('');
+  sel.value=i;
+  document.getElementById('tSell').value=document.getElementById('qs_'+code).value;
+  document.getElementById('tBuy').value=document.getElementById('qb_'+code).value;
+  let qv=document.getElementById('qq_'+code).value;
+  if(!qv){ const h=PF.holds[i]; qv=Math.max(100,Math.round((h.shares||400)/4/100)*100); } // 股数空=按1/4仓默认
+  document.getElementById('tQty').value=qv;
+  document.getElementById('tQty2').value='';
+  addTrade(); // 校验失败会toast且不入账;成功后render()自动重建卡片清空输入
 }
 function addTrade(){
   const i=+document.getElementById('tSel').value;
@@ -970,33 +1041,61 @@ function addTrade(){
   const buy=parseFloat(document.getElementById('tBuy').value);
   const qty=parseInt(document.getElementById('tQty').value);
   const q2v=parseInt(document.getElementById('tQty2').value);
-  if(isNaN(sell)||isNaN(buy)||isNaN(qty)||qty<=0){ toast('卖出价/接回价/卖出股数都要填'); return; }
-  const bq=(isNaN(q2v)||q2v<=0)?qty:q2v;
-  const mq=Math.min(qty,bq), red=qty-bq;
-  const fee=feeOf(sell,buy,qty,bq).fee, profit=(sell-buy)*mq-fee;
-  const redCash=red>0?sell*red:(red<0?buy*(-red):0);
+  const hasS=!isNaN(sell)&&sell>0, hasB=!isNaN(buy)&&buy>0;
+  if(!hasS&&!hasB){ toast('卖出价/接回价至少填一个'); return; }
+  const d0=document.getElementById('tDate').value||today();
   const note=(document.getElementById('tNote').value||'').trim().slice(0,30);
-  // v4.47: 执行评分——对照今日挂单自动判定(±0.3%内=按计划;卖高/买低于挂价=优于计划)
+  // 执行对照挂单: 只给客观事实,不带"优/劣"标签(卖高于挂单≠卖对,要看卖后走势)
   const execScore=(side,px)=>{
     const cands=PLAN.filter(p=>p.code===h.code&&p.side===side);
     if(!cands.length) return '';
     let best=cands[0].price,bd=Math.abs(px-best)/best;
     cands.forEach(c=>{ const d2=Math.abs(px-c.price)/c.price; if(d2<bd){bd=d2;best=c.price;} });
     const dev=(px-best)/best*100;
-    const ap=atrOf(h.code), tol=Math.max(0.002,(ap&&px?ap/px*0.05:0.003)); // v4.48: 容差按个股ATR×5%,不再一刀切0.3%
-    if(bd<=tol) return (side==='sell'?'卖':'买')+'=按计划';
-    if(side==='sell') return dev>0?('卖优计划+'+dev.toFixed(1)+'%'):('卖低计划'+dev.toFixed(1)+'%');
-    return dev<0?('买优计划+'+(-dev).toFixed(1)+'%'):('买超计划+'+dev.toFixed(1)+'%');
+    const ap=atrOf(h.code), tol=Math.max(0.002,(ap&&px?ap/px*0.05:0.003));
+    if(bd<=tol) return (side==='sell'?'卖':'买')+'≈挂单';
+    if(side==='sell') return dev>0?('卖高于挂单+'+dev.toFixed(1)+'%'):('卖低于挂单'+dev.toFixed(1)+'%');
+    return dev<0?('买低于挂单+'+(-dev).toFixed(1)+'%'):('买高于挂单+'+dev.toFixed(1)+'%');
   };
-  const exec=[execScore('sell',sell),execScore('buy',buy)].filter(x=>x).join(' · ');
-  TLOG.unshift({d:today(),code:h.code,name:h.name,sell,buy,qty,bq,gross:sell*qty-buy*bq,fee,red,redCash,note,profit,exec});
-  localStorage.setItem('tlog_lastqty', String(qty));
-  saveLog();
+  const posBefore={cost:h.cost||0, shares:h.shares||0};
+  let rec=null;
+  if(hasS&&hasB){
+    if(isNaN(qty)||qty<=0){ toast('卖出股数要填'); return; }
+    const bq=(isNaN(q2v)||q2v<=0)?qty:q2v;
+    const mq=Math.min(qty,bq), red=qty-bq;
+    const fee=feeOf(sell,buy,qty,bq).fee, profit=(sell-buy)*mq-fee;
+    const redCash=red>0?sell*red:(red<0?buy*(-red):0);
+    const exec=[execScore('sell',sell),execScore('buy',buy)].filter(x=>x).join(' · ');
+    rec={d:d0,code:h.code,name:h.name,sell,buy,qty,bq,gross:sell*qty-buy*bq,fee,red,redCash,note,profit,exec};
+    // 持仓联动: 股数=旧-卖+买; 成本=(旧总额+买入额+费-卖出额)/新股数 → 做T净利+减仓实现盈亏自动摊进成本
+    const ns=posBefore.shares-qty+bq;
+    const nt=posBefore.cost*posBefore.shares + buy*bq + fee - sell*qty;
+    h.shares=Math.max(0,ns); h.cost=ns>0?+(nt/ns).toFixed(3):0;
+  } else if(hasS){ // 只卖不接: 按成本算实现盈亏
+    if(isNaN(qty)||qty<=0){ toast('卖出股数要填'); return; }
+    if(posBefore.cost<=0){ toast(h.name+' 成本价是0,先去「编辑」填成本再记'); return; }
+    const fee=Math.max(5,sell*qty*FEE.comm/100)+sell*qty*FEE.stamp/100;
+    const profit=(sell-posBefore.cost)*qty-fee;
+    rec={d:d0,code:h.code,name:h.name,sell,buy:null,qty,bq:0,gross:sell*qty,fee,red:qty,redCash:sell*qty,note,profit,exec:execScore('sell',sell),solo:'sell'};
+    const ns=posBefore.shares-qty;
+    h.shares=Math.max(0,ns); if(ns<=0) h.cost=0; // 剩余股数成本不变,清仓归零
+  } else { // 只买不卖: 纯加仓摊成本
+    const bq=(!isNaN(q2v)&&q2v>0)?q2v:qty;
+    if(isNaN(bq)||bq<=0){ toast('买入股数要填(接回股数或卖出股数格)'); return; }
+    const fee=Math.max(5,buy*bq*FEE.comm/100);
+    rec={d:d0,code:h.code,name:h.name,sell:null,buy,qty:0,bq,gross:-buy*bq,fee,red:-bq,redCash:buy*bq,note,profit:-fee,exec:execScore('buy',buy),solo:'buy'};
+    const ns=posBefore.shares+bq;
+    h.cost=+(((posBefore.cost*posBefore.shares)+buy*bq+fee)/ns).toFixed(3); h.shares=ns;
+  }
+  rec.posBefore=posBefore; rec.posAfter={cost:h.cost, shares:h.shares};
+  TLOG.unshift(rec);
+  localStorage.setItem('tlog_lastqty', String(rec.qty||rec.bq||100));
+  save(); saveLog();
   PLAN=PLAN.filter(p=>!(p.code===h.code&&((p.side==='sell'&&p.price===sell)||(p.side==='buy'&&p.price===buy))));
   savePlan(); renderPlan();
   document.getElementById('tSell').value=''; document.getElementById('tBuy').value=''; document.getElementById('tQty').value=''; document.getElementById('tQty2').value=''; document.getElementById('tNote').value='';
-  maybeConfirmT();
-  renderLog(); toast('已记账,做T净收益 '+sg(Math.round(profit))+(red>0?' · 另减仓'+red+'股':(red<0?' · 另加仓'+(-red)+'股':'')));
+  maybeConfirmT(); renderLog(); render();
+  toast('已记账 '+sg(Math.round(rec.profit))+'元 · 持仓联动 '+posBefore.shares+'股→'+h.shares+'股 成本'+posBefore.cost+'→'+h.cost);
 }
 // v4.51: 再来一笔——沿用上笔台账回填表单,连记多单不用重填
 function repeatLast(){
@@ -1022,6 +1121,10 @@ function copyCoach(){
   L.push('■ 今日台账 '+tdRows.length+'笔:');
   tdRows.forEach(r=>{ L.push('· '+r.name+' 卖'+r.sell+'×'+r.qty+' 接'+r.buy+'×'+(r.bq||r.qty)+' 净'+Math.round(r.profit)+'元(费'+Math.round(r.fee||0)+')'+(r.exec?' ['+r.exec+']':'')+(r.note?' 原因:'+r.note:'')); });
   if(!tdRows.length) L.push('· (今日暂无)');
+  const byC2={}; tdRows.forEach(r=>{ const o=byC2[r.code]||(byC2[r.code]={name:r.name,sq:0,sa:0,bq:0,ba:0}); if(r.sell!=null){o.sq+=r.qty;o.sa+=r.sell*r.qty;} if(r.buy!=null){o.bq+=(r.bq||0);o.ba+=r.buy*(r.bq||0);} });
+  Object.keys(byC2).forEach(c=>{ const o=byC2[c], n=o.sq-o.bq;
+    if(n>0) L.push('· '+o.name+' 净卖'+n+'股未接回,卖均价'+(o.sa/o.sq).toFixed(2)+',若现价高于卖价=卖飞中');
+    else if(n<0) L.push('· '+o.name+' 净买'+(-n)+'股未高抛,买均价'+(o.ba/o.bq).toFixed(2)+',若现价低于买价=接了在跌'); });
   if(PLAN.length) L.push('■ 未成交挂单: '+PLAN.map(p=>p.name+(p.side==='sell'?'卖':'买')+p.price+'×'+p.qty).join(' / '));
   const his=TLOG.filter(r=>r.d!==td).slice(0,30);
   if(his.length){ L.push('■ 历史近'+his.length+'笔:');
@@ -1030,7 +1133,20 @@ function copyCoach(){
   const done=()=>toast('复盘数据包已复制,粘贴给任意AI即可');
   if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(txt).then(done,()=>fallbackCopy(txt,done)); } else fallbackCopy(txt,done);
 }
-function delTrade(idx){ TLOG.splice(idx,1); saveLog(); renderLog(); }
+function revertPos(r){ // 台账删/改时还原持仓(仅当该笔之后持仓没再被动过)
+  if(!r||!r.posAfter||!r.posBefore) return 'old';
+  const h=PF.holds.find(x=>x.code===r.code); if(!h) return 'gone';
+  if(h.shares===r.posAfter.shares && Math.abs((h.cost||0)-r.posAfter.cost)<0.0015){
+    h.cost=r.posBefore.cost; h.shares=r.posBefore.shares; save(); return 'ok';
+  }
+  return 'dirty';
+}
+function delTrade(idx){
+  const r=TLOG[idx]; const rv=revertPos(r);
+  TLOG.splice(idx,1); saveLog(); renderLog(); render();
+  if(rv==='ok') toast('已删台账,持仓已同步还原');
+  else if(rv==='dirty') toast('已删台账 · 该笔之后持仓又有变动,请手动核对股数/成本');
+}
 // v4.50: 记错了可改——回填表单+撤下旧条,核对后重新「记一笔」入档
 function editTrade(idx){
   const r=TLOG[idx]; if(!r) return;
@@ -1039,32 +1155,47 @@ function editTrade(idx){
   document.getElementById('tSell').value=r.sell; document.getElementById('tBuy').value=r.buy;
   document.getElementById('tQty').value=r.qty; document.getElementById('tQty2').value=r.bq||'';
   document.getElementById('tNote').value=r.note||'';
-  TLOG.splice(idx,1); saveLog(); renderLog();
+  const tde2=document.getElementById('tDate'); if(tde2&&r.d) tde2.value=r.d;
+  const rv2=revertPos(r);
+  TLOG.splice(idx,1); saveLog(); renderLog(); render();
   document.getElementById('tboxMain').scrollIntoView({behavior:'smooth',block:'center'});
   if(typeof maybeConfirmT==='function') maybeConfirmT();
-  toast('已回填表单,改完点「记一笔」重新入档');
+  toast('已回填表单'+(rv2==='ok'?',持仓已还原,改完点「记一笔」重新入档':(rv2==='dirty'?' · 注意:该笔之后持仓又有变动,重记前先核对股数/成本':'')));
 }
 // 台账导出CSV(Excel直接打开,UTF-8带BOM防中文乱码) / 全量备份恢复(换浏览器防丢)
 function exportCSV(){
   if(!TLOG.length){ toast('暂无台账可导'); return; }
-  const head='日期,股票,代码,卖出价,接回价,卖股数,接股数,费用,做T净收益,减仓股数,减仓回笼,加仓股数,加仓投入,原因';
-  const rows=TLOG.map(r=>[r.d,r.name,r.code,r.sell,r.buy,r.qty,(r.bq||r.qty),r.fee!=null?Math.round(r.fee):'',Math.round(r.profit),r.red>0?r.red:'',r.red>0?Math.round(r.redCash||0):'',r.red<0?-r.red:'',r.red<0?Math.round(r.redCash||0):'',(r.note||'').replace(/[",\n]/g,' ')].join(','));
-  // v4.50: 末尾追加按股票汇总+总计
-  const byN={}; TLOG.forEach(r=>{ const k=r.name; if(!byN[k]) byN[k]={n:0,net:0,fee:0}; byN[k].n++; byN[k].net+=r.profit; byN[k].fee+=r.fee||0; });
-  rows.push('');
-  rows.push('—— 按股票汇总 ——');
-  Object.keys(byN).forEach(k=>{ const b=byN[k];
-    rows.push(['小计',k,'','','','','',Math.round(b.fee),Math.round(b.net),'','','','',b.n+'笔'].join(',')); });
+  const L=[];
+  L.push('—— ① 逐笔流水(买/卖分腿,Excel里可按方向列筛选) ——');
+  L.push('日期,股票,代码,方向,价格,股数,金额,本笔费用,本笔净收益,执行对照,原因');
+  TLOG.forEach(r=>{
+    const note=(r.note||'').replace(/[",\n]/g,' '), ex=(r.exec||'').replace(/[",\n]/g,' ');
+    if(r.sell!=null) L.push([r.d,r.name,r.code,'卖出',r.sell,r.qty,Math.round(r.sell*r.qty),Math.round(r.fee||0),Math.round(r.profit),ex,note].join(','));
+    if(r.buy!=null) L.push([r.d,r.name,r.code,'买入',r.buy,(r.bq||0),Math.round(r.buy*(r.bq||0)),'','',ex,note].join(','));
+    if(r.red>0) L.push([r.d,r.name,r.code,'净减仓'+r.red+'股','','',Math.round(r.redCash||0),'','','',''].join(','));
+    if(r.red<0) L.push([r.d,r.name,r.code,'净加仓'+(-r.red)+'股','','',Math.round(r.redCash||0),'','','',''].join(','));
+  });
+  L.push('');
+  L.push('—— ② 按日汇总 ——');
+  L.push('日期,笔数,费用,做T净收益');
+  const byD={}; TLOG.forEach(r=>{ const o=byD[r.d]||(byD[r.d]={n:0,net:0,fee:0}); o.n++; o.net+=r.profit; o.fee+=r.fee||0; });
+  Object.keys(byD).sort().forEach(d2=>{ const o=byD[d2]; L.push([d2,o.n+'笔',Math.round(o.fee),Math.round(o.net)].join(',')); });
+  L.push('');
+  L.push('—— ③ 按股票汇总 ——');
+  L.push('股票,笔数,费用,做T净收益');
+  const byN={}; TLOG.forEach(r=>{ const o=byN[r.name]||(byN[r.name]={n:0,net:0,fee:0}); o.n++; o.net+=r.profit; o.fee+=r.fee||0; });
+  Object.keys(byN).forEach(k=>{ const o=byN[k]; L.push([k,o.n+'笔',Math.round(o.fee),Math.round(o.net)].join(',')); });
+  L.push('');
   const tot=TLOG.reduce((s,r)=>s+r.profit,0), tf=TLOG.reduce((s,r)=>s+(r.fee||0),0);
-  rows.push(['总计','全部','','','','','',Math.round(tf),Math.round(tot),'','','','',TLOG.length+'笔'].join(','));
-  const csv='﻿'+head+'\n'+rows.join('\n');
+  L.push(['总计',TLOG.length+'笔',Math.round(tf),Math.round(tot)].join(','));
+  const csv='﻿'+L.join('\n');
   const a=document.createElement('a');
   a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
   a.download='做T台账_'+today()+'.csv'; a.click();
-  toast('已导出 '+TLOG.length+' 条台账');
+  toast('已导出 '+TLOG.length+' 条台账(逐笔分腿+按日/按股票汇总)');
 }
 function backupJSON(){
-  const data={ver:'v4.43',at:new Date().toISOString(),holds:PF.holds,watch:PF.watch,tlog:TLOG,plan:PLAN,fee:FEE};
+  const data={ver:'v4.52',at:new Date().toISOString(),holds:PF.holds,watch:PF.watch,tlog:TLOG,plan:PLAN,fee:FEE};
   const a=document.createElement('a');
   a.href=URL.createObjectURL(new Blob([JSON.stringify(data,null,1)],{type:'application/json'}));
   a.download='hq备份_'+today()+'.json'; a.click();
@@ -1097,10 +1228,34 @@ function renderLog(){
     const tr2=TLOG.filter(r=>r.d===td);
     if(tr2.length){
       const wins=tr2.filter(r=>r.profit>0).length;
-      const avg=tr2.reduce((s2,r)=>s2+(r.buy?(r.sell-r.buy)/r.buy*100:0),0)/tr2.length;
-      ts.textContent=tr2.length+'笔 · 胜率'+Math.round(wins/tr2.length*100)+'% · 均差价率'+(avg>=0?'+':'')+avg.toFixed(2)+'%';
+      const pr=tr2.filter(r=>r.buy!=null&&r.sell!=null&&r.buy>0);
+      const avg=pr.length?pr.reduce((s2,r)=>s2+(r.sell-r.buy)/r.buy*100,0)/pr.length:null;
+      const feeT=tr2.reduce((s2,r)=>s2+(r.fee||0),0), grossT=tr2.reduce((s2,r)=>s2+Math.abs(r.gross||0),0);
+      const feeP=(feeT>0&&grossT>0)?' · 费用'+Math.round(feeT)+'元 占成交额'+(feeT/grossT*100).toFixed(2)+'%':'';
+      ts.textContent=tr2.length+'笔 · 胜率'+Math.round(wins/tr2.length*100)+'%'+(avg!=null?' · 均差价率'+(avg>=0?'+':'')+avg.toFixed(2)+'%':'')+feeP;
       ts.className='v '+cls(todaySum);
     } else { ts.textContent='—'; ts.className='v'; }
+  }
+  // 今日腿状态: 净卖未接回/净买未高抛的差额腿,对照现价量化(卖飞多少、接了跌多少,一眼可见)
+  const legRow=document.getElementById('tLegsRow'), legEl=document.getElementById('tLegs');
+  if(legRow&&legEl){
+    const byC={};
+    TLOG.filter(r=>r.d===td).forEach(r=>{
+      const o=byC[r.code]||(byC[r.code]={name:r.name, sq:0, sa:0, bq:0, ba:0});
+      if(r.sell!=null){ o.sq+=r.qty; o.sa+=r.sell*r.qty; }
+      if(r.buy!=null){ const b2=r.bq||0; o.bq+=b2; o.ba+=r.buy*b2; }
+    });
+    const parts=[];
+    Object.keys(byC).forEach(c=>{
+      const o=byC[c], f=GET(c), px=f?F(f,3):null, net=o.sq-o.bq;
+      if(net>0&&o.sq>0){ const avgS=o.sa/o.sq, vs=px!=null?(px/avgS-1)*100:null;
+        parts.push(o.name+' 净卖'+net+'股@'+avgS.toFixed(2)+'未接回'+(vs!=null?(' · 现价较卖价 <b class="'+cls(vs)+'">'+sg(vs.toFixed(1))+'%</b>'+(vs>0?'(卖飞中·跌回卖价下方才是接回区)':'(现价在卖价下方·接回区内)')):'')); }
+      else if(net<0&&o.bq>0){ const avgB=o.ba/o.bq, vs=px!=null?(px/avgB-1)*100:null;
+        const de=(LV[c]&&LV[c].de!=null)?LV[c].de:null;
+        parts.push(o.name+' 净买'+(-net)+'股@'+avgB.toFixed(2)+'未高抛'+(vs!=null?(' · 现价较买价 <b class="'+cls(vs)+'">'+sg(vs.toFixed(1))+'%</b>'+(vs<0?'(接了在跌·对照20日线'+(de!=null?de:'—')+'决策,破位不加仓)':'(浮盈中·进入高抛区可卖)')):'')); }
+    });
+    if(parts.length){ legRow.style.display='flex'; legEl.innerHTML=parts.join('<br>'); }
+    else legRow.style.display='none';
   }
   const cum=document.getElementById('tCum');
   // 周/月复盘面板: 笔数·胜率·净收益(周一起算/自然月)
@@ -1119,13 +1274,31 @@ function renderLog(){
     }); cum.textContent=parts.length?parts.join(' · '):'还没记录'; }
   const box=document.getElementById('tlog'); if(!box) return;
   if(!TLOG.length){ box.innerHTML='<div class="sub" style="padding:14px">还没有做T记录。做完一轮高抛低吸就来记一笔,自动扣费算摊低成本。</div>'; return; }
-  box.innerHTML=TLOG.map((r,idx)=>`<div class="tlog-row">
-    <span class="l">${r.name}${r.note?` <span class="sub">✎${esc(r.note)}</span>`:''}${r.exec?` <span class="sub" style="color:#d9a441">◎${esc(r.exec)}</span>`:''}<br><span class="sub">${r.d}</span></span>
-    <span class="sub">卖${P(r.sell)}<br>接${P(r.buy)}</span>
-    <span class="sub">${r.bq&&r.bq!==r.qty?('卖'+r.qty+'/接'+r.bq):(r.qty+'股')}<br>费${r.fee!=null?Math.round(r.fee):'—'}</span>
-    <span class="${cls(r.profit)}" style="font-weight:700">${sg(Math.round(r.profit).toLocaleString())}${r.red?`<br><span class="sub" style="font-weight:400">${r.red>0?'另减'+r.red+'股回笼'+Math.round(r.redCash||0):'另加'+(-r.red)+'股投入'+Math.round(r.redCash||0)}</span>`:''}</span>
-    <button class="rm" onclick="editTrade(${idx})">改</button>
-    <button class="rm" onclick="delTrade(${idx})">删</button></div>`).join('');
+  // 按日分组+当日小计,一眼看清每天战果
+  const groups=[]; let cur=null;
+  TLOG.forEach((r,idx)=>{ if(!cur||cur.d!==r.d){ cur={d:r.d, rows:[], sum:0}; groups.push(cur); } cur.rows.push({r:r,idx:idx}); cur.sum+=r.profit; });
+  let html='';
+  groups.forEach(g=>{
+    html+='<div class="tlog-row" style="background:#f6f8fb"><span class="l" style="font-weight:700">'+g.d+' · '+g.rows.length+'笔</span><span></span><span></span><span class="'+cls(g.sum)+'" style="font-weight:700">净 '+sg(Math.round(g.sum).toLocaleString())+'</span><span></span></div>';
+    g.rows.forEach(function(o){
+      const r=o.r, idx=o.idx;
+      const f=GET(r.code), px=f?F(f,3):null;
+      const aftS=(px!=null&&r.sell!=null&&r.d===td)?('<br><span class="sub">卖后<b class="'+cls(px-r.sell)+'">'+sg(((px/r.sell-1)*100).toFixed(1))+'%</b></span>'):'';
+      const aftB=(px!=null&&r.buy!=null&&r.d===td)?('<br><span class="sub">接后<b class="'+cls(px-r.buy)+'">'+sg(((px/r.buy-1)*100).toFixed(1))+'%</b></span>'):'';
+      const pxCell=r.sell!=null?('卖'+P(r.sell)+aftS):'<span class="sub">(纯买)</span>';
+      const bxCell=r.buy!=null?('接'+P(r.buy)+aftB):'<span class="sub">不接回</span>';
+      const qCell=r.solo==='buy'?('买'+r.bq+'股'):(r.solo==='sell'?('卖'+r.qty+'股'):(r.bq&&r.bq!==r.qty?('卖'+r.qty+'/接'+r.bq):(r.qty+'股')));
+      const pLbl=r.solo==='sell'?'实现 ':'';
+      html+='<div class="tlog-row">'
+        +'<span class="l">'+r.name+(r.note?' <span class="sub">✎'+esc(r.note)+'</span>':'')+(r.exec?' <span class="sub" style="color:#d9a441">◎'+esc(r.exec)+'</span>':'')+'<br><span class="sub">'+r.d+'</span></span>'
+        +'<span class="sub">'+pxCell+'<br>'+bxCell+'</span>'
+        +'<span class="sub">'+qCell+'<br>费'+(r.fee!=null?Math.round(r.fee):'—')+'</span>'
+        +'<span class="'+cls(r.profit)+'" style="font-weight:700">'+pLbl+sg(Math.round(r.profit).toLocaleString())+(r.red&&r.solo==null?('<br><span class="sub" style="font-weight:400">'+(r.red>0?('另减'+r.red+'股回笼'+Math.round(r.redCash||0)):('另加'+(-r.red)+'股投入'+Math.round(r.redCash||0)))+'</span>'):'')+'</span>'
+        +'<button class="rm" onclick="editTrade('+idx+')">改</button>'
+        +'<button class="rm" onclick="delTrade('+idx+')">删</button></div>';
+    });
+  });
+  box.innerHTML=html;
 }
 
 // 一键复制当日做T计划(发微信/备忘)
@@ -1137,7 +1310,7 @@ function copyPlan(){
     const base=ampBase(h.code,todayAmp);
     const ampPct=(todayAmp!=null&&prev)?todayAmp/prev*100:null;
     const tf=trendFlag(pct,ampPct,mktOf(h));
-    const tr=tiers(p,narrowBase(h.code,base,todayAmp).base,prev,tf.lv,h.code,h.name);
+    const tr=tiers((prev!=null?prev:p),narrowBase(h.code,base,todayAmp).base,prev,tf.lv,h.code,h.name);
     const a2=atrOf(h.code), lp3=limitPct(h.code,h.name)/100;
     const pre=(prev!=null&&a2!=null)?' 预判['+P(Math.max(prev*(1-lp3),prev-1.0*a2))+'~'+P(Math.min(prev*(1+lp3),prev+1.0*a2))+']':'';
     lines.push(h.name+' 现价'+P(p)+pre+' 低吸['+tr.buys.map(P).join('/')+'] 高抛['+tr.sells.map(P).join('/')+']');
@@ -1172,6 +1345,8 @@ function render(){
       me.innerHTML='上证 <b class="'+cls(MKT)+'">'+sg(MKT.toFixed(2))+'%</b> · '+s; } }
 
   let totMv=0, totPnl=0;
+  const qVals={};
+  PF.holds.forEach(h=>{ ['qs_','qb_','qq_'].forEach(pf=>{ const e=document.getElementById(pf+h.code); if(e&&e.value) qVals[pf+h.code]=e.value; }); });
   document.getElementById('holds').innerHTML = PF.holds.map((h,i)=>{
     const f=GET(h.code); const p=F(f,3),pct=F(f,32),hi=F(f,33),lo=F(f,34),prev=F(f,4);
     const todayAmp=(hi!=null&&lo!=null)?hi-lo:null;
@@ -1179,7 +1354,7 @@ function render(){
     const ampPct=(todayAmp!=null&&prev)?todayAmp/prev*100:null;
     const tf=trendFlag(pct,ampPct,mktOf(h));
     const nb=narrowBase(h.code,base,todayAmp);
-    const tr=tiers(p,nb.base,prev,tf.lv,h.code,h.name);
+    const tr=tiers((prev!=null?prev:p),nb.base,prev,tf.lv,h.code,h.name);
     const projHi=(p!=null&&nb.base!=null)?p+K_UP*nb.base:null, projLo=(p!=null&&nb.base!=null)?p-K_DN*nb.base:null;
     const badge = tf.lv>0 ? `<span class="badge ${tf.cls}">${tf.label}</span>` : '';
     const wth=WT[h.code], wtCh=wth>0?'up':(wth<0?'down':'flat');
@@ -1222,7 +1397,8 @@ function render(){
     const posTxt=(p!=null&&preHi!=null&&preLo!=null)?(p>=preHi?'⚡现价破预判上沿':(p<=preLo?'⚡现价破预判下沿':'在预判区间内')):'';
     const lg=legOf(h.code);
     const legGain=(lg&&p!=null)?(p/lg.base-1)*100:null;
-    const legTxt=(legGain!=null&&legGain>=25)?`<div class="atrnote" style="color:#d9a441">📏 本段自低点(${lg.from}起 ${lg.base.toFixed(2)})已涨 <b>+${legGain.toFixed(1)}%</b> · 过25%参考线(历史行情段P75口径)${legGain>=45?' · 已进前10%段':''}</div>`:'';
+    const lvH=LV[h.code]||{}, devA=(p!=null&&lvH.de!=null&&atrV)?(p-lvH.de)/atrV:null;
+    const legTxt=(legGain!=null||devA!=null)?`<div class="atrnote"${legGain>=25?' style="color:#d9a441"':''}>📏 ${legGain!=null?`本段自${lg.from}低点${lg.base.toFixed(2)}以来 <b class="${cls(legGain)}">${sg(legGain.toFixed(1))}%</b>${legGain>=25?' · 过25%参考线(历史行情段P75)':''}${legGain>=45?' · 已进前10%段':''}`:''}${devA!=null?` · 20日线${lvH.de} 偏离 <b>${devA>=0?'+':''}${devA.toFixed(1)}×ATR</b>${Math.abs(devA)>=2?' · 极端区':''}`:''}</div>`:'';
     const editRow = editMode ? `<div class="editbox">
         <label>成本<input type="number" step="0.001" value="${h.cost}" onchange="editField('hold',${i},'cost',this.value)"></label>
         <label>股数<input type="number" step="100" value="${h.shares}" onchange="editField('hold',${i},'shares',this.value)"></label>
@@ -1243,6 +1419,8 @@ function render(){
       <div class="proj vrd"><span>📋 <b style="color:${vCls(vd)}">${vd}</b></span></div>
       ${legTxt}
       <div class="tierbox"><div class="tier tb"><div class="tl">低吸区 · 点价直接填单</div>${buyStr}</div><div class="tier ts"><div class="tl">高抛区 · 点价直接填单</div>${sellStr}</div></div>
+      <div class="qbox"><input id="qs_${h.code}" type="number" step="0.001" placeholder="卖出价" oninput="qPrev('${h.code}')"><input id="qb_${h.code}" type="number" step="0.001" placeholder="接回(空=只卖)" oninput="qPrev('${h.code}')"><input id="qq_${h.code}" type="number" step="100" placeholder="股数" oninput="qPrev('${h.code}')"><button onclick="qTrade('${h.code}')">记</button></div>
+      <div class="sub qpv" id="qp_${h.code}"></div>
       <a href="https://fululi.github.io/k-station/?code=${h.code}&lines=${tr.buys.map(x=>'b'+x.toFixed(2)).concat(tr.sells.map(x=>'s'+x.toFixed(2))).join(',')}" style="display:block;text-align:center;margin-top:8px;padding:8px;border-radius:8px;background:#2563eb;color:#fff;text-decoration:none;font-size:13px;font-weight:600">📈 看K线（做T价位已自动画好）</a>
       <div class="atrnote">${atrTxt}${lk?` · 跟${lk.i} r${lk.r}${(lk.ad||lk.au)?'·极端日×'+(lk.ad||lk.au):''}`:''}</div>
       ${ffTxt}
@@ -1252,6 +1430,7 @@ function render(){
       ${editRow}
     </div>`;
   }).join('') || '<div class="card sub">暂无持仓,点右上编辑或＋添加</div>';
+  Object.keys(qVals).forEach(id=>{ const e=document.getElementById(id); if(e) e.value=qVals[id]; });
 
   document.getElementById('watch').innerHTML = PF.watch.map((w,i)=>{
     const f=GET(w.code); const p=F(f,3),pct=F(f,32),hi=F(f,33),lo=F(f,34),prev=F(f,4);
@@ -1290,6 +1469,7 @@ function render(){
   document.getElementById('time').textContent='行情时间 '+(fmtT(when)||'—');
   const fc=document.getElementById('feeComm'), fs=document.getElementById('feeStamp');
   if(fc&&!fc.value) fc.value=FEE.comm; if(fs&&!fs.value) fs.value=FEE.stamp;
+  const tde=document.getElementById('tDate'); if(tde&&!tde.value) tde.value=today();
   renderT();
   renderPaper();
 }
