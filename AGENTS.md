@@ -36,6 +36,7 @@
 | 做T计划表 | renderT 968（ann() 档位净赚标注在内） |
 | 挂单计划 | addPlan 803 · renderPlan 815 · fillPlan 846 · copyOrders 861 · sweepPlans 266 |
 | 记一笔/单边/联动 | maybeConfirmT_ 882 · addTrade 1037 · qPrev/qTrade(卡片快捷) 1004/1024 |
+| 面板/档案 | renderDayChg(今日仓位变动) · renderClosed(清仓档案) · anchorOf/anchorNote(跳空锚) |
 | 台账/复盘 | renderLog 1220（按日分组+腿状态在内） · delTrade 1144 · editTrade 1151 · revertPos 1136 |
 | 导出/备份 | exportCSV 1166 · backupJSON 1197 · restoreJSON 1204 · copyCoach 1114 |
 | 模拟建仓 | triDet 1483 · paperScan 1511 · renderPaper 1520 |
