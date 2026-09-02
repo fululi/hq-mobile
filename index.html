@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#f5f6f8">
-<title>我的持仓 · 行情 v5.39</title>
+<title>我的持仓 · 行情 v5.40</title>
 <style>
 :root { color-scheme: light; }
 html { scroll-padding-top:118px; }
@@ -63,6 +63,9 @@ div.sec.collapsed::after { content:'▸'; }
 .tier.ts.mute .tchip{opacity:.5}
 .tnote { margin-top:6px; font-size:11px; color:#9a6a1a; background:#fff8e8; border-radius:6px; padding:5px 8px; }
 .atrnote { margin-top:6px; font-size:11px; color:#4b5563; }
+/* v5.40 指数卡的大周期档位:一行,离现价最近的那一档,完整四档在 title 悬停 */
+.ifb { margin-top:5px; font-size:11px; color:#475569; font-variant-numeric:tabular-nums; }
+.ifb b { font-size:13px; color:#0f172a; margin:0 2px; }
 details.mini > summary { font-size:11px; color:#8b95a5; cursor:pointer; list-style:none; padding:4px 0; user-select:none; }
 details.mini > summary::-webkit-details-marker { display:none; }
 details.mini > summary::after { content:' ▾'; }
@@ -1370,9 +1373,16 @@ function indexFibLine(f,p){
   const tx=lv.map(x=>x[0]+'='+P(x[1])).join(' · ');
   // v5.33: 原为裸变量 base(从未定义) → ReferenceError 打断整个 doRender,
   // 导致指数卡/时间/总览/持仓全都渲染不出来。字段名是 legBase。
-  const anchor=up?(+f.legBase):hi;
-  const gain=(anchor>0)?(p-anchor)/anchor*100:0;
-  return `<div class="atrnote"><b>📏指数日线Fib</b> ${up?'↑':'↓'} ${P(up?lo:hi)}→${P(up?hi:lo)} · ${up?'回撤支撑':'反弹压力'} ${tx} · 扩展1.618=${P(up?lo+R*1.618:hi-R*1.618)} · ${gain>=0?'当前段':'相对起点'}${sg(gain.toFixed(1))}% <span class="dim">(只作大盘背景,不改个股档位)</span></div>`;
+  // v5.40: 五行字压成一行 —— 大周期方向必须留(不看盘也要知道),但四张指数卡
+  // 各占五行会把总览挤成字墙。只报离现价最近的那一档,完整四档收进悬停。
+  const lvAll=[[0.382,'38.2'],[0.5,'50'],[0.618,'61.8'],[0.786,'78.6']]
+    .map(x=>({k:x[1], v: up?hi-R*x[0] : lo+R*x[0]}));
+  let best=lvAll[0];
+  lvAll.forEach(o=>{ if(Math.abs(o.v-p)<Math.abs(best.v-p)) best=o; });
+  const tip=(up?'上涨段 ':'下跌段 ')+P(lo)+'→'+P(hi)+' · '
+    +lvAll.map(o=>o.k+'%='+P(o.v)).join(' · ')
+    +' · 扩展1.618='+P(up?lo+R*1.618:hi-R*1.618)+' · 只作大盘背景,不改个股档位';
+  return `<div class="ifb" title="${tip}">${up?'↑':'↓'}${up?'撑':'压'} <b>${P(best.v)}</b><span class="dim">${best.k}%</span></div>`;
 }
 function m15FibCalc(kl, code, triSignal){
   if(!kl||kl.length<7) return {kind:'no-data'};
@@ -3168,22 +3178,48 @@ try{ const _bad=x=>x.status==='closed'&&x.entryD===x.exitD&&Math.abs(x.ret||0)<0
 function savePaper(){ try{ localStorage.setItem('paper_v1', JSON.stringify(PAPER.slice(-60))); }catch(e){} }
 // v4.50: 模拟仓可手动删(点两下确认)
 function delPaper(i,btn){ if(!btn.dataset.armed){ btn.dataset.armed='1'; btn.textContent='确认?'; setTimeout(()=>{ btn.dataset.armed=''; btn.textContent='删'; },2500); return; } PAPER.splice(i,1); savePaper(); renderPaper(); }
-function triDet(kl){
+// v5.40 三角检测。两处修正,都是实测驱动:
+//  1) 收敛判据:旧条件 mh>=0||ml<=0 要求「上沿必须跌且下沿必须涨」,只认对称三角,
+//     下降三角/上升三角/升降楔形全被拒。9只持仓15分K里8只因此判负。
+//     正确判据是「两线间距在缩小」mh-ml<0,与各自涨跌无关,天然排除喇叭扩散。
+//  2) 多宽度一致性:枢轴宽度w决定哪些高低点算数,换个w就换一批三角 ——
+//     实测 w=1 报出3只、w=2 报出2只,两组零重合。单一宽度报出的形态里
+//     5/9 是换参数就消失的假货。故要求 w∈{1,2,3} 至少两个都成立才算数,
+//     取中位宽度的边界值。结果:稳健三角 1/9(600875下降三角)。
+//     宁可少报,不能把参数artifact当信号。
+function triOne(kl,w){
   const n=kl.length, sh=[], sl=[];
-  for(let i=Math.max(2,n-52); i<n-2; i++){
-    if(kl[i][2]>kl[i-1][2]&&kl[i][2]>kl[i-2][2]&&kl[i][2]>=kl[i+1][2]&&kl[i][2]>=kl[i+2][2]) sh.push(i);
-    if(kl[i][3]<kl[i-1][3]&&kl[i][3]<kl[i-2][3]&&kl[i][3]<=kl[i+1][3]&&kl[i][3]<=kl[i+2][3]) sl.push(i);
+  for(let i=Math.max(w,n-52); i<n-w; i++){
+    let isH=true, isL=true;
+    for(let k=1;k<=w;k++){
+      if(!(kl[i][2]>kl[i-k][2])) isH=false;
+      if(!(kl[i][2]>=kl[i+k][2])) isH=false;
+      if(!(kl[i][3]<kl[i-k][3])) isL=false;
+      if(!(kl[i][3]<=kl[i+k][3])) isL=false;
+    }
+    if(isH) sh.push(i); if(isL) sl.push(i);
   }
   const H=sh.filter(x=>x>=n-50), L=sl.filter(x=>x>=n-50);
   if(H.length<2||L.length<2) return null;
   const h1=H[H.length-2],h2=H[H.length-1],l1=L[L.length-2],l2=L[L.length-1];
   if(h2<=h1||l2<=l1) return null;
   const mh=(kl[h2][2]-kl[h1][2])/(h2-h1), ml=(kl[l2][3]-kl[l1][3])/(l2-l1);
-  if(mh>=0||ml<=0) return null;
+  if(!(mh-ml<0)) return null;                      // 间距未缩小 → 不是三角
   const bh=kl[h1][2]-mh*h1, bl=kl[l1][3]-ml*l1, apex=(bl-bh)/(mh-ml);
   if(apex<=Math.max(h2,l2)||apex>n+30) return null;
   const up=mh*(n-1)+bh, dn=ml*(n-1)+bl, c=kl[n-1][4];
-  return { up, dn, brk: c>up?1:(c<dn?-1:0) };
+  if(!(up>dn)) return null;                        // 顶点已过,两沿交叉,不是三角
+  const F=1e-9;
+  const kind=Math.abs(ml)<F?'下降三角':(Math.abs(mh)<F?'上升三角':
+    (mh<0&&ml<0?'下降楔形':(mh>0&&ml>0?'上升楔形':'对称三角')));
+  return { up, dn, kind, apexIn:Math.round(apex-(n-1)), brk: c>up?1:(c<dn?-1:0) };
+}
+function triDet(kl){
+  const hits=[1,2,3].map(w=>triOne(kl,w)).filter(Boolean);
+  if(hits.length<2) return null;                   // 稳健性不足,不报
+  hits.sort((a,b)=>a.up-b.up);
+  const m=hits[Math.floor(hits.length/2)];
+  return { up:m.up, dn:m.dn, kind:m.kind, apexIn:m.apexIn, brk:m.brk, agree:hits.length };
 }
 function atrLast(kl){
   if(kl.length<15) return null;
