@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#f5f6f8">
-<title>我的持仓 · 行情 v5.05</title>
+<title>我的持仓 · 行情 v5.06</title>
 <style>
 :root { color-scheme: light; }
 * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
@@ -2155,7 +2155,8 @@ function renderDayChg(){
       const net=rs.reduce((s,r)=>s+((r.bq||0)-(r.qty||0)),0);
       if(o.start&&o.start.shares!=null){
         const should=o.start.shares+net, gap=(h.shares||0)-should;
-        if(Math.abs(gap)>=100) warn.push(o.name+' 台账推算'+should+'股·实际'+(h.shares||0)+'股·差'+(gap>0?'+':'')+gap+'股');
+        if(Math.abs(gap)>=100){ warn.push(o.name+' 台账推算'+should+'股·实际'+(h.shares||0)+'股·差'+(gap>0?'+':'')+gap+'股');
+          o.mismatch='台账推算'+should+'股 ≠ 实际持仓'+(h.shares||0)+'股(差'+(gap>0?'+':'')+gap+') · 可能漏记/两端各记一半,请手工核对'; }
       } else {  // v4.61: 旧备份无posBefore,改判成本与今日成交价背离
         const px=rs.map(r=>r.sell||r.buy||0).filter(x=>x>0);
         if(px.length&&h.cost>0){
@@ -2173,9 +2174,13 @@ function renderDayChg(){
     if(o.start&&o.end){ const ds=o.end.shares-o.start.shares;
       posLine=o.start.shares+'股→'+o.end.shares+'股'+(o.end.shares===0?'(已清仓)':(ds>0?'(净加'+ds+'股)':(ds<0?'(净减'+(-ds)+'股)':'')))+' · 成本'+o.start.cost+'→'+(o.end.shares===0?'—':o.end.cost); }
     html+='<div class="prow" style="padding:7px 0"><span><b>'+o.name+'</b>'+(posLine?' <span class="sub">'+posLine+'</span>':'')
+      +(o.mismatch?'<br><span class="sub" style="color:#b91c1c">⚠'+o.mismatch+'</span>':'')
       +'</span><span><b class="'+cls(o.profit)+'">'+sg(Math.round(o.profit))+'</b>'
       +'<span class="sub" style="margin-left:6px">'+(cash>0?'投':'回')+Math.round(Math.abs(cash)).toLocaleString()+'</span></span></div>'; });
   // v4.61: 利润=赚的钱(大字), 回笼=本金进出(小字), 两者不是一回事
+  let flToday=0, flOk=false;
+  PF.holds.forEach(h=>{ const f2=GET(h.code), p2=F(f2,3), pv=F(f2,4);
+    if(p2!=null&&pv!=null&&(h.shares||0)>0){ flToday+=(p2-pv)*h.shares; flOk=true; } });
   let totQ=0;
   Object.keys(byC).forEach(c=>{ totQ+=rows.filter(r=>r.code===c).reduce((s,r)=>s+((r.bq||0)-(r.qty||0)),0); });
   html+='<div style="border-top:1px solid #e6e8ec;margin-top:6px;padding-top:8px">'
@@ -2183,7 +2188,9 @@ function renderDayChg(){
       +'<b style="font-size:14px">今日做T净利润</b>'
       +'<b class="'+cls(totP)+'" style="font-size:20px">'+sg(Math.round(totP).toLocaleString())+' 元</b></div>'
     +'<div class="sub" style="margin-top:2px">本金'+(totCash>0?'投入':'回笼')+' '+Math.round(Math.abs(totCash)).toLocaleString()
-      +' 元(不是利润) · '+(totQ>0?'加仓+':(totQ<0?'减仓':'股数持平'))+(totQ?totQ+'股':'')+'</div></div>';
+      +' 元(不是利润) · '+(totQ>0?'加仓+':(totQ<0?'减仓':'股数持平'))+(totQ?totQ+'股':'')+'</div>'
+    +'<div class="sub" style="margin-top:2px">拆分: 做T已实现 <b class="'+cls(totP)+'">'+sg(Math.round(totP))+'</b>元'
+    +(flOk?(' · 持仓今日浮动 <b class="'+cls(flToday)+'">'+sg(Math.round(flToday))+'</b>元 · 合计 <b class="'+cls(totP+flToday)+'">'+sg(Math.round(totP+flToday))+'</b>元'):' · 浮动待行情')+'</div></div>';
   el.innerHTML=html; el.style.display='block';
 }
 
