@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#f5f6f8">
-<title>我的持仓 · 行情 v5.33</title>
+<title>我的持仓 · 行情 v5.34</title>
 <style>
 :root { color-scheme: light; }
 html { scroll-padding-top:118px; }
@@ -1356,10 +1356,14 @@ function m15FibCalc(kl, code, triSignal){
   if(a.length<7) return {kind:'none', bars:a.length, reason:'完成K不足7根'};
   const ranges=a.map(r=>Math.max(0,r[2]-r[3])).sort((x,y)=>x-y);
   const med=ranges[Math.floor(ranges.length/2)]||0;
+  // v5.34: 枢轴单侧宽度 2→1。原先要求左右各2根都被压过(5根K≈75分钟),
+  // 而一个交易日只有16根15分K,这个窗口占掉全天三分之一 —— 实测180个(票,日)样本中
+  // 89个连3个交替枢轴都凑不出,是参数标定错误(该参数原是按80根跨5日序列标的)。
+  // 幅度门槛(中位波幅×2.5)不动:那是"多短的腿还算一条腿"的质量线,不是bug。
   let ps=[];
-  for(let i=2;i<a.length-2;i++){
-    const isH=a[i][2]>=a[i-1][2]&&a[i][2]>=a[i-2][2]&&a[i][2]>a[i+1][2]&&a[i][2]>a[i+2][2];
-    const isL=a[i][3]<=a[i-1][3]&&a[i][3]<=a[i-2][3]&&a[i][3]<a[i+1][3]&&a[i][3]<a[i+2][3];
+  for(let i=1;i<a.length-1;i++){
+    const isH=a[i][2]>=a[i-1][2]&&a[i][2]>a[i+1][2];
+    const isL=a[i][3]<=a[i-1][3]&&a[i][3]<a[i+1][3];
     if(isH!==isL) ps.push({i:i,k:isH?'H':'L',p:isH?a[i][2]:a[i][3],t:String(a[i][0])});
   }
   const z=[]; ps.forEach(q=>{ const v=z[z.length-1];
