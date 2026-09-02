@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#f5f6f8">
-<title>我的持仓 · 行情 v5.04</title>
+<title>我的持仓 · 行情 v5.05</title>
 <style>
 :root { color-scheme: light; }
 * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
@@ -29,6 +29,9 @@ body { margin:0; padding:14px 12px 40px; background:#f5f6f8; color:#1a1d21;
 .idx .c .v { font-size:15px; font-weight:680; font-variant-numeric:tabular-nums; }
 .idx .c .g { font-size:11px; font-weight:600; margin-top:1px; font-variant-numeric:tabular-nums; }
 .sec { font-size:13px; font-weight:660; color:#374151; margin:0 2px 8px; display:flex; justify-content:space-between; align-items:center; }
+div.sec { cursor:pointer; }
+div.sec::after { content:'▾'; color:#c0c4cc; font-size:12px; margin-left:8px; }
+div.sec.collapsed::after { content:'▸'; }
 .sec .add { font-size:12px; color:#2563eb; background:#eaf0ff; border:none; padding:4px 10px; border-radius:7px; font-weight:600; }
 .addform { background:#fff; border:1px solid #dbe3ee; border-radius:10px; padding:10px; margin-bottom:12px; display:none; grid-template-columns:1fr 1fr; gap:8px; }
 .addform.show { display:grid; }
@@ -1350,6 +1353,25 @@ function refresh(manual){
 }
 let COLL={}; try{ COLL=JSON.parse(localStorage.getItem('hqm_coll_v1')||'{}'); }catch(e){ COLL={}; }
 function togCard(c){ COLL[c]=!COLL[c]; lsSet('hqm_coll_v1',JSON.stringify(COLL)); render(); }
+
+// v5.05: 栏目折叠 —— 点栏目标题收起/展开整栏,状态记忆;表单区不受影响(点击只认标题行)
+let SECC={}; try{ SECC=JSON.parse(localStorage.getItem('hqm_sec_v1')||'{}'); }catch(e){}
+function secBodyNodes(sec){ const ns=[]; let n=sec.nextElementSibling;
+  while(n){ if(n.classList&&n.classList.contains('sec')) break;
+    if(n.tagName==='DETAILS'&&n.querySelector(':scope>summary.sec')) break;
+    ns.push(n); n=n.nextElementSibling; }
+  return ns; }
+function applySec(sec,coll){ sec.classList.toggle('collapsed',!!coll);
+  secBodyNodes(sec).forEach(n=>{ if(coll){ if(n.dataset.odisp===undefined) n.dataset.odisp=n.style.display||''; n.style.display='none'; }
+    else { n.style.display=n.dataset.odisp||''; } }); }
+document.addEventListener('click',e=>{
+  const sec=e.target.closest('div.sec'); if(!sec) return;
+  if(e.target.closest('button,input,a,select,summary')) return;
+  const id=((sec.querySelector('span')||{}).textContent||sec.textContent||'').slice(0,20); if(!id) return;
+  SECC[id]=!SECC[id]; lsSet('hqm_sec_v1',JSON.stringify(SECC)); applySec(sec,SECC[id]);
+});
+try{ document.querySelectorAll('div.sec').forEach(sec=>{
+  const id=((sec.querySelector('span')||{}).textContent||'').slice(0,20); if(id&&SECC[id]) applySec(sec,true); }); }catch(e){}
 function toggleEdit(){ editMode=!editMode;
   let fb=document.getElementById('edFloat');
   if(editMode&&!fb){ fb=document.createElement('div'); fb.id='edFloat';
