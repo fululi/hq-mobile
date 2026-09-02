@@ -6,13 +6,13 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#f5f6f8">
-<title>我的持仓 · 行情 v4.99</title>
+<title>我的持仓 · 行情 v5.00</title>
 <style>
 :root { color-scheme: light; }
 * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
 body { margin:0; padding:14px 12px 40px; background:#f5f6f8; color:#1a1d21;
   font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif; font-size:15px; }
-.top { display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; gap:8px; }
+.top { display:flex; align-items:center; justify-content:space-between; gap:8px; position:sticky; top:0; z-index:60; background:#f5f6f8; margin:-14px -12px 6px; padding:12px 12px 8px; box-shadow:0 1px 0 rgba(0,0,0,.06); }
 .top h1 { font-size:18px; margin:0; font-weight:680; }
 .top .btns { display:flex; gap:8px; }
 .top button { font-size:13px; border:none; padding:7px 12px; border-radius:8px; font-weight:600; }
@@ -1335,6 +1335,12 @@ function refresh(manual){
   document.body.appendChild(s);
 }
 function toggleEdit(){ editMode=!editMode;
+  let fb=document.getElementById('edFloat');
+  if(editMode&&!fb){ fb=document.createElement('div'); fb.id='edFloat';
+    fb.style.cssText='position:fixed;left:12px;right:12px;bottom:14px;z-index:70;text-align:center';
+    fb.innerHTML='<button onclick="toggleEdit()" style="width:100%;border:none;padding:13px;border-radius:12px;background:#1a1d21;color:#fff;font-size:15px;font-weight:700;box-shadow:0 4px 14px rgba(0,0,0,.25)">✓ 完成编辑</button>';
+    document.body.appendChild(fb); }
+  if(!editMode&&fb) fb.remove();
   document.getElementById('edBtn').textContent = editMode?'完成':'编辑';
   document.getElementById('edBtn').classList.toggle('on',editMode);
   document.getElementById('wdelh').textContent = editMode?'删':'';
