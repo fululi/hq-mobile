@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#f5f6f8">
-<title>我的持仓 · 行情 v5.15</title>
+<title>我的持仓 · 行情 v5.16</title>
 <style>
 :root { color-scheme: light; }
 * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
@@ -381,11 +381,16 @@ let TLOG; try{ TLOG=JSON.parse(localStorage.getItem(LOG))||[]; }catch(e){ TLOG=[
 // v5.13: 今日盈亏改用现金流恒等式,不再用"(现价-昨收)×当前股数+今日已实现"拼——净加仓/净减仓/纯卖旧仓都会失真(GPT review确认)
 // 今日盈亏 = 现价×期末股数 + 今日成交现金流(卖入-买出-费) - 昨收×期初(昨收时)股数
 // posBefore/posAfter 是 addTrade() 每笔都记的持仓快照,TLOG最新在前,今天最后一条(数组里最旧那笔)的 posBefore 就是"昨收时的持仓"
+// v5.16: s0改锚定"当前实际股数-今日净变动",不再信任posBefore历史快照——
+// 手工编辑股数(核对多设备desync时经常这么做)会让posBefore链和当前shares脱节,
+// 旧写法在这种情况下prev×s0会算出离谱巨大的数字;健康场景下(无手工改)两种算法结果完全一致,
+// 但新写法始终以"当前真实股数"为锚,不会因快照过期而失真
 function todayPnlOf(code,shares,p,prev){
   if(p==null||prev==null) return null;
   const rows=TLOG.filter(r=>r.code===code&&r.d===today());
   const cf=rows.reduce((s,r)=>s+((r.sell||0)*(r.qty||0))-((r.buy||0)*(r.bq||0))-(r.fee||0),0);
-  const s0=(rows.length&&rows[rows.length-1].posBefore)?rows[rows.length-1].posBefore.shares:shares;
+  const netQty=rows.reduce((s,r)=>s+((r.bq||0)-(r.qty||0)),0);
+  const s0=shares-netQty;
   return p*shares+cf-prev*s0;
 }
 let PLAN; try{ PLAN=JSON.parse(localStorage.getItem('tplan_v1'))||[]; }catch(e){ PLAN=[]; }
