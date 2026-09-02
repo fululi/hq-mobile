@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#f5f6f8">
-<title>我的持仓 · 行情 v5.10</title>
+<title>我的持仓 · 行情 v5.11</title>
 <style>
 :root { color-scheme: light; }
 * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
@@ -1614,8 +1614,7 @@ function acctMulti(){ const l=acctList(); return l.length>1||(l.length===1&&l[0]
 function acctHdr(a){
   if(!acctMulti()) return '';
   const o=ACCS[a]; if(!o) return '';
-  return '<div class="acch"><b>'+(a||'未分组')+'</b><span>'+o.n+'只 · 市值'+Math.round(o.mv).toLocaleString()
-    +' · 今日<i class="'+cls(o.day)+'">'+sg(Math.round(o.day))+'</i> · 浮盈<i class="'+cls(o.pnl)+'">'+sg(Math.round(o.pnl))+'</i></span></div>';
+  return '<div class="acch"><b>'+(a||'未分组')+'</b><span>'+o.n+'只 · 市值'+Math.round(o.mv).toLocaleString()+'</span></div>';
 }
 
 // ---- v4.85 批量导入持仓: 从券商App抄一遍太累,支持整段粘贴 ----
