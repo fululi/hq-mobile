@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#f5f6f8">
-<title>我的持仓 · 行情 v5.28</title>
+<title>我的持仓 · 行情 v5.29</title>
 <style>
 :root { color-scheme: light; }
 html { scroll-padding-top:118px; }
@@ -1376,20 +1376,32 @@ function m15FibCalc(kl, code, triSignal){
   }
   return {kind:'none', bars:a.length, reason:'未形成合格A-B-C摆动'};
 }
-// 15分钟数据统一成 [时间,开,收,高,低]；优先腾讯m15，失败再走新浪fetch/JSONP。
+// 15分钟数据统一成 [时间,开,高,低,收]；腾讯原始顺序是 [时间,开,收,高,低]。
+function normM15Time(v){
+  let s=String(v==null?'':v).trim().replace('T',' ');
+  if(/^\d{12}$/.test(s)) s=s.slice(0,4)+'-'+s.slice(4,6)+'-'+s.slice(6,8)+' '+s.slice(8,10)+':'+s.slice(10,12);
+  else if(/^\d{14}$/.test(s)) s=s.slice(0,4)+'-'+s.slice(4,6)+'-'+s.slice(6,8)+' '+s.slice(8,10)+':'+s.slice(10,12)+':'+s.slice(12,14);
+  return s;
+}
 function parseM15Rows(rows){
   if(!Array.isArray(rows)) return null;
   const out=rows.map(r=>{
-    if(Array.isArray(r)) return [r[0],+r[1],+r[2],+r[3],+r[4]];
-    if(r&&r.day!=null) return [r.day,+r.open,+r.close,+r.high,+r.low];
-    if(r&&r.time!=null) return [r.time,+r.open,+r.close,+r.high,+r.low];
+    if(Array.isArray(r)){
+      const o=+r[1], a=+r[2], b=+r[3], c=+r[4];
+      // 腾讯/东财分钟K标准顺序：开、收、高、低；若来源已是开、高、低、收则用校验后的另一种排列。
+      let cl=a, hi=b, lo=c;
+      if(!(hi>=Math.max(o,cl)&&lo<=Math.min(o,cl)) && a>=Math.max(o,c)&&b<=Math.min(o,c)){ hi=a; lo=b; cl=c; }
+      return [normM15Time(r[0]),o,hi,lo,cl];
+    }
+    if(r&&r.day!=null) return [normM15Time(r.day),+r.open,+r.high,+r.low,+r.close];
+    if(r&&r.time!=null) return [normM15Time(r.time),+r.open,+r.high,+r.low,+r.close];
     return null;
   }).filter(r=>r&&r[0]&&[1,2,3,4].every(i=>Number.isFinite(r[i])));
   return out.length?out:null;
 }
 function loadM15Tencent(code, done){
   const ctrl=new AbortController(); const tm=setTimeout(()=>ctrl.abort(),5000);
-  fetch('https://web.ifzq.gtimg.cn/appstock/app/kline/mkline?param='+code+',m15,,80',{signal:ctrl.signal})
+  fetch('https://ifzq.gtimg.cn/appstock/app/kline/mkline?param='+code+',m15,,320',{signal:ctrl.signal})
     .then(r=>r.text()).then(t=>{ clearTimeout(tm);
       try{
         const a=t.indexOf('{'), b=t.lastIndexOf('}'); if(a<0||b<=a){ done(null); return; }
@@ -1403,7 +1415,7 @@ function loadM15JSONP(code, done){
   const v='hqm15_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,8);
   const sc=document.createElement('script'); let ended=false;
   const finish=rows=>{ if(ended) return; ended=true; clearTimeout(sc._tm); if(sc.parentNode) sc.parentNode.removeChild(sc); try{ delete window[v]; }catch(e){} done(rows||null); };
-  sc.onload=()=>{ try{ const d=window[v], node=d&&d.data&&d.data[code], rows=node&&(node.qfqday||node.day); finish(rows); }catch(e){ finish(null); } };
+  sc.onload=()=>{ try{ const d=window[v]; const node=d&&d.data&&d.data[code]; const rows=Array.isArray(d)?d:(node&&(node.m15||node.m15_today||node.m15_data||node.qfqday||node.day)); finish(rows); }catch(e){ finish(null); } };
   sc.onerror=()=>finish(null);
   sc._tm=setTimeout(()=>finish(null),7000);
   sc.src='https://quotes.sina.cn/cn/api/jsonp_v2.php/var%20'+v+'=/CN_MarketDataService.getKLineData?symbol='+code+'&scale=15&ma=no&datalen=80';
