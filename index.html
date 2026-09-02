@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#f5f6f8">
-<title>我的持仓 · 行情 v5.02</title>
+<title>我的持仓 · 行情 v5.03</title>
 <style>
 :root { color-scheme: light; }
 * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
@@ -449,6 +449,11 @@ function sessLbl(){ const d=new Date(), w=d.getDay(), t=d.getHours()*60+d.getMin
   return '收盘'; }
 
 // 轻提示(WPS等环境不支持alert弹窗)
+// v5.03: 当日VWAP开盘锚。开盘后VWAP首次成熟(15分)时钉住,供单边日ratchet用;次日自动重锚
+let DANCH={}; try{ const _d=JSON.parse(localStorage.getItem('hqm_da_v1')||'null'); if(_d&&_d.date===today()) DANCH=_d.m||{}; }catch(e){}
+function dAnchor(code,vw,ok){ if(!ok||!(vw>0)) return DANCH[code]||null;
+  if(!DANCH[code]){ DANCH[code]=vw; try{ localStorage.setItem('hqm_da_v1',JSON.stringify({date:today(),m:DANCH})); }catch(e){} }
+  return DANCH[code]; }
 // v4.75: 盘中到价主动提醒。只在"未到->刚越过"跃迁时响一次,收盘不响,当日不重复。
 let HITSEEN={}; const HITK='hqm_hit_v1'; let BASETITLE='';
 try{ const _h=JSON.parse(localStorage.getItem(HITK)||'null'); if(_h&&_h.date===today()) HITSEEN=_h.seen||{}; }catch(e){}
@@ -2388,11 +2393,16 @@ function doRender(){
       if(p==null||!_vw) return '';
       const dev=(p/_vw-1)*100;
       const k1=Math.max(0.6,(_atrp||4)*0.2), k2=Math.max(1.5,(_atrp||4)*0.45);
-      const L=[{t:'S2',x:_vw*(1+k2/100)},{t:'S1',x:_vw*(1+k1/100)},{t:'B1',x:_vw*(1-k1/100)},{t:'B2',x:_vw*(1-k2/100)}];
+      const _op=F(f,5), _vw0=dAnchor(h.code,_vw,_vwok);
+      const _oneUp=(_op>0&&_a!=null&&p-_op>=_a), _oneDn=(_op>0&&_a!=null&&_op-p>=_a);
+      let S1=_vw*(1+k1/100), S2=_vw*(1+k2/100), B1=_vw*(1-k1/100), B2=_vw*(1-k2/100);
+      if(_vw0&&_oneDn){ const s1=_vw0*(1+k1/100), s2=_vw0*(1+k2/100); if(s1>S1)S1=s1; if(s2>S2)S2=s2; }
+      if(_vw0&&_oneUp){ const b1=_vw0*(1-k1/100), b2=_vw0*(1-k2/100); if(b1<B1)B1=b1; if(b2<B2)B2=b2; }
+      const L=[{t:'S2',x:S2},{t:'S1',x:S1},{t:'B1',x:B1},{t:'B2',x:B2}];
       const mp=(typeof PLAN!=='undefined'?PLAN:[]).filter(x=>x.code===h.code&&x.hit);
       const up=L.filter(o=>o.x>p).sort((x,y)=>x.x-y.x)[0], dn=L.filter(o=>o.x<p).sort((x,y)=>y.x-x.x)[0];
-      const lines=[{t:'S2',x:_vw*(1+k2/100),k:'s'},{t:'S1',x:_vw*(1+k1/100),k:'s'},
-                   {t:'均',x:_vw,k:'m'},{t:'B1',x:_vw*(1-k1/100),k:'b'},{t:'B2',x:_vw*(1-k2/100),k:'b'}];
+      const lines=[{t:'S2',x:S2,k:'s'},{t:'S1',x:S1,k:'s'},
+                   {t:'均',x:_vw,k:'m'},{t:'B1',x:B1,k:'b'},{t:'B2',x:B2,k:'b'}];
       if(h.cost>0) lines.push({t:'本',x:h.cost,k:'c'});
       lines.sort((a,b)=>b.x-a.x);
       let rows='', shown=false;
@@ -2417,7 +2427,7 @@ function doRender(){
       });
       if(!shown) rows+=nowRow;
       // v4.75: 一眼看做T —— 前瞻(这一轮能赚多少) + 今日已做(实际赚了多少)
-      const _B1=_vw*(1-k1/100), _S1=_vw*(1+k1/100);
+      const _B1=B1, _S1=S1;
       const _lot=100, _ft=feeOf(_S1,_B1,_lot,_lot,h.code).fee, _net=(_S1-_B1)*_lot-_ft;
       const roundS='一轮 B1→S1 <b class="up">+'+((_S1-_B1)/_B1*100).toFixed(1)+'点</b> 每手净<b>'
         +sg(Math.round(_net))+'元</b><span class="dim">(已扣费)</span>';
@@ -2433,9 +2443,9 @@ function doRender(){
           +'<span class="dim"> 卖'+ns+'/接'+nb+'股 · 费'+Math.round(fe)+'</span>';
       }
       const wl=(!_vwok?'⚠':'')+(dev<=-0.15?'水下':(dev>=0.15?'水上':'贴线'));
-      const foot=mp.length? '⚡挂单到价 '+mp.length+'笔 · '+mp.map(x=>(x.side==='sell'?'卖':'买')+P(x.price)).join(' ')
+      const foot=(_vw0&&_oneDn?'⚠单边日·卖点钉开盘锚不下挪 · ':(_vw0&&_oneUp?'⚠单边日·买点钉开盘锚不上追 · ':''))+(mp.length? '⚡挂单到价 '+mp.length+'笔 · '+mp.map(x=>(x.side==='sell'?'卖':'买')+P(x.price)).join(' ')
         : '下一触发 ↓'+(dn?dn.t+' '+P(dn.x)+' 跌'+Math.abs((dn.x/p-1)*100).toFixed(1)+'%':'—')
-          +'  ↑'+(up?up.t+' '+P(up.x)+' 涨'+((up.x/p-1)*100).toFixed(1)+'%':'—');
+          +'  ↑'+(up?up.t+' '+P(up.x)+' 涨'+((up.x/p-1)*100).toFixed(1)+'%':'—'));
       const dp=DPOS[h.code];
       let dline='';
       if(dp){
