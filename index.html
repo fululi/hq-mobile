@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#f5f6f8">
-<title>我的持仓 · 行情 v5.36</title>
+<title>我的持仓 · 行情 v5.37</title>
 <style>
 :root { color-scheme: light; }
 html { scroll-padding-top:118px; }
@@ -16,12 +16,13 @@ body { margin:0; padding:14px 12px 92px; background:#f5f6f8; color:#1a1d21;
 .top { display:flex; align-items:center; justify-content:space-between; gap:8px; position:sticky; top:0; z-index:60; background:#f5f6f8; margin:-14px -12px 6px; padding:12px 12px 8px; box-shadow:0 1px 0 rgba(0,0,0,.06); }
 .top h1 { font-size:18px; margin:0; font-weight:680; }
 .top .btns { display:flex; gap:8px; }
-.navSticky { position:sticky; top:50px; z-index:55; display:flex; gap:6px; overflow-x:auto; padding:6px 2px 8px; margin:0 -2px 10px; background:rgba(245,246,248,.96); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); scrollbar-width:none; }
+/* v5.37: 导航由药丸按钮改为下划线分段式 —— 去掉边框/阴影/圆角,
+   靠字重与2px下划线区分当前分区,行高压缩约三分之一,更贴合行情类界面。 */
+.navSticky { position:sticky; top:50px; z-index:55; display:flex; gap:1px; overflow-x:auto; padding:0 2px; margin:0 -2px 10px; background:rgba(245,246,248,.96); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); border-bottom:1px solid #e2e8f0; scrollbar-width:none; }
 .navSticky::-webkit-scrollbar { display:none; }
-.navSticky button { flex:0 0 auto; border:1px solid #e2e8f0; background:rgba(255,255,255,.9); color:#64748b; padding:6px 11px; border-radius:999px; font-size:12px; font-weight:650; white-space:nowrap; box-shadow:0 1px 2px rgba(15,23,42,.04); transition:background .15s,color .15s,border-color .15s,box-shadow .15s,transform .15s; }
-.navSticky button.active { background:#2563eb; color:#fff; border-color:#2563eb; box-shadow:0 3px 10px rgba(37,99,235,.22); }
-.navSticky button:active { background:#eaf0ff; color:#2563eb; transform:translateY(1px); }
-.navSticky button.active:active { background:#1d4ed8; color:#fff; }
+.navSticky button { flex:0 0 auto; border:0; background:none; color:#64748b; padding:9px 13px 8px; font-size:13px; font-weight:600; white-space:nowrap; letter-spacing:.01em; border-bottom:2px solid transparent; margin-bottom:-1px; transition:color .15s,border-color .15s; }
+.navSticky button.active { color:#0f172a; font-weight:700; border-bottom-color:#2563eb; }
+.navSticky button:active { color:#2563eb; }
 .top button { font-size:13px; border:none; padding:7px 12px; border-radius:8px; font-weight:600; }
 .rf { color:#2563eb; background:#eaf0ff; }
 .ed { color:#7a5b00; background:#fdf1cf; }
