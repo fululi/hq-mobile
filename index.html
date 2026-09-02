@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#f5f6f8">
-<title>我的持仓 · 行情 v5.18</title>
+<title>我的持仓 · 行情 v5.19</title>
 <style>
 :root { color-scheme: light; }
 * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
@@ -434,7 +434,12 @@ try{ const f=JSON.parse(localStorage.getItem(FEEK)); if(f&&f.comm!=null) FEE=f; 
     }
   });
   if(mig) saveLog(); }
-try{ const a=JSON.parse(localStorage.getItem(ATRK)); if(a&&a.date===today()){ ATR=a.atr||{}; ATR_DATE=a.date; } }catch(e){}
+try{ const a=JSON.parse(localStorage.getItem(ATRK)); if(a&&a.date===today()){
+  ATR=a.atr||{};
+  // v5.19新增日线波段高低点日期;旧缓存没有方向证据,对应个股强制重拉,不能默认都当上涨段。
+  Object.keys(ATR).forEach(c=>{ const o=ATR[c]; if(o&&typeof o==='object'&&o.legBase>0&&(!o.legHiD||!o.legLoD)) delete ATR[c]; });
+  ATR_DATE=a.date;
+} }catch(e){}
 PF.holds.forEach(h=>{ if(h.ref===undefined){ const d=DEFAULT.holds.find(x=>x.code===h.code); if(d&&d.ref) h.ref=d.ref; } });
 if(!localStorage.getItem(LS)){ try{ localStorage.setItem(LS, JSON.stringify(PF)); }catch(e){} } // 首次打开即落盘本机
 function save(){ lsSet(LS, JSON.stringify(PF)); }
@@ -473,13 +478,38 @@ function dayState(code){
   // v5.14修: 当天若已用旧版(v5.11-)写过 hqm_da_v1,DANCH[code]是裸数字不是对象——
   // 真值判断(!DANCH[code])对非零数字为false,不会重建,后面 st.touch.S1 等会在数字上取属性直接崩掉整个渲染
   const cur=DANCH[code];
-  if(!cur||typeof cur!=='object') DANCH[code]={vw:(typeof cur==='number'&&cur>0)?cur:null,oneDn:false,oneUp:false,s1:null,s2:null,b1:null,b2:null,touch:{S1:false,S2:false,B1:false,B2:false}};
+  if(!cur||typeof cur!=='object') DANCH[code]={vw:null,oneDn:false,oneUp:false,s1:null,s2:null,b1:null,b2:null,
+    touch:{S1:false,S2:false,B1:false,B2:false},events:[],prev:{}};
+  else {
+    if(!cur.touch||typeof cur.touch!=='object') cur.touch={S1:false,S2:false,B1:false,B2:false};
+    if(!Array.isArray(cur.events)) cur.events=[];
+    if(!cur.prev||typeof cur.prev!=='object') cur.prev={};
+  }
   return DANCH[code];
 }
 function saveDanch(){ try{ localStorage.setItem('hqm_da_v1',JSON.stringify({date:today(),m:DANCH})); }catch(e){} }
 function dAnchor(code,vw,ok){ const st=dayState(code);
-  if(ok&&vw>0&&!st.vw){ st.vw=vw; saveDanch(); }
+  if(ok&&vw>0&&!st.vw){ st.vw=+vw.toFixed(4); st.vwAt=nowStamp(); st.vwMode='15-30min-first-sample'; saveDanch(); }
   return st.vw; }
+// 动态档位触发证据: 记录首次越过时的价格/档位/时间,而不是只留一个无法审计的true。
+// 页面未在越过瞬间刷新时不臆测; 下一次看到仍在档位外才记录“已观察到”。
+function touchCross(st,t,p,x,side){
+  if(!(p>0&&x>0)) return null;
+  const lv=+x.toFixed(3), px=+p.toFixed(3), old=st.prev[t];
+  const crossed=old ? (side==='sell' ? (old.p<old.x&&p>=x) : (old.p>old.x&&p<=x)) :
+    (side==='sell' ? p>=x : p<=x);
+  st.prev[t]={p:px,x:lv};
+  if(!crossed) return null;
+  const exists=st.events.some(e=>e.t===t&&Math.abs((e.level||0)-lv)<0.0005);
+  if(exists) return null;
+  const ev={t,level:lv,price:px,at:nowStamp()};
+  st.events.push(ev); st.touch[t]=true; saveDanch();
+  return ev;
+}
+function touchSeen(st,t,x){
+  const lv=+x.toFixed(3);
+  return !!(st&&Array.isArray(st.events)&&st.events.some(e=>e.t===t&&Math.abs((e.level||0)-lv)<0.0005));
+}
 // v4.75: 盘中到价主动提醒。只在"未到->刚越过"跃迁时响一次,收盘不响,当日不重复。
 let HITSEEN={}; const HITK='hqm_hit_v1'; let BASETITLE='';
 try{ const _h=JSON.parse(localStorage.getItem(HITK)||'null'); if(_h&&_h.date===today()) HITSEEN=_h.seen||{}; }catch(e){}
@@ -545,7 +575,8 @@ function narrowBase(code,base,todayAmp){
 }
 // 取ATR数值(兼容旧缓存纯数字格式)
 function atrOf(code){ const o=ATR[code]; return o==null?null:((typeof o==='number')?o:o.atr); }
-function legOf(code){ const o=ATR[code]; return (o&&typeof o==='object'&&o.legBase>0)?{base:o.legBase,from:o.legFrom,hi:o.legHi,lo:o.legLo}:null; }
+function legOf(code){ const o=ATR[code]; return (o&&typeof o==='object'&&o.legBase>0)?
+  {base:o.legBase,from:o.legFrom,hi:o.legHi,lo:o.legLo,hiD:o.legHiD||'',loD:o.legLoD||''}:null; }
 // 波幅基准 = max(当日振幅, ATR14×0.75, 昨日真实波幅×0.6) — 涨/跌停次日自动加宽
 // 跳空日锚定(v4.54): 今开较昨收跳空≥0.5×ATR → 锚=今开;否则锚=昨收,全天锁定
 let DPOS={}; const DPOSK='hqm_pos_v1';
@@ -821,7 +852,7 @@ function tierWhy(){
    +'「今收/昨收 +N%」= 离基准价的距离,档位就是按这个基准算出来的。\n'
    +'  收盘后两者相同(现价=今收),盘中会不一样。\n\n'
    +'「成本+N%」= 真按这价卖掉100股,相对你的持仓成本净赚几个点(已扣手续费)。\n\n'
-   +'「N%概率到」= 经验频率,不是模型预测:\n'
+   +'「历史触及N%」= 经验频率,不是模型预测:\n'
    +'  过去 '+PRW+' 个交易日里,当天最高/最低价越过这个幅度的天数占比。\n'
    +'  例如"30%概率到"= 10天里大约3天摸得到。\n'
    +'  窗口可在「做T计划」标题右边切 60/120/250 日。250日≈1年,60日≈3个月。\n'
@@ -862,9 +893,17 @@ function nowStamp(){ const d=new Date(), z=n=>(n<10?'0':'')+n; return ymd(d)+' '
 // 目标交易日: 本场未收盘=今天; 已收盘/周末=下一个工作日。无节假日表,遇休市顺延(tdApprox)
 function targetDay(){
   const d=new Date(), w=d.getDay(), t=d.getHours()*60+d.getMinutes();
-  if(w>=1&&w<=5&&t<900) return ymd(d);
+  // 15:00这一分钟仍属于当场交易时段;不能在边界上提前跳到下一场,
+  // 否则“实际”行会在收盘前突然显示成下一交易日未开盘。
+  if(w>=1&&w<=5&&t<=900) return ymd(d);
   const x=new Date(d.getTime()); do{ x.setDate(x.getDate()+1); }while(x.getDay()===0||x.getDay()===6);
   return ymd(x);
+}
+// 实际行的目标日: 收盘后先展示刚结束的今天; 盘前/盘中展示当前交易场次。
+function actualDisplayDay(){
+  const d=new Date(), w=d.getDay(), t=d.getHours()*60+d.getMinutes();
+  if(w>=1&&w<=5&&t>900) return ymd(d);
+  return targetDay();
 }
 // 目标场次的「时钟」状态。注意:时钟到点 != 日K已更新,已结算与否由 act 决定
 function sessState(td){
@@ -886,14 +925,15 @@ function anchorType(code,prev,p){
   return '昨收';
 }
 function invalidOf(c){ try{ const s2=PAPER.find(x=>x.code===c&&x.status==='open');
-  return s2?('日线收盘'+(s2.dir>0?'跌破':'升破')+P(s2.stop)+'确认撤(盘中触及仅预警)'):''; }catch(e){ return ''; } }
+  return s2?(s2.exitMode==='daily-close-confirm'?('日线收盘'+(s2.dir>0?'跌破':'升破')+P(s2.stop)+'确认撤(盘中触及仅预警)'):('盘中现价'+(s2.dir>0?'跌破':'升破')+P(s2.stop)+'即撤·旧口径')):''; }catch(e){ return ''; } }
 function fcOf(code,td){ for(let i=FCAST.length-1;i>=0;i--) if(FCAST[i].code===code&&FCAST[i].targetDate===td) return FCAST[i]; return null; }
 // 写一次: 同一(目标日,代码)已存在就原样返回,绝不覆盖
 function snapFcast(o){
   if(!o||!o.code||!o.targetDate||o.lo==null||o.hi==null||!(o.base>0)) return null;
   const ex=fcOf(o.code,o.targetDate); if(ex) return ex;
+  const gs=genSess();
   const r={ id:o.targetDate+'-'+o.code, code:o.code, name:o.name||'', targetDate:o.targetDate,
-    tdApprox:true, genSess:genSess(), generatedAt:nowStamp(), dataAsOf:o.dataAsOf||'',
+    tdApprox:true, genSess:gs, statEligible:gs!=='盘中', generatedAt:nowStamp(), dataAsOf:o.dataAsOf||'',
     quoteDate:o.quoteDate||'', quoteTime:o.quoteTime||'', base:+(+o.base).toFixed(3),
     anchorType:o.anchorType||'', atr:(o.atr!=null?+(+o.atr).toFixed(4):null),
     ampF:(o.ampF!=null?+(+o.ampF).toFixed(3):1), lo:+(+o.lo).toFixed(3), hi:+(+o.hi).toFixed(3),
@@ -931,33 +971,36 @@ let LASTK={};   // code -> 已确认的最新日K {date,o,h,l,c}
 /* v4.98: 「实际」行四态 —— 未开盘/盘中(事件流)/收盘待日K/已收盘(结算账)。
    盘中触及只预警不进统计; 出界判定只认已确认日K,优先用当场冻结快照做对照 */
 function actRow(code,p,prev,lo,hi,aLo,aHi,qd){
-  const tdd=today().slice(5), live=mktLive();
+  const td=actualDisplayDay(), tdd=td.slice(5), state=sessState(td);
   const lk=LASTK[code];
-  const lbl=(qd||(live?tdd:'上一交易日'))+'实际 ';
+  const lbl=tdd+'实际：';
   const rng=(l2,h2)=>'<b class="flat">'+(l2!=null?P(l2):'—')+' ~ '+(h2!=null?P(h2):'—')+'</b>';
-  // 盘中: 实时高低可见,触及=预警,不写"已出界"
-  if(live&&qd===tdd){
+  // 目标场次未开盘: 不显示任何旧场次高低点,旧场次复盘由预判复盘区单独承担。
+  if(state==='pre') return lbl+'<span class="sub">未开盘（09:30开）</span>';
+  // 盘中: 只有行情日期明确切到目标日时才显示实时高低;否则只报等待,不拿上一场数字冒充今天。
+  if(state==='live'&&qd===tdd){
     let s=lbl+rng(lo,hi)+' <span class="sub">(进行中·未收盘)</span>';
     if(hi!=null&&aHi!=null&&hi>=aHi) s+=' <span class="sub" style="color:#b45309">⚠盘中已触及预判上沿,等收盘确认</span>';
     else if(lo!=null&&aLo!=null&&lo<=aLo) s+=' <span class="sub" style="color:#b45309">⚠盘中已击穿预判下沿,等收盘确认</span>';
     else if(hi!=null&&aHi!=null&&lo!=null&&aLo!=null) s+=' <span class="sub">距上沿'+P(aHi-hi)+' · 距下沿'+P(lo-aLo)+'</span>';
     return s;
   }
-  // 已收盘且日K已确认: 用当场快照(冻结口径)判定,纳入覆盖率
-  if(lk&&qd&&lk.date.slice(5)===qd){
-    const fc=fcOf(code,lk.date);
+  if(state==='live') return lbl+'<span class="sub">等待行情更新（进行中·未收盘）</span>';
+  // 已收盘且日K已确认: 只认目标场次的完整日K,用冻结快照判定并纳入覆盖率
+  if(state==='wait'&&lk&&lk.date===td){
+    const fc=fcOf(code,td);
+    const eligible=!!(fc&&fc.statEligible!==false&&fc.genSess!=='盘中');
     const fHi=fc?fc.hi:aHi, fLo=fc?fc.lo:aLo;
     let out=null;
     if(fc&&fc.act) out=fc.act.out;
     else if(fHi!=null&&fLo!=null) out=(lk.h>fHi||lk.l<fLo);
     return lbl+rng(lk.l,lk.h)+' <span class="sub">(已收盘·日K确认)</span>'
       +(fHi!=null&&fLo!=null?' <span class="sub">对照当场预判'+P(fLo)+'~'+P(fHi)+'</span>':'')
-      +(out!=null?(' <span class="sub">'+(out?'<b style="color:#b91c1c">已出界</b>':'未出界')+' · 纳入覆盖率</span>'):'');
+      +(out!=null?(' <span class="sub">'+(out?'<b style="color:#b91c1c">已出界</b>':'未出界')
+        +(eligible?' · 纳入覆盖率':' · 无盘前快照，不纳入覆盖率')+'</span>'):'');
   }
-  // 收盘时间到/盘前/周末: 快照还是上一场的数据,日K未确认,不进统计
-  const d=new Date(), t=d.getHours()*60+d.getMinutes();
-  const wait=(t>900)?'收盘时间到·等待日K确认':'上一场·待日K对照';
-  return lbl+rng(lo,hi)+' <span class="sub">('+wait+')</span>';
+  // 收盘时间到但日K尚未封盘: 不显示旧高低,只显示等待状态,不进统计。
+  return lbl+'<span class="sub">收盘时间到·等待日K确认</span>';
 }
 // v5.13: 做T档位(高抛/低吸价位本身)预测-实际数据沉淀,与 snapFcast/bindActual 同一套 snapshot-then-settle 口径
 const TFK='tfcast_v1', TFVER='v5.13';
@@ -968,8 +1011,9 @@ function tfOf(code,td){ for(let i=TFC.length-1;i>=0;i--) if(TFC[i].code===code&&
 function snapTier(o){
   if(!o||!o.code||!o.targetDate||!((o.sells&&o.sells.length)||(o.buys&&o.buys.length))) return null;
   const ex=tfOf(o.code,o.targetDate); if(ex) return ex;
+  const gs=genSess();
   const r={ id:o.targetDate+'-'+o.code, code:o.code, name:o.name||'', targetDate:o.targetDate,
-    genSess:genSess(), generatedAt:nowStamp(),
+    genSess:gs, statEligible:gs!=='盘中', generatedAt:nowStamp(),
     sells:(o.sells||[]).map(x=>+(+x).toFixed(3)), buys:(o.buys||[]).map(x=>+(+x).toFixed(3)),
     trendLv:o.trendLv!=null?o.trendLv:0, legAge:o.legAge!=null?o.legAge:null,
     ver:TFVER, act:null, exec:null };
@@ -1070,10 +1114,13 @@ function parseIfzq(c, txt){
       if(c>peak){ peak=c; }
       else if(peak>base&&(peak-c)/peak>=0.05){ base=c; baseD=rows[i][0]; peak=c; }
       else if(c<base){ base=c; baseD=rows[i][0]; peak=c; } }
-    let legHi=null, legLo=null;
+    let legHi=null, legLo=null, legHiD='', legLoD='';
     for(let i=0;i<rows.length;i++){ if(rows[i][0]>=baseD){ const h2=+rows[i][3], l2=+rows[i][4];
-      if(legHi==null||h2>legHi) legHi=h2; if(legLo==null||l2<legLo) legLo=l2; } }
-    return {atr:last14.reduce((a,b)=>a+b,0)/last14.length, lastTR:trs[trs.length-1], legBase:base, legFrom:baseD, legHi:legHi, legLo:legLo, lastHi:+rows[rows.length-1][3], lastLo:+rows[rows.length-1][4], lastC:+rows[rows.length-1][2]};
+      if(legHi==null||h2>legHi){ legHi=h2; legHiD=rows[i][0]; }
+      if(legLo==null||l2<legLo){ legLo=l2; legLoD=rows[i][0]; } } }
+    return {atr:last14.reduce((a,b)=>a+b,0)/last14.length, lastTR:trs[trs.length-1], legBase:base, legFrom:baseD,
+      legHi:legHi, legLo:legLo, legHiD:legHiD, legLoD:legLoD,
+      lastHi:+rows[rows.length-1][3], lastLo:+rows[rows.length-1][4], lastC:+rows[rows.length-1][2]};
   }catch(e){ return null; }
 }
 function parseSina(txt){
@@ -1161,18 +1208,48 @@ function verdict(c){ // 五维合成一行作战结论(规则口径见回测框�
   if(w<0) return '空头区·不加仓，反弹到'+wema+'附近减仓';
   return '无方向·按做T区间跑，出信号再动';
 }
-let MSIG={}, M15_TS=0;
+// 15分钟小周期Fib:只认当日已经完成的15分K,从最近一个有效A-B-C摆动推导扩展位。
+// A-B至少大于2.5倍当日典型15分波幅,C必须是未破A的有效回撤;不满足就宁可不显示。
+function m15FibCalc(kl){
+  if(!kl||kl.length<7) return null;
+  let a=kl.filter(r=>String(r[0]).slice(0,10)===today());
+  if(mktLive()&&a.length) a=a.slice(0,-1); // 当前正在形成的15分K不拿来确认拐点
+  if(a.length<7) return null;
+  const ranges=a.map(r=>Math.max(0,r[2]-r[3])).sort((x,y)=>x-y);
+  const med=ranges[Math.floor(ranges.length/2)]||0;
+  let ps=[];
+  for(let i=2;i<a.length-2;i++){
+    const isH=a[i][2]>=a[i-1][2]&&a[i][2]>=a[i-2][2]&&a[i][2]>a[i+1][2]&&a[i][2]>a[i+2][2];
+    const isL=a[i][3]<=a[i-1][3]&&a[i][3]<=a[i-2][3]&&a[i][3]<a[i+1][3]&&a[i][3]<a[i+2][3];
+    if(isH!==isL) ps.push({i:i,k:isH?'H':'L',p:isH?a[i][2]:a[i][3],t:String(a[i][0])});
+  }
+  const z=[]; ps.forEach(q=>{ const v=z[z.length-1];
+    if(v&&v.k===q.k){ if((q.k==='H'&&q.p>v.p)||(q.k==='L'&&q.p<v.p)) z[z.length-1]=q; }
+    else z.push(q); });
+  for(let i=z.length-3;i>=0;i--){
+    const A=z[i],B=z[i+1],C=z[i+2]; let dir=0,R=0,ret=0;
+    if(A.k==='L'&&B.k==='H'&&C.k==='L'){ dir=1; R=B.p-A.p; ret=R>0?(B.p-C.p)/R:0; if(!(C.p>A.p&&ret>=0.15&&ret<=0.90)) continue; }
+    else if(A.k==='H'&&B.k==='L'&&C.k==='H'){ dir=-1; R=A.p-B.p; ret=R>0?(C.p-B.p)/R:0; if(!(C.p<A.p&&ret>=0.15&&ret<=0.90)) continue; }
+    else continue;
+    if(!(R>Math.max(med*2.5,Math.abs(B.p)*0.003))) continue;
+    const px=k=>dir>0?C.p+R*k:C.p-R*k;
+    return {dir:dir,a:A.p,b:B.p,c:C.p,aT:A.t,bT:B.t,cT:C.t,retrace:+ret.toFixed(3),
+      t1:px(1),t1618:px(1.618),t2618:px(2.618)};
+  }
+  return null;
+}
+let MSIG={}, M15FIB={}, M15_TS=0;
 function loadM15(done){ // 15分钟三角扫描(新浪15分K,近80根≈5个交易日),15分钟内不重复拉
-  const n=Date.now(); if(n-M15_TS<15*60*1000 && Object.keys(MSIG).length){ done&&done(); return; }
+  const n=Date.now(); if(n-M15_TS<15*60*1000 && (Object.keys(MSIG).length||Object.keys(M15FIB).length)){ done&&done(); return; }
   M15_TS=n;
   const codes=[...PF.holds.map(h=>h.code), ...PF.watch.map(w=>w.code)];
   if(!codes.length){ done&&done(); return; }
-  const out={}; let left=codes.length, finished=false;
-  const fin=()=>{ if(finished) return; finished=true; MSIG=out; done&&done(); };
+  const out={}, ofib={}; let left=codes.length, finished=false;
+  const fin=()=>{ if(finished) return; finished=true; MSIG=out; M15FIB=ofib; done&&done(); };
   setTimeout(fin, 8000);
   codes.forEach(c=>{
     let got=false;
-    const tick=(v)=>{ if(got) return; got=true; if(v!=null) out[c]=v; if(--left===0) fin(); };
+    const tick=(v,fb)=>{ if(got) return; got=true; if(v!=null) out[c]=v; if(fb) ofib[c]=fb; if(--left===0) fin(); };
     const ctrl=new AbortController(); const tm=setTimeout(()=>ctrl.abort(), 6000);
     fetch('https://quotes.sina.cn/cn/api/jsonp_v2.php/var%20x=/CN_MarketDataService.getKLineData?symbol='+c+'&scale=15&ma=no&datalen=80', {signal:ctrl.signal})
       .then(r=>r.text()).then(t=>{
@@ -1182,7 +1259,7 @@ function loadM15(done){ // 15分钟三角扫描(新浪15分K,近80根≈5个交�
           const rows=JSON.parse(m[0]);
           const kl=rows.map(r=>[r.day, +r.open, +r.high, +r.low, +r.close]);
           const tr=triDet(kl);
-          tick(tr&&tr.brk!==0?tr.brk:null);
+          tick(tr&&tr.brk!==0?tr.brk:null,m15FibCalc(kl));
         }catch(e){ tick(null); }
       }).catch(()=>{ clearTimeout(tm); tick(null); });
   });
@@ -1223,7 +1300,8 @@ function loadWTrend(done){
           LASTK[c]={date:_l[0], o:+_l[1], c:+_l[2], h:+_l[3], l:+_l[4]}; } }catch(e){}
         try{ bindActual(c, rows); }catch(e){}
         try{ bindTierActual(c, rows); }catch(e){}
-        try{ paperScan(c, rows.map(r=>[r[0], +r[1], +r[3], +r[4], +r[2], +r[5]])); }catch(e){}
+        try{ const _pkl=rows.map(r=>[r[0], +r[1], +r[3], +r[4], +r[2], +r[5]]);
+          settlePaperDaily(c,_pkl); paperScan(c,_pkl); }catch(e){}
         try{ const _pr=calcPos(rows.map(r=>[r[0],+r[1],+r[3],+r[4],+r[2]])); if(_pr) oposn[c]=_pr; }catch(e){}
         try{ const _ph=preHitOf(settledRows(rows.map(r=>[r[0],+r[1],+r[3],+r[4],+r[2]])));
           if(_ph){ PREHIT[c]=_ph; localStorage.setItem(PHK,JSON.stringify({date:today(),ph:PREHIT})); phDirty(); } }catch(e){}
@@ -1852,7 +1930,7 @@ function renderT(){ try{ renderBT(); }catch(e){} try{ renderRV(); }catch(e){}
   _rt.sort((x,y)=>x.dist-y.dist);
   document.getElementById('tbody').innerHTML = _rt.map(x=>x.html).join('') || '<tr><td class="sub" colspan="4">暂无持仓</td></tr>';
   const _nxt=planNext(), _tt=document.getElementById('tTitle');
-  if(_tt) _tt.textContent=(_nxt?planLbl()+'做T计划':'今日做T计划(盘中)')+' · %=该档历史触及概率';
+  if(_tt) _tt.textContent=(_nxt?planLbl()+'做T计划':'今日做T计划(盘中)')+' · %=历史触及频率(无条件,非今日概率)';
   document.getElementById('tSum').textContent = (mktLive()?nowHM()+' 盘中 · ':(_nxt?sessLbl()+' · 下方是'+planLbl()+'开盘可直接挂的档位 · ':''))+'按最快触发排序 · '+(MKT!=null?(Math.abs(MKT)>=1.2?'大行情:已加宽档位':'常规档位'):'')+' · 锚'+(_nxt?'上一收盘':'昨收');
   const sel=document.getElementById('tSel');
   if(sel && sel.options.length!==PF.holds.length){
@@ -2072,11 +2150,14 @@ function exportCSV(){
   toast('已导出 '+TLOG.length+' 条台账(逐笔分腿+按日/按股票汇总)');
 }
 function backupJSON(){
-  const data={ver:'v4.52',at:new Date().toISOString(),holds:PF.holds,watch:PF.watch,tlog:TLOG,plan:PLAN,fee:FEE};
+  // v5.18: 交易判断所依赖的证据状态必须跟着备份走,否则换设备/恢复后会出现
+  // "页面看过但没有触发记录/预测快照/止损口径"的断层。旧字段仍保持兼容。
+  const data={ver:'v5.19',at:new Date().toISOString(),holds:PF.holds,watch:PF.watch,tlog:TLOG,plan:PLAN,fee:FEE,
+    fcast:FCAST,tfc:TFC,paper:PAPER,danchDate:today(),danch:DANCH,hitseenDate:today(),hitseen:HITSEEN};
   const a=document.createElement('a');
   a.href=URL.createObjectURL(new Blob([JSON.stringify(data,null,1)],{type:'application/json'}));
   a.download='hq备份_'+today()+'.json'; a.click();
-  toast('已备份: 持仓'+PF.holds.length+' 台账'+TLOG.length+'条');
+  toast('已备份: 持仓'+PF.holds.length+' 台账'+TLOG.length+'条 · 预测'+FCAST.length+'场 · 模拟仓'+PAPER.length+'笔');
 }
 // v5.14: 恢复备份原来是整体覆盖——多设备各自录台账时,谁后恢复谁就把对方独有的记录冲掉。
 // 台账(TLOG)是只增不改的流水,天然能按内容去重合并,改成合并不覆盖;持仓(holds)是当前状态快照,
@@ -2102,9 +2183,48 @@ function restoreJSON(ev){
     PF.holds=d.holds; PF.watch=Array.isArray(d.watch)?d.watch:[];
     TLOG=TLOG.concat(added); PLAN=Array.isArray(d.plan)?d.plan:PLAN;
     if(d.fee&&d.fee.comm!=null) FEE=d.fee;
+    // 新版备份带证据状态;旧备份没有这些字段时保留当前设备现状,不悄悄清空。
+    if(Array.isArray(d.fcast)){
+      const fm={}; FCAST.forEach((x,i)=>{ fm[x.id||x.targetDate+'-'+x.code]=i; });
+      d.fcast.forEach(x=>{ const k=x.id||x.targetDate+'-'+x.code, i=fm[k];
+        if(i==null){ fm[k]=FCAST.length; FCAST.push(x); }
+        else if(!FCAST[i].act&&x.act) FCAST[i].act=x.act; });
+      saveFcast();
+    }
+    if(Array.isArray(d.tfc)){
+      const tm={}; TFC.forEach((x,i)=>{ tm[x.id||x.targetDate+'-'+x.code]=i; });
+      d.tfc.forEach(x=>{ const k=x.id||x.targetDate+'-'+x.code, i=tm[k];
+        if(i==null){ tm[k]=TFC.length; TFC.push(x); }
+        else { if(!TFC[i].act&&x.act) TFC[i].act=x.act; if(!TFC[i].exec&&x.exec) TFC[i].exec=x.exec; } });
+      saveTfc();
+    }
+    if(Array.isArray(d.paper)){
+      const pk=x=>[x.code,x.entryD,x.dir,x.entry].join('|'), pm={}; PAPER.forEach((x,i)=>{ pm[pk(x)]=i; });
+      d.paper.forEach(x=>{ const k=pk(x), i=pm[k];
+        if(i==null){ pm[k]=PAPER.length; PAPER.push(x); }
+        else if(PAPER[i].status!=='closed'&&x.status==='closed') PAPER[i]=x; });
+      savePaper();
+    }
+    // 锚点/提醒是“当天状态”,跨日恢复会把旧VWAP和旧触发污染到今天;只有同日备份才恢复。
+    if(d.danchDate===today()&&d.danch&&typeof d.danch==='object'){
+      Object.keys(d.danch).forEach(c=>{ const a=d.danch[c]; if(!a||typeof a!=='object') return; const z=dayState(c);
+        if(!z.vw&&a.vw){ z.vw=a.vw; z.vwAt=a.vwAt; z.vwMode=a.vwMode; }
+        z.oneDn=!!(z.oneDn||a.oneDn); z.oneUp=!!(z.oneUp||a.oneUp);
+        if(a.s1!=null) z.s1=z.s1==null?a.s1:Math.max(z.s1,a.s1);
+        if(a.s2!=null) z.s2=z.s2==null?a.s2:Math.max(z.s2,a.s2);
+        if(a.b1!=null) z.b1=z.b1==null?a.b1:Math.min(z.b1,a.b1);
+        if(a.b2!=null) z.b2=z.b2==null?a.b2:Math.min(z.b2,a.b2);
+        (a.events||[]).forEach(e=>{ if(!z.events.some(q=>q.t===e.t&&Math.abs((q.level||0)-(e.level||0))<0.0005)) z.events.push(e); });
+        ['S1','S2','B1','B2'].forEach(t=>{ if(z.events.some(e=>e.t===t)) z.touch[t]=true; });
+      }); saveDanch();
+    }
+    if(d.hitseenDate===today()&&d.hitseen&&typeof d.hitseen==='object'){
+      Object.keys(d.hitseen).forEach(k=>{ HITSEEN[k]=1; });
+      try{ localStorage.setItem(HITK,JSON.stringify({date:today(),seen:HITSEEN})); }catch(e){}
+    }
     save(); saveLog(); savePlan(); ATR_DATE='';
     render(); renderLog(); renderPlan();
-    toast('已恢复: 持仓'+d.holds.length+' 台账合并后'+TLOG.length+'条(新增'+added.length+')');
+    toast('已恢复: 持仓'+d.holds.length+' 台账合并后'+TLOG.length+'条(新增'+added.length+') · 预测'+FCAST.length+'场 · 模拟仓'+PAPER.length+'笔');
   }catch(e){ toast('文件不对,恢复失败'); } };
   rd.readAsText(f);
 }
@@ -2404,7 +2524,7 @@ function doRender(){
       let prS='';
       if(_dq&&_rch>0){ const gk=Math.abs(x/_rch-1)*100;
         const pr=hitPr(side==='buy'?_dq.DN:_dq.UP, gk);
-        if(pr!=null) prS=' <s class="prb'+(pr>=50?' hi':(pr<=20?' lo':''))+'">'+pr+'%概率到</s>'; }
+        if(pr!=null) prS=' <s class="prb'+(pr>=50?' hi':(pr<=20?' lo':''))+'">历史触及'+pr+'%</s>'; }
       // v4.62 主信号: 距现价还差多少 —— 买档高于现价=追高,卖档低于现价=已错过
       let gapS='';
       if(p!=null&&p>0){
@@ -2525,7 +2645,8 @@ function doRender(){
     const _vw=vwapOf(f), _a=atrOf(h.code), _atrp=(_a!=null&&prev)?_a/prev*100:null;
     // v5.13: 修复成熟判定原来写反(!(...)),盘前/午休/盘后/周末会恒为true——尤其9:15-9:30集合竞价期间
     // mktLive()仍是false但vwapOf()已有噪音很大的早期读数,原逻辑会把这个当"成熟"钉成当日锚
-    const _vwok=mktLive()&&mktMin()>=15, _vwmin=mktMin();
+    // 只在开盘后15~30分钟首次采样建立当日锚;错过窗口不拿10:30/下午累计VWAP冒充“开盘15分钟VWAP”。
+    const _vwmin=mktMin(), _vwok=mktLive()&&_vwmin>=15&&_vwmin<=30;
     const actBar=(()=>{
       if(p==null||!_vw) return '';
       const dev=(p/_vw-1)*100;
@@ -2544,12 +2665,8 @@ function doRender(){
       if(_vw0&&dst.oneUp){ const b1=_vw0*(1-k1/100), b2=_vw0*(1-k2/100); if(b1<B1)B1=b1; if(b2<B2)B2=b2;
         if(dst.b1==null||B1<dst.b1){ dst.b1=B1; saveDanch(); } else B1=dst.b1;
         if(dst.b2==null||B2<dst.b2){ dst.b2=B2; saveDanch(); } else B2=dst.b2; }
-      if(p!=null){
-        if(p>=S1&&!dst.touch.S1){ dst.touch.S1=true; saveDanch(); }
-        if(p>=S2&&!dst.touch.S2){ dst.touch.S2=true; saveDanch(); }
-        if(p<=B1&&!dst.touch.B1){ dst.touch.B1=true; saveDanch(); }
-        if(p<=B2&&!dst.touch.B2){ dst.touch.B2=true; saveDanch(); }
-      }
+      // 触发记录不能复用“开盘锚15~30分钟”窗口;锚点只采一次,档位触发要覆盖整个交易时段。
+      // touchCross 会按上一轮价格/档位记录真实越界事件,避免用最终高低点事后倒推。
       const L=[{t:'S2',x:S2},{t:'S1',x:S1},{t:'B1',x:B1},{t:'B2',x:B2}];
       const mp=(typeof PLAN!=='undefined'?PLAN:[]).filter(x=>x.code===h.code&&x.hit);
       const up=L.filter(o=>o.x>p).sort((x,y)=>x.x-y.x)[0], dn=L.filter(o=>o.x<p).sort((x,y)=>y.x-x.x)[0];
@@ -2568,13 +2685,16 @@ function doRender(){
         const _pr=(o.k==='s')?hitPr(_dp&&_dp.U,_gk):((o.k==='b')?hitPr(_dp&&_dp.D,_gk):null);
         const _prS=(_pr!=null)?'<span class="pr'+(_pr>=50?' hi':(_pr<=20?' lo':''))+'">'+_pr+'%</span> ':'';
         const _cx=(o.k==='s')?(p>=o.x):((o.k==='b')?(p<=o.x):false);
-        if(_cx&&_vwok&&(o.k==='s'||o.k==='b')) alertHit(h.code+o.t+today(), h.name+' 到'+o.t+' '+P(o.x)+(o.k==='s'?' 可卖':' 可接'));
+        const _touchok=mktLive()&&mktMin()>=5;
+        const _ev=(_touchok&&(o.k==='s'||o.k==='b'))?touchCross(dst,o.t,p,o.x,o.k==='s'?'sell':'buy'):null;
+        if(_ev) alertHit(h.code+o.t+today()+_ev.level, h.name+' 到'+o.t+' '+P(_ev.level)+(o.k==='s'?' 可卖':' 可接'));
         // v5.13: "到过"改用点时事件(dst.touch),不再拿今日高低点去比当前(会随ratchet移动的)档位值——
         // 档位盘中变宽后旧的hi>=o.x比较在数学上就是错的,会漏判/误判
-        if(o.k==='s') st=_prS+(_cx?'<b style="color:#dc2626">越过</b>':(dst.touch[o.t]?'到过':'未到'));
-        else if(o.k==='b') st=_prS+(_cx?'<b style="color:#16a34a">越过</b>':(dst.touch[o.t]?'到过':'未到'));
+        if(o.k==='s') st=_prS+(_cx?'<b style="color:#dc2626">越过</b>':(touchSeen(dst,o.t,o.x)?'到过':'未到'));
+        else if(o.k==='b') st=_prS+(_cx?'<b style="color:#16a34a">越过</b>':(touchSeen(dst,o.t,o.x)?'到过':'未到'));
         else if(o.k==='c'){ const pl=(p/h.cost-1)*100; st='<b class="'+cls(pl)+'">'+sg(pl.toFixed(1))+'%</b>'; }
-        else st=_vwok?'基准':(mktLive()?'<b style="color:#d97706">构建中'+_vwmin+'分</b>':'<span class="dim">'+sessLbl()+'</span>');
+        else st=dst.vw?(_vwok?'基准':'<span class="dim">锚'+(dst.vwAt?'于'+dst.vwAt.slice(11):'已锁定')+'</span>')
+          :(mktLive()?'<b style="color:#d97706">开盘锚未捕获</b>':'<span class="dim">'+sessLbl()+'</span>');
         rows+='<tr class="'+(o.k==='c'?'cst':(o.k==='m'?'mid':''))+'"><td class="qk">'+o.t+'</td>'
           +'<td class="qv"><b>'+P(o.x)+'</b></td><td class="qg '+((o.k==='m'||o.k==='c')?'dim':cls(g))+'">'
           +sg(g.toFixed(1))+'%</td><td class="qs">'+st+'</td></tr>';
@@ -2596,8 +2716,9 @@ function doRender(){
         doneS='<br>今日已做 <b class="'+cls(nt)+'">'+sg(Math.round(nt))+'元</b>'
           +'<span class="dim"> 卖'+ns+'/接'+nb+'股 · 费'+Math.round(fe)+'</span>';
       }
-      const wl=(!_vwok?'⚠':'')+(dev<=-0.15?'水下':(dev>=0.15?'水上':'贴线'));
-      const foot=(_vw0&&dst.oneDn?'⚠单边日·卖点钉开盘锚不下挪 · ':(_vw0&&dst.oneUp?'⚠单边日·买点钉开盘锚不上追 · ':''))+(mp.length? '⚡挂单到价 '+mp.length+'笔 · '+mp.map(x=>(x.side==='sell'?'卖':'买')+P(x.price)).join(' ')
+      const wl=(!dst.vw?'⚠':'')+(dev<=-0.15?'水下':(dev>=0.15?'水上':'贴线'));
+      const _lockTxt=(_vw0&&dst.oneDn&&dst.oneUp?'⚠双向极端日·卖点不下挪/买点不上追 · ':(_vw0&&dst.oneDn?'⚠单边日·卖点钉开盘锚不下挪 · ':(_vw0&&dst.oneUp?'⚠单边日·买点钉开盘锚不上追 · ':'')));
+      const foot=_lockTxt+(mp.length? '⚡挂单到价 '+mp.length+'笔 · '+mp.map(x=>(x.side==='sell'?'卖':'买')+P(x.price)).join(' ')
         : '下一触发 ↓'+(dn?dn.t+' '+P(dn.x)+' 跌'+Math.abs((dn.x/p-1)*100).toFixed(1)+'%':'—')
           +'  ↑'+(up?up.t+' '+P(up.x)+' 涨'+((up.x/p-1)*100).toFixed(1)+'%':'—'));
       const dp=DPOS[h.code];
@@ -2612,7 +2733,7 @@ function doRender(){
       return '<div class="qb">'
         +'<div class="qh"><span><b class="px '+cls(pct)+'">'+P(p)+'</b> <b>'+wl+sg(dev.toFixed(2))+'%</b></span>'
         +'<span class="dim">H'+(hi!=null?P(hi):'—')+' L'+(lo!=null?P(lo):'—')+' σ'+(_atrp?_atrp.toFixed(1):'—')+'%'+' '+sessLbl()+'</span></div>'
-        +'<table class="qt2">'+rows+'</table><div class="qf">'+roundS+doneS+'</div>'+'<div class="qf">'+foot+'<span class="dim"> · %=该幅度250日内当天摸到概率</span></div>'+dline+'</div>';
+        +'<table class="qt2">'+rows+'</table><div class="qf">'+roundS+doneS+'</div>'+'<div class="qf">'+foot+'<span class="dim"> · %=历史同幅度触及频率(无条件,非今日概率)</span></div>'+dline+'</div>';
     })();
     return `<div class="card">${delBtn}
       <div class="row1"><div><span class="nm">${h.name}</span><span class="code">${h.code.replace(/^(sh|sz)/,'')}</span>${badge}${wtBadge}${dtBadgeH}${wsgTxtH}${m15Badge}${gzH}${extBadge}</div>
@@ -2637,6 +2758,7 @@ function doRender(){
       <div class="proj"><span>${planLbl()}${_td.slice(5)}预判 <b class="flat">${preStr}</b><span class="qm" onclick="preWhy('${h.code}','${h.name}')">?</span>${PREHIT[h.code]?`<span class="sub" style="font-size:10px"> 实测${PREHIT[h.code].inr}%不出界</span>`:''}</span><span class="sub">${posTxt}${ampNote} · ${anchorNote(h.code,prev,p)}</span></div>
       <div class="proj" style="margin-top:2px"><span>${actRow(h.code,p,prev,lo,hi,_aLo,_aHi,_qd)}</span></div>
       ${fibLine(lg,p)}
+      ${m15FibLine(M15FIB[h.code],p)}
       <div class="proj vrd"><span>📋 <b style="color:${vCls(vd)}">${vd}</b></span></div>
       ${tradeZone}
       <a href="https://fululi.github.io/k-station/?code=${h.code}&lines=${tr.buys.map(x=>'b'+x.toFixed(2)).concat(tr.sells.map(x=>'s'+x.toFixed(2))).join(',')}" style="display:block;text-align:center;margin-top:8px;padding:8px;border-radius:8px;background:#2563eb;color:#fff;text-decoration:none;font-size:13px;font-weight:600">📈 看K线（做T价位已自动画好）</a>
@@ -2785,23 +2907,61 @@ function paperScan(c, kl){ // loadWTrend 拉到日线时顺带扫描
   if(PAPER.some(x=>x.code===c&&x.entryD===bd)) return; // 同一突破日不重复建仓
   const c0=kl[kl.length-1][4];
   PAPER.push({ code:c, name:nameOf(c), dir:tr.brk, entry:c0, entryD:bd,
-    peak:c0, stop: tr.brk>0?tr.dn:tr.up, atr:atrLast(kl), status:'open' });
+    peak:c0, stop: tr.brk>0?tr.dn:tr.up, atr:atrLast(kl), status:'open', exitMode:'daily-close-confirm' });
   savePaper();
 }
+// 新口径模拟仓按已确认日K逐根补账。页面关闭几天后再打开,也必须从上次结算日继续扫描,
+// 不能只拿最新收盘判断——否则中间已经触发的止损/移动止盈会被漏掉,结果取决于页面是否一直开着。
+function settlePaperDaily(c,kl){
+  kl=settledRows(kl); if(!kl||!kl.length) return;
+  let dirty=false;
+  PAPER.filter(x=>x.code===c&&x.status==='open'&&x.exitMode==='daily-close-confirm').forEach(x=>{
+    const after=x.lastEvalD||x.entryD;
+    for(let i=0;i<kl.length;i++){
+      const r=kl[i], d=r[0], close=+r[4];
+      if(d<=after||!(close>0)) continue;
+      if(x.dir>0) x.peak=Math.max(x.peak||x.entry,close);
+      else x.trough=Math.min(x.trough||x.entry,close);
+      x.lastEvalD=d; dirty=true;
+      let why=null;
+      if(x.dir>0&&close<=x.stop) why='破三角下沿·日线收盘确认';
+      else if(x.dir<0&&close>=x.stop) why='破三角上沿·日线收盘确认';
+      else if(x.atr&&x.dir>0&&close<=x.peak-1.5*x.atr) why='ATR移动止盈·日线收盘确认';
+      else if(x.atr&&x.dir<0&&close>=x.trough+1.5*x.atr) why='ATR移动止盈·日线收盘确认';
+      else if(daysBetween(x.entryD,d)>=20) why='满20天·日线收盘确认';
+      if(why){ x.status='closed'; x.exit=close; x.exitD=d; x.ret=x.dir>0?(close/x.entry-1):(1-close/x.entry); x.why=why; break; }
+    }
+  });
+  if(dirty) savePaper();
+}
 // v5.07: 预判复盘 —— 沉淀每场"预判vs实际",周度汇总准确率。数据来自fcast_v1快照(写一次冻结,日K结算)
-// v5.07: 斐波那契回调位 —— 本段低→高的 38.2/50/61.8/78.6% 回撤支撑 + 1.618扩展,现价贴近的档位高亮
+// v5.19: 日线大周期与15分钟小周期分层。扩展位只作反应区,不直接改做T档位/触发交易。
 function fibLine(lg,p){
   if(!lg||!(lg.hi>0)||!(lg.lo>0)||!(lg.hi>lg.lo)) return '';
-  const R=lg.hi-lg.lo, lv=[[0.382,'38.2%'],[0.5,'50%'],[0.618,'61.8%'],[0.786,'78.6%']];
-  const tx=lv.map(x=>{ const px=lg.hi-R*x[0];
+  const R=lg.hi-lg.lo, up=(!lg.hiD||!lg.loD||lg.loD<=lg.hiD), lv=[[0.382,'38.2%'],[0.5,'50%'],[0.618,'61.8%'],[0.786,'78.6%']];
+  const tx=lv.map(x=>{ const px=up?lg.hi-R*x[0]:lg.lo+R*x[0];
     const near=(p!=null&&Math.abs(p/px-1)<0.005);
     return near?('<b style="color:#b45309">'+x[1]+'='+P(px)+'👈</b>'):(x[1]+'='+P(px)); }).join(' · ');
-  return '<div class="atrnote">🌀 本段 '+P(lg.lo)+'→'+P(lg.hi)+' · 回调支撑 '+tx+' · 扩展1.618='+P(lg.lo+R*1.618)+'</div>';
+  const e1=up?lg.lo+R*1.618:lg.hi-R*1.618, e2=up?lg.lo+R*2.618:lg.hi-R*2.618;
+  const d1=(up?lg.loD:lg.hiD)||lg.from||'', d2=(up?lg.hiD:lg.loD)||'';
+  return '<div class="atrnote">🌀 日线大周期 '+(up?'↑ ':'↓ ')+P(up?lg.lo:lg.hi)+(d1?'('+d1.slice(5)+')':'')+'→'+P(up?lg.hi:lg.lo)+(d2?'('+d2.slice(5)+')':'')
+    +' · '+(up?'回撤支撑 ':'反弹压力 ')+tx+' · 扩展1.618='+P(e1)+' · 2.618='+P(e2)+'</div>';
+}
+function m15FibLine(f,p){
+  if(!f) return '';
+  const tm=s=>String(s||'').slice(11,16), mark=v=>(p!=null&&v>0&&Math.abs(p/v-1)<=0.004)?'<b style="color:#b45309">'+P(v)+'👈</b>':P(v);
+  const abc=P(f.a)+'('+tm(f.aT)+')→'+P(f.b)+'('+tm(f.bT)+')→'+P(f.c)+'('+tm(f.cT)+')';
+  return '<div class="atrnote">⏱ 15分小周期·只认完成K '+(f.dir>0?'↑ ':'↓ ')+abc+' · 回撤'+Math.round(f.retrace*100)+'%'
+    +' · 目标1.0='+mark(f.t1)+' · 1.618='+mark(f.t1618)+' · 2.618='+mark(f.t2618)
+    +' · '+(f.dir>0?'支撑C='+P(f.c)+' / 跌破A='+P(f.a)+'失效':'压力C='+P(f.c)+' / 升破A='+P(f.a)+'失效')
+    +' <span class="dim">(小周期反应区,不是大周期反转确认)</span></div>';
 }
 function renderFcast(){
   const el=document.getElementById('fcBox'); if(!el) return;
-  const done=FCAST.filter(f=>f.act), pend=FCAST.filter(f=>!f.act);
-  if(!done.length){ el.innerHTML='<div class="sub">暂无已结算场次 · 进行中 '+pend.length+' 场 · 每天预判生成即冻结,收盘日K确认后自动结算</div>'; return; }
+  const doneAll=FCAST.filter(f=>f.act), done=doneAll.filter(f=>f.statEligible!==false&&f.genSess!=='盘中'), pend=FCAST.filter(f=>!f.act);
+  const excluded=doneAll.length-done.length;
+  if(!done.length){ el.innerHTML='<div class="sub">暂无可统计的已结算场次 · 进行中 '+pend.length+' 场'
+    +(excluded?' · 另有盘中补建'+excluded+'场仅留证据、不计覆盖率':'')+' · 盘前/前一收盘生成的预判才进入统计</div>'; return; }
   const n=done.length, inr=done.filter(f=>!f.act.out).length, pct=Math.round(inr/n*100);
   const wk={};
   done.forEach(f=>{ const k=weekNo(f.targetDate); const o2=wk[k]||(wk[k]={n:0,inn:0}); o2.n++; if(!f.act.out) o2.inn++; });
@@ -2809,32 +2969,41 @@ function renderFcast(){
     return '<div class="prow"><span class="sub">'+k+'</span><span>'+o2.n+'场 · 未出界 <b>'+Math.round(o2.inn/o2.n*100)+'%</b></span></div>'; }).join('');
   const recent=done.slice(-8).reverse().map(f=>'<div class="prow"><span class="sub">'+f.targetDate.slice(5)+' '+f.name+' 预判'+P(f.lo)+'~'+P(f.hi)+' → 实际'+P(f.act.low)+'~'+P(f.act.high)+'</span><b class="'+(f.act.out?'down':'up')+'">'+(f.act.out?'出界':'未出界')+'</b></div>').join('');
   el.innerHTML='<div style="display:flex;justify-content:space-between;align-items:baseline"><b style="font-size:14px">累计 '+n+' 场已结算</b><b style="font-size:20px">'+pct+'% <span class="sub">未出界</span></b></div>'
-    +'<div class="sub">进行中 '+pend.length+' 场 · 盘中不计,日K确认才结算</div>'
+    +'<div class="sub">进行中 '+pend.length+' 场 · 盘中高低不计,日K确认才结算'+(excluded?' · 盘中补建'+excluded+'场已排除':'')+'</div>'
     +'<div style="border-top:1px solid #e6e8ec;margin-top:6px;padding-top:6px"><b>周度复盘</b>'+wrows+'</div>'
     +'<div style="border-top:1px solid #e6e8ec;margin-top:6px;padding-top:6px"><b>最近场次</b>'+recent+'</div>';
 }
 function renderPaper(){
   const el=document.getElementById('paper'); if(!el) return;
-  if(!PAPER.length){ el.innerHTML='<div class="sub" style="padding:10px 12px">暂无模拟仓 · 每天自动扫描持仓+观察票的收敛三角，突破当日按收盘价记录建仓，不需要任何AI。</div>'; return; }
+  if(!PAPER.length){ el.innerHTML='<div class="sub" style="padding:10px 12px">暂无日线模拟仓 · 每天自动扫描持仓+观察票的日线收敛三角，突破当日按收盘价记录建仓。做T档位/15分钟信号仍按盘中小周期即时执行。</div>'; return; }
+  // 新旧出场口径不能混算:旧记录是盘中触及即撤,新记录是日线收盘确认。
+  // 混算会把历史保守/激进差异伪装成同一策略的胜率,直接影响是否继续做T。
   const _cl=PAPER.filter(x=>x.status==='closed');
-  const _pstat=_cl.length?('<div class="sub" style="padding:6px 12px">三角信号已了结 '+_cl.length+' 笔 · 胜率 '+Math.round(_cl.filter(x=>x.ret>0).length/_cl.length*100)+'% · 平均 '+sg((_cl.reduce((a,x)=>a+x.ret,0)/_cl.length*100).toFixed(1))+'%</div>'):'';
+  const _newCl=_cl.filter(x=>x.exitMode==='daily-close-confirm');
+  const _oldCl=_cl.filter(x=>x.exitMode!=='daily-close-confirm');
+  const _stat=(arr,label,extra)=>arr.length?('<div class="sub" style="padding:6px 12px">'+label+' '+arr.length+'笔 · 胜率 '+Math.round(arr.filter(x=>x.ret>0).length/arr.length*100)+'% · 平均 '+sg((arr.reduce((a,x)=>a+x.ret,0)/arr.length*100).toFixed(1))+'%'+(extra||'')+'</div>'):'';
+  const _pstat=_stat(_newCl,'新口径（日线收盘确认）')+_stat(_oldCl,'旧口径（盘中触及即撤，仅供参考）',' · 不纳入新口径统计');
   el.innerHTML=_pstat+PAPER.slice().reverse().map(x=>{
     if(x.status==='open'){
       const f=GET(x.code), p=f?F(f,3):null;
       if(p!=null){
-        x.peak=Math.max(x.peak||x.entry, x.dir>0?p:x.entry);
+        const legacy=x.exitMode!=='daily-close-confirm';
         const ret=x.dir>0?(p/x.entry-1):(1-p/x.entry);
         let why=null;
-        if(x.dir>0&&p<=x.stop) why='破三角下沿·止损';
-        else if(x.dir<0&&p>=x.stop) why='破三角上沿·止损';
-        else if(x.atr&&x.dir>0&&p<=x.peak-1.5*x.atr) why='ATR移动止盈';
-        else if(x.atr&&x.dir<0&&p>=x.entry+1.5*x.atr) why='ATR移动止盈';
-        else if(daysBetween(x.entryD,today())>=20) why='满20天离场';
-        if(why){ x.status='closed'; x.exit=p; x.exitD=today(); x.ret=ret; x.why=why; savePaper(); }
+        if(legacy){
+          x.peak=Math.max(x.peak||x.entry, x.dir>0?p:x.entry);
+          if(x.dir>0&&p<=x.stop) why='破三角下沿·止损·旧盘中口径';
+          else if(x.dir<0&&p>=x.stop) why='破三角上沿·止损·旧盘中口径';
+          else if(x.atr&&x.dir>0&&p<=x.peak-1.5*x.atr) why='ATR移动止盈·旧盘中口径';
+          else if(x.atr&&x.dir<0&&p>=x.entry+1.5*x.atr) why='ATR移动止盈·旧盘中口径';
+          else if(daysBetween(x.entryD,today())>=20) why='满20天·旧盘中口径';
+        }
+        if(why){ x.status='closed'; x.exit=p; x.exitD=today(); x.ret=ret; x.why=why; x.exitMode='intraday-touch-legacy'; savePaper(); }
         else {
           const hd=PF.holds.find(h2=>h2.code===x.code);
-          const trailPx=x.atr!=null?(x.dir>0?x.peak-1.5*x.atr:x.entry+1.5*x.atr):null;
-          return `<div class="prow"${x.entryD===today()?' style="background:#fff7e6"':""}><span><b>${x.name}</b> <b class="${x.dir>0?'up':'down'}">${x.dir>0?'▲多':'▼空'}</b> <span class="sub">${x.entryD.slice(5)} 进 ${P(x.entry)}${hd?` · 你有底仓@${hd.cost}`:' · 你无此票'}<br>止损 ${P(x.stop)} · 移动止盈 ${trailPx!=null?P(trailPx):'—'}(峰值回撤1.5×ATR) · 满20天离场</span></span><b class="${cls(ret*100)}">${sg((ret*100).toFixed(1))}% <span class="sub">持${daysBetween(x.entryD,today())}天</span></b><button class="rm" onclick="delPaper(${PAPER.indexOf(x)},this)">删</button></div>`;
+          const trailPx=x.atr!=null?(x.dir>0?(x.peak||x.entry)-1.5*x.atr:(x.trough||x.entry)+1.5*x.atr):null;
+          const warn=!legacy&&((x.dir>0&&p<=x.stop)||(x.dir<0&&p>=x.stop))?' · ⚠盘中已触及止损，等日线收盘确认':'';
+          return `<div class="prow"${x.entryD===today()?' style="background:#fff7e6"':""}><span><b>${x.name}</b> <b class="${x.dir>0?'up':'down'}">${x.dir>0?'▲多':'▼空'}</b> <span class="sub">${x.entryD.slice(5)} 进 ${P(x.entry)}${hd?` · 你有底仓@${hd.cost}`:' · 你无此票'}<br>止损 ${P(x.stop)} · 移动止盈 ${trailPx!=null?P(trailPx):'—'}(峰值回撤1.5×ATR) · 满20天离场${warn}</span></span><b class="${cls(ret*100)}">${sg((ret*100).toFixed(1))}% <span class="sub">持${daysBetween(x.entryD,today())}天</span></b><button class="rm" onclick="delPaper(${PAPER.indexOf(x)},this)">删</button></div>`;
         }
       }
       return `<div class="prow"><span><b>${x.name}</b> ${x.dir>0?'▲多':'▼空'}</span><span class="sub">等待报价…</span><button class="rm" onclick="delPaper(${PAPER.indexOf(x)},this)">删</button></div>`;
