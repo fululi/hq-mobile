@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#f5f6f8">
-<title>我的持仓 · 行情 v5.03</title>
+<title>我的持仓 · 行情 v5.04</title>
 <style>
 :root { color-scheme: light; }
 * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
@@ -925,6 +925,7 @@ function actRow(code,p,prev,lo,hi,aLo,aHi,qd){
     if(fc&&fc.act) out=fc.act.out;
     else if(fHi!=null&&fLo!=null) out=(lk.h>fHi||lk.l<fLo);
     return lbl+rng(lk.l,lk.h)+' <span class="sub">(已收盘·日K确认)</span>'
+      +(fHi!=null&&fLo!=null?' <span class="sub">对照当场预判'+P(fLo)+'~'+P(fHi)+'</span>':'')
       +(out!=null?(' <span class="sub">'+(out?'<b style="color:#b91c1c">已出界</b>':'未出界')+' · 纳入覆盖率</span>'):'');
   }
   // 收盘时间到/盘前/周末: 快照还是上一场的数据,日K未确认,不进统计
@@ -1116,7 +1117,14 @@ function loadM15(done){ // 15分钟三角扫描(新浪15分K,近80根≈5个交�
 }
 function loadWTrend(done){
   if(WT_DATE===today() && Object.keys(WT).length
-     && [...PF.holds.map(h=>h.code),...PF.watch.map(w=>w.code)].every(c=>PREHIT[c]||PHTRY[c])){ done&&done(); return; }
+     && [...PF.holds.map(h=>h.code),...PF.watch.map(w=>w.code)].every(c=>PREHIT[c]||PHTRY[c])){
+    // v5.04: 收盘后(t>900)若今天的日K还没确认(LASTK缺/还是昨天),必须放下去重抓,
+    // 否则盘中缓存会把「等待日K确认」卡到明天
+    const _d=new Date(), _w=_d.getDay(), _t=_d.getHours()*60+_d.getMinutes();
+    const _needSettle=(_w>=1&&_w<=5&&_t>900)
+      && [...PF.holds.map(h=>h.code),...PF.watch.map(w2=>w2.code)].some(c=>!LASTK[c]||LASTK[c].date!==today());
+    if(!_needSettle){ done&&done(); return; }
+  }
   const codes=[...PF.holds.map(h=>h.code), ...PF.watch.map(w=>w.code)];
   const out={}, osig={}, odt={}, oext={}, olv={}, oposn={}, obt={}; let left=codes.length, finished=false;
   const closesMap={};
