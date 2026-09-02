@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#f5f6f8">
-<title>我的持仓 · 行情 v5.14</title>
+<title>我的持仓 · 行情 v5.15</title>
 <style>
 :root { color-scheme: light; }
 * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
@@ -385,7 +385,7 @@ function todayPnlOf(code,shares,p,prev){
   if(p==null||prev==null) return null;
   const rows=TLOG.filter(r=>r.code===code&&r.d===today());
   const cf=rows.reduce((s,r)=>s+((r.sell||0)*(r.qty||0))-((r.buy||0)*(r.bq||0))-(r.fee||0),0);
-  const s0=rows.length?rows[rows.length-1].posBefore.shares:shares;
+  const s0=(rows.length&&rows[rows.length-1].posBefore)?rows[rows.length-1].posBefore.shares:shares;
   return p*shares+cf-prev*s0;
 }
 let PLAN; try{ PLAN=JSON.parse(localStorage.getItem('tplan_v1'))||[]; }catch(e){ PLAN=[]; }
@@ -470,7 +470,10 @@ function sessLbl(){ const d=new Date(), w=d.getDay(), t=d.getHours()*60+d.getMin
 // 不因反弹/回落而复位;s1/s2/b1/b2一旦被推到过的更宽值,今天不再退回;touch按"当时价 vs 当时档位"记一次性事件,不用日高低倒推
 let DANCH={}; try{ const _d=JSON.parse(localStorage.getItem('hqm_da_v1')||'null'); if(_d&&_d.date===today()) DANCH=_d.m||{}; }catch(e){}
 function dayState(code){
-  if(!DANCH[code]) DANCH[code]={vw:null,oneDn:false,oneUp:false,s1:null,s2:null,b1:null,b2:null,touch:{S1:false,S2:false,B1:false,B2:false}};
+  // v5.14修: 当天若已用旧版(v5.11-)写过 hqm_da_v1,DANCH[code]是裸数字不是对象——
+  // 真值判断(!DANCH[code])对非零数字为false,不会重建,后面 st.touch.S1 等会在数字上取属性直接崩掉整个渲染
+  const cur=DANCH[code];
+  if(!cur||typeof cur!=='object') DANCH[code]={vw:(typeof cur==='number'&&cur>0)?cur:null,oneDn:false,oneUp:false,s1:null,s2:null,b1:null,b2:null,touch:{S1:false,S2:false,B1:false,B2:false}};
   return DANCH[code];
 }
 function saveDanch(){ try{ localStorage.setItem('hqm_da_v1',JSON.stringify({date:today(),m:DANCH})); }catch(e){} }
