@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#f5f6f8">
-<title>我的持仓 · 行情 v5.38</title>
+<title>我的持仓 · 行情 v5.39</title>
 <style>
 :root { color-scheme: light; }
 html { scroll-padding-top:118px; }
@@ -3313,7 +3313,9 @@ function triLine(code,p){
   if(!d&&!m) return '';
   const near=v=>(p!=null&&v>0&&Math.abs(p/v-1)<=0.004)?'<b style="color:#b45309">'+P(v)+'👈</b>':P(v);
   const seg=(o,lbl)=>{
-    if(!o||!(o.up>0)||!(o.dn>0)) return '';
+    // v5.39: 顶点已过时两条边会交叉(上沿<下沿,口宽为负),那不是三角,不显示。
+    // 实测9只票有1只是这种废数据(603986 上沿392.05/下沿392.89)。
+    if(!o||!(o.up>0)||!(o.dn>0)||!(o.up>o.dn)) return '';
     if(o.brk>0) return lbl+' <b class="up">已上破</b>(沿'+near(o.up)+')';
     if(o.brk<0) return lbl+' <b class="down">已下破</b>(沿'+near(o.dn)+')';
     const w=(o.up-o.dn)/o.dn*100;
