@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#f5f6f8">
-<title>我的持仓 · 行情 v5.32</title>
+<title>我的持仓 · 行情 v5.33</title>
 <style>
 :root { color-scheme: light; }
 html { scroll-padding-top:118px; }
@@ -1340,7 +1340,10 @@ function indexFibLine(f,p){
   if(!up&&!dn) return '<div class="atrnote">📏指数日线Fib方向未确认(仅供环境参考)</div>';
   const R=hi-lo, lv=[['38.2%',up?hi-R*.382:lo+R*.382],['50%',up?hi-R*.5:lo+R*.5],['61.8%',up?hi-R*.618:lo+R*.618]];
   const tx=lv.map(x=>x[0]+'='+P(x[1])).join(' · ');
-  const gain=(p-(up?base:hi))/(up?base:hi)*100;
+  // v5.33: 原为裸变量 base(从未定义) → ReferenceError 打断整个 doRender,
+  // 导致指数卡/时间/总览/持仓全都渲染不出来。字段名是 legBase。
+  const anchor=up?(+f.legBase):hi;
+  const gain=(anchor>0)?(p-anchor)/anchor*100:0;
   return `<div class="atrnote"><b>📏指数日线Fib</b> ${up?'↑':'↓'} ${P(up?lo:hi)}→${P(up?hi:lo)} · ${up?'回撤支撑':'反弹压力'} ${tx} · 扩展1.618=${P(up?lo+R*1.618:hi-R*1.618)} · ${gain>=0?'当前段':'相对起点'}${sg(gain.toFixed(1))}% <span class="dim">(只作大盘背景,不改个股档位)</span></div>`;
 }
 function m15FibCalc(kl, code, triSignal){
