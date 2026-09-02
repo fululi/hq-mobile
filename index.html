@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#f5f6f8">
-<title>我的持仓 · 行情 v5.07</title>
+<title>我的持仓 · 行情 v5.08</title>
 <style>
 :root { color-scheme: light; }
 * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
@@ -2275,11 +2275,11 @@ function doRender(){
   let totMv=0, totPnl=0;
   // v4.85: 先算好每个账户的小计,再按账户把持仓排成组(排的是下标,editField/delItem 的 i 不受影响)
   ACCS={};
-  PF.holds.forEach(h=>{ const a=acctOf(h), f=GET(h.code), px=F(f,3), pc=F(f,32);
+  PF.holds.forEach(h=>{ const a=acctOf(h), f=GET(h.code), px=F(f,3), pv0=F(f,4);
     const o=ACCS[a]||(ACCS[a]={n:0,mv:0,pnl:0,day:0});
     o.n++;
     if(px!=null&&h.shares>0){ const v=px*h.shares; o.mv+=v;
-      if(pc!=null) o.day+=v*pc/100;
+      if(pv0!=null) o.day+=(px-pv0)*h.shares;
       if(h.cost>0) o.pnl+=(px-h.cost)*h.shares; } });
   const _ord=[]; acctList().forEach(a=>{ PF.holds.forEach((h,i)=>{ if(acctOf(h)===a) _ord.push(i); }); });
   const qVals={};
