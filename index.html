@@ -214,6 +214,14 @@ details.fold:not([open]) > summary { margin-bottom:0; }
   <h1>我的持仓 · 行情</h1>
   <div class="btns"><button class="cp" onclick="copyPlan()">复制计划</button><button class="ed" id="edBtn" onclick="toggleEdit()">编辑</button><button class="rf" onclick="refresh(1)">刷新</button></div>
 </div>
+<div style="position:sticky;top:50px;z-index:60;background:#f5f6f8;border-bottom:1px solid #e6e8ec;padding:6px 12px;margin:0 -12px;font-size:12px;display:flex;gap:4px;overflow-x:auto;scroll-behavior:smooth" id="navSticky">
+  <button style="border:none;background:#f6f7f9;padding:5px 10px;border-radius:6px;font-weight:600;color:#374151;white-space:nowrap;cursor:pointer" onclick="document.getElementById('sum').scrollIntoView({behavior:'smooth',block:'start'})">总览</button>
+  <button style="border:none;background:#f6f7f9;padding:5px 10px;border-radius:6px;font-weight:600;color:#374151;white-space:nowrap;cursor:pointer" onclick="document.getElementById('holds').scrollIntoView({behavior:'smooth',block:'start'})">持仓</button>
+  <button style="border:none;background:#f6f7f9;padding:5px 10px;border-radius:6px;font-weight:600;color:#374151;white-space:nowrap;cursor:pointer" onclick="document.getElementById('tboxMain').scrollIntoView({behavior:'smooth',block:'start'})">做T</button>
+  <button style="border:none;background:#f6f7f9;padding:5px 10px;border-radius:6px;font-weight:600;color:#374151;white-space:nowrap;cursor:pointer" onclick="document.getElementById('foldPlan').scrollIntoView({behavior:'smooth',block:'start'})">挂单</button>
+  <button style="border:none;background:#f6f7f9;padding:5px 10px;border-radius:6px;font-weight:600;color:#374151;white-space:nowrap;cursor:pointer" onclick="document.getElementById('rvBox').scrollIntoView({behavior:'smooth',block:'start'})">复盘</button>
+  <button style="border:none;background:#f6f7f9;padding:5px 10px;border-radius:6px;font-weight:600;color:#374151;white-space:nowrap;cursor:pointer" onclick="document.getElementById('tlog').scrollIntoView({behavior:'smooth',block:'start'})">台账</button>
+</div>
 <div class="time" id="time">加载中…</div>
 
 <div class="sum" id="sum" style="display:none">
@@ -267,7 +275,7 @@ details.fold:not([open]) > summary { margin-bottom:0; }
 </div>
 
 <details class="fold">
-<summary class="sec"><span>模拟建仓 · 每日自动跟踪</span><span class="sub">每天首次打开自动扫 · 纯代码零成本</span></summary>
+<summary class="sec"><span>模拟建仓 · 每日自动跟踪</span><span class="sub">每天首次打开自动扫 · 纯代码零成本 · 日线三角突破跟踪，无真实持仓</span></summary>
 <div class="card" id="paper" style="padding:4px 0"></div>
 </details>
 
@@ -299,12 +307,12 @@ details.fold:not([open]) > summary { margin-bottom:0; }
   </div>
   <div class="sub" id="pHint" style="margin:2px 0 8px"></div>
   <button class="go" onclick="addPlan()">＋ 挂一笔（只记录，不算收益）</button>
-  <button class="go" style="background:#475569;margin-top:6px" onclick="copyOrders()">📋 复制为条件单文本（去券商App手动设置）</button>
+  <button class="go" style="background:#475569;margin-top:6px" onclick="copyOrders()">📋 复制为条件单文本<span class="qm" onclick="event.stopPropagation();alert('【复制为条件单文本】\\n\\n用途：生成可直接粘贴到券商App的条件单\\n\\n流程：\\n1. 在表单里挂单（股票、方向、价格、股数）\\n2. 点此按钮复制所有挂单的条件单文本\\n3. 打开券商App粘贴，逐条手动设置条件单\\n\\n说明：\\n• 系统只生成文本，不自动下单\\n• 成交后需手动点「填入」记账\\n• 含有：股票代码、方向、价格、股数、有效期、触发条件、备注')">?</span></button>
 </div>
 <div class="card tbl" id="plist"></div>
 </details>
 
-<div class="sec"><span>做T复盘 · 记一笔</span></div>
+<div class="sec"><span>做T复盘 · 记一笔</span><span class="sub">15分钟级别的日内交易记录 · 记录每笔高抛-低吸的完整周期</span></div>
 <div class="tbox" id="tboxMain">
   <div class="r">
     <label>股票<select id="tSel" onchange="maybeConfirmT()"></select></label>
@@ -354,8 +362,15 @@ details.fold:not([open]) > summary { margin-bottom:0; }
 
 <div class="foot"></div>
 
+<div style="position:fixed;right:12px;bottom:70px;z-index:55;display:flex;flex-direction:column;gap:8px" id="quickActions">
+  <button style="width:44px;height:44px;border-radius:50%;border:none;background:#2563eb;color:#fff;font-size:18px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.15)" title="+记一笔" onclick="addSec('hold');setTimeout(()=>document.getElementById('fHold').scrollIntoView({behavior:'smooth',block:'center'}),100)">📝</button>
+  <button style="width:44px;height:44px;border-radius:50%;border:none;background:#2563eb;color:#fff;font-size:18px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.15)" title="+观察" onclick="addSec('watch');setTimeout(()=>document.getElementById('fWatch').scrollIntoView({behavior:'smooth',block:'center'}),100)">👁</button>
+  <button style="width:44px;height:44px;border-radius:50%;border:none;background:#2563eb;color:#fff;font-size:18px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.15)" title="+挂单" onclick="document.getElementById('foldPlan').scrollIntoView({behavior:'smooth',block:'center'})">📋</button>
+  <button style="width:44px;height:44px;border-radius:50%;border:none;background:#2563eb;color:#fff;font-size:18px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.15)" title="↓复盘" onclick="document.getElementById('rvBox').scrollIntoView({behavior:'smooth',block:'center'})">📊</button>
+</div>
+
 <script>
-const IDX = [['sh000001','上证'],['sz399001','深证'],['sz399006','创业板']];
+const IDX = [['sh000001','上证'],['sz399001','深证'],['sz399006','创业板'],['sh000300','沪深300']];
 const DEFAULT = {
   holds:[],
   watch:[]
@@ -440,6 +455,9 @@ try{ const a=JSON.parse(localStorage.getItem(ATRK)); if(a&&a.date===today()){
   Object.keys(ATR).forEach(c=>{ const o=ATR[c]; if(o&&typeof o==='object'&&o.legBase>0&&(!o.legHiD||!o.legLoD)) delete ATR[c]; });
   ATR_DATE=a.date;
 } }catch(e){}
+// v5.21: 指数日线Fib缓存(与ATR同日期)
+let INDEX_FIB={}, INDEX_FIB_DATE='';
+try{ const _if=JSON.parse(localStorage.getItem('IDX_FIB_CACHE')||'null'); if(_if&&_if.date===today()){ INDEX_FIB=_if.data||{}; INDEX_FIB_DATE=_if.date; } }catch(e){}
 PF.holds.forEach(h=>{ if(h.ref===undefined){ const d=DEFAULT.holds.find(x=>x.code===h.code); if(d&&d.ref) h.ref=d.ref; } });
 if(!localStorage.getItem(LS)){ try{ localStorage.setItem(LS, JSON.stringify(PF)); }catch(e){} } // 首次打开即落盘本机
 function save(){ lsSet(LS, JSON.stringify(PF)); }
@@ -1212,6 +1230,30 @@ function verdict(c){ // 五维合成一行作战结论(规则口径见回测框�
 }
 // 15分钟小周期Fib:只认当日已经完成的15分K,从最近一个有效A-B-C摆动推导扩展位。
 // A-B至少大于2.5倍当日典型15分波幅,C必须是未破A的有效回撤;不满足就返回无结构状态。
+function indexFibCalc(code, rows){
+  if(!rows||rows.length<15) return null;
+  try{
+    // 日线Fib只用已确认日K，不用盘中未收盘K
+    const settled=settledRows(rows);
+    let base=+settled[0][2], peak=base, baseD=settled[0][0];
+    for(let i=1;i<settled.length;i++){ const c=+settled[i][2];
+      if(c>peak){ peak=c; }
+      else if(peak>base&&(peak-c)/peak>=0.05){ base=c; baseD=settled[i][0]; peak=c; }
+      else if(c<base){ base=c; baseD=settled[i][0]; peak=c; } }
+    let legHi=null, legLo=null, legHiD='', legLoD='';
+    for(let i=0;i<settled.length;i++){ if(settled[i][0]>=baseD){ const h2=+settled[i][3], l2=+settled[i][4];
+      if(legHi==null||h2>legHi){ legHi=h2; legHiD=settled[i][0]; }
+      if(legLo==null||l2<legLo){ legLo=l2; legLoD=settled[i][0]; } } }
+    return {kind:'index-fib', code:code, legBase:base, legFrom:baseD, legHi:legHi, legLo:legLo, legHiD:legHiD, legLoD:legLoD};
+  }catch(e){ return null; }
+}
+function indexFibLine(f,p){
+  if(!f||f.kind!=='index-fib') return '';
+  if(p==null||f.legBase==null) return '';
+  const leg=f.legHi!=null&&f.legLo!=null?(p>=f.legHi?'▲破'+P(f.legHi)+'日高':(p<=f.legLo?'▼破'+P(f.legLo)+'日低':P(f.legLo)+'~'+P(f.legHi))):'—';
+  const gain=(p-f.legBase)/f.legBase*100;
+  return `<div class="atrnote"><b>📏日线段</b> 自${f.legFrom}低点${P(f.legBase)}以来 <b class="${cls(gain)}">${sg(gain.toFixed(1))}%</b> · 区间${leg}</div>`;
+}
 function m15FibCalc(kl, code){
   if(!kl||kl.length<7) return {kind:'no-data'};
   const ds=[...new Set(kl.map(r=>String(r[0]).slice(0,10)))].sort();
@@ -1360,27 +1402,37 @@ function loadWTrend(done){
 }
 function loadATR(done){
   const need=[...new Set([...PF.holds.map(h=>h.code), ...PF.watch.map(w=>w.code), ...IDX.map(x=>x[0])])];
-  if(ATR_DATE===today() && need.every(c=>ATR[c]!=null)){ done&&done(); return; }
+  if(ATR_DATE===today() && INDEX_FIB_DATE===today() && need.every(c=>ATR[c]!=null)){ done&&done(); return; }
   const codes=need.filter(c=>ATR[c]==null);
-  const out={}; let left=codes.length, finished=false;
+  const out={}, outIdx={}; let left=codes.length, finished=false;
   const fin=()=>{ if(finished) return; finished=true;
     if(Object.keys(out).length){ ATR=Object.assign({}, ATR, out); ATR_DATE=today(); ATR_FAIL=false;
       lsSet(ATRK, JSON.stringify({date:ATR_DATE, atr:ATR})); }
     else if(!Object.keys(ATR).length){ ATR_FAIL=true; }
+    if(Object.keys(outIdx).length){ INDEX_FIB=outIdx; INDEX_FIB_DATE=today();
+      lsSet('IDX_FIB_CACHE', JSON.stringify({date:INDEX_FIB_DATE, data:INDEX_FIB})); }
     done&&done(); };
   if(!left){ done&&done(); return; }
-  setTimeout(fin, 9000); // 整体兜底9秒
+  setTimeout(fin, 9000);
   codes.forEach(c=>{
     let got=false;
-    const tick=(val)=>{ if(got) return; got=true; if(val) out[c]=val; if(--left===0) fin(); };
+    const tick=(val,isIdx)=>{ if(got) return; got=true; if(val) (isIdx?outIdx:out)[c]=val; if(--left===0) fin(); };
+    const isIdx=IDX.some(x=>x[0]===c);
     const ctrl=new AbortController(); const tm=setTimeout(()=>ctrl.abort(), 5000);
     fetch('https://web.ifzq.gtimg.cn/appstock/app/fqkline/get?param='+c+',day,,,70,qfq', {signal:ctrl.signal})
-      .then(r=>r.text()).then(t=>{ clearTimeout(tm); tick(parseIfzq(c,t)); })
+      .then(r=>r.text()).then(t=>{ clearTimeout(tm);
+        if(isIdx){
+          const idx=JSON.parse(t); const rows=idx.data&&idx.data[c]&&(idx.data[c].qfqday||idx.data[c].day);
+          tick(rows?indexFibCalc(c,rows):null,true);
+        } else {
+          tick(parseIfzq(c,t),false);
+        }
+      })
       .catch(()=>{ clearTimeout(tm);
         const c2=new AbortController(); const tm2=setTimeout(()=>c2.abort(), 4000);
         fetch('https://quotes.sina.cn/cn/api/jsonp_v2.php/var%20x=/CN_MarketDataService.getKLineData?symbol='+c+'&scale=240&ma=no&datalen=20', {signal:c2.signal})
-          .then(r=>r.text()).then(t=>{ clearTimeout(tm2); tick(parseSina(t)); })
-          .catch(()=>{ clearTimeout(tm2); tick(null); });
+          .then(r=>r.text()).then(t=>{ clearTimeout(tm2); tick(parseSina(t),false); })
+          .catch(()=>{ clearTimeout(tm2); tick(null,false); });
       });
   });
 }
@@ -1510,11 +1562,12 @@ function loadSync(){
 function refresh(manual){
   const btn=document.querySelector('.rf');
   if(manual&&btn){ btn.textContent='刷新中…'; btn.disabled=true; }
+  if(manual){ INDEX_FIB_DATE=''; localStorage.removeItem('IDX_FIB_CACHE'); ATR_DATE=''; }
   const done=()=>{ if(manual&&btn){ btn.textContent='刷新'; btn.disabled=false; } };
   const s=document.createElement('script');
   s.src='https://qt.gtimg.cn/q='+allCodes().join(',')+'&_='+Date.now();
   s.charset='GBK';
-  s.onload=()=>{ render(); sweepPlans(); loadATR(render); loadIdxHit(); loadWTrend(render); loadM15(render); maybeSync(); maybeFF(); maybeFFH(); s.remove(); done(); if(manual) toast('已刷新 · '+document.getElementById('time').textContent); }; // 先渲染行情,ATR到了再补渲染
+  s.onload=()=>{ render(); sweepPlans(); loadATR(render); loadIdxHit(); loadWTrend(render); loadM15(render); maybeSync(); maybeFF(); maybeFFH(); s.remove(); done(); if(manual) toast('已刷新 · '+document.getElementById('time').textContent); };
   s.onerror=()=>{ document.getElementById('time').textContent='网络拉取失败,请检查网络后点刷新'; s.remove(); done(); if(manual) toast('刷新失败,请检查网络'); };
   document.body.appendChild(s);
 }
@@ -1753,10 +1806,16 @@ function confirmAdd(type){
   doAdd(type, prefix(c), n||c);
 }
 // 点两下删除(不依赖confirm弹窗)
+let _lastDeletedWatch=null, _deleteTimer=null;
 function delItem(btn,type,i){
   if(!btn.dataset.armed){ btn.dataset.armed='1'; const old=btn.textContent; btn.textContent='确认?';
     setTimeout(()=>{ btn.dataset.armed=''; btn.textContent=old; },2500); return; }
-  (type==='hold'?PF.holds:PF.watch).splice(i,1); save(); toast('已删除'); render();
+  if(type==='watch'){
+    _lastDeletedWatch={item:PF.watch[i], index:i};
+    clearTimeout(_deleteTimer);
+    _deleteTimer=setTimeout(()=>{ _lastDeletedWatch=null; },5000);
+  }
+  (type==='hold'?PF.holds:PF.watch).splice(i,1); save(); toast((type==='watch'?'已删除 · 5秒内可撤销':'已删除')); render();
 }
 function editField(type,i,field,val){
   if(type==='watch'){ PF.watch[i][field]=val; save(); render(); return; }
