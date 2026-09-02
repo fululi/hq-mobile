@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#f5f6f8">
-<title>我的持仓 · 行情 v5.00</title>
+<title>我的持仓 · 行情 v5.01</title>
 <style>
 :root { color-scheme: light; }
 * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
@@ -2317,7 +2317,7 @@ function doRender(){
     const lp2=limitPct(h.code,h.name)/100, a2=atrOf(h.code);
     const lk=LNK[h.code], lpct=idxPctOf(lk);
     let ampF=1, ampNote='';
-    if(lk&&lpct!=null&&Math.abs(lpct)>=1.5){ const av=lpct>0?(lk.au||2):(lk.ad||2); ampF=Math.min(Math.max(av,1),3)/2; ampNote=' · 联动'+lk.i+'极端日·区间按该票历史放大×'+ampF.toFixed(2); }
+    if(lk&&lpct!=null&&Math.abs(lpct)>=1.5){ const av=lpct>0?(lk.au||2):(lk.ad||2); ampF=Math.min(Math.max(av,1),3)/2; ampNote=' · 联动'+lk.i+'极端日·区间按该票历史弹性'+(ampF>=1?'放大':'收窄')+'×'+ampF.toFixed(2); }
     // v4.96: 预判基准统一走 refCloseOf(与做T档位、preWhy说明一致)
     //        收盘后/盘前它就是"下一场"的区间,不能再拿上上一个收盘去算
     const _nxP=planNext();
@@ -2332,7 +2332,7 @@ function doRender(){
     const _dLo=_snap?_snap.lo:preLo, _dHi=_snap?_snap.hi:preHi;
     const preStr=(_dHi!=null)?P(_dLo)+' ~ '+P(_dHi):'—';
     // 盘前/收盘后 p 就是基准本身,拿它比自己永远"在区间内",没信息量,直接不显示
-    const posTxt=_nxP?'':((p!=null&&preHi!=null&&preLo!=null)?(p>=preHi?'▲现价破预判上沿':(p<=preLo?'▼现价破预判下沿':'在预判区间内')):'');
+    const posTxt=_nxP?'':((p!=null&&preHi!=null&&preLo!=null)?(p>=preHi?'▲现价破预判上沿':(p<=preLo?'▼现价破预判下沿':(a2!=null&&preHi-p<0.5*a2?'⚠接近预判上沿(差'+P(preHi-p)+')':(a2!=null&&p-preLo<0.5*a2?'⚠接近预判下沿(差'+P(p-preLo)+')':'在预判区间内')))):'');
     const lg=legOf(h.code);
     const legGain=(lg&&p!=null)?(p/lg.base-1)*100:null;
     const lvH=LV[h.code]||{}, devA=(p!=null&&lvH.de!=null&&atrV)?(p-lvH.de)/atrV:null;
