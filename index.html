@@ -1212,8 +1212,11 @@ function verdict(c){ // 五维合成一行作战结论(规则口径见回测框�
 // A-B至少大于2.5倍当日典型15分波幅,C必须是未破A的有效回撤;不满足就宁可不显示。
 function m15FibCalc(kl){
   if(!kl||kl.length<7) return null;
-  let a=kl.filter(r=>String(r[0]).slice(0,10)===today());
+  const ds=[...new Set(kl.map(r=>String(r[0]).slice(0,10)))].sort();
+  let sd=today(), a=kl.filter(r=>String(r[0]).slice(0,10)===sd);
   if(mktLive()&&a.length) a=a.slice(0,-1); // 当前正在形成的15分K不拿来确认拐点
+  // 今日完成K不足时,从接口已有80根K里重建最近一个完整场次,用于跨日复盘。
+  if(a.length<7){ sd=ds.filter(d=>d<today()).slice(-1)[0]||''; a=sd?kl.filter(r=>String(r[0]).slice(0,10)===sd):[]; }
   if(a.length<7) return null;
   const ranges=a.map(r=>Math.max(0,r[2]-r[3])).sort((x,y)=>x-y);
   const med=ranges[Math.floor(ranges.length/2)]||0;
@@ -1233,19 +1236,27 @@ function m15FibCalc(kl){
     else continue;
     if(!(R>Math.max(med*2.5,Math.abs(B.p)*0.003))) continue;
     const px=k=>dir>0?C.p+R*k:C.p-R*k;
-    return {dir:dir,a:A.p,b:B.p,c:C.p,aT:A.t,bT:B.t,cT:C.t,retrace:+ret.toFixed(3),
+    return {sessionDate:sd,dir:dir,a:A.p,b:B.p,c:C.p,aT:A.t,bT:B.t,cT:C.t,retrace:+ret.toFixed(3),
       t1:px(1),t1618:px(1.618),t2618:px(2.618)};
   }
   return null;
 }
-let MSIG={}, M15FIB={}, M15_TS=0;
+let MSIG={}, M15FIB={}, M15FIB_DATE='', M15_TS=0;
+try{ const _mf=JSON.parse(localStorage.getItem('m15fib_v1')||'null');
+  if(_mf&&_mf.fib&&typeof _mf.fib==='object'){ M15FIB=_mf.fib; M15FIB_DATE=_mf.date||''; }
+}catch(e){}
 function loadM15(done){ // 15分钟三角扫描(新浪15分K,近80根≈5个交易日),15分钟内不重复拉
   const n=Date.now(); if(n-M15_TS<15*60*1000 && (Object.keys(MSIG).length||Object.keys(M15FIB).length)){ done&&done(); return; }
   M15_TS=n;
   const codes=[...PF.holds.map(h=>h.code), ...PF.watch.map(w=>w.code)];
   if(!codes.length){ done&&done(); return; }
   const out={}, ofib={}; let left=codes.length, finished=false;
-  const fin=()=>{ if(finished) return; finished=true; MSIG=out; M15FIB=ofib; done&&done(); };
+  const fin=()=>{ if(finished) return; finished=true; MSIG=out;
+    // 当天没有足够完成K时保留上一场的小周期证据,不能因次日盘前空数据把昨天结构抹掉。
+    if(Object.keys(ofib).length){ M15FIB=ofib;
+      M15FIB_DATE=Object.values(ofib).map(x=>x.sessionDate||'').sort().slice(-1)[0]||today();
+      try{ localStorage.setItem('m15fib_v1',JSON.stringify({date:M15FIB_DATE,fib:M15FIB})); }catch(e){} }
+    done&&done(); };
   setTimeout(fin, 8000);
   codes.forEach(c=>{
     let got=false;
@@ -2153,7 +2164,7 @@ function backupJSON(){
   // v5.18: 交易判断所依赖的证据状态必须跟着备份走,否则换设备/恢复后会出现
   // "页面看过但没有触发记录/预测快照/止损口径"的断层。旧字段仍保持兼容。
   const data={ver:'v5.19',at:new Date().toISOString(),holds:PF.holds,watch:PF.watch,tlog:TLOG,plan:PLAN,fee:FEE,
-    fcast:FCAST,tfc:TFC,paper:PAPER,danchDate:today(),danch:DANCH,hitseenDate:today(),hitseen:HITSEEN};
+    fcast:FCAST,tfc:TFC,paper:PAPER,m15fibDate:M15FIB_DATE,m15fib:M15FIB,danchDate:today(),danch:DANCH,hitseenDate:today(),hitseen:HITSEEN};
   const a=document.createElement('a');
   a.href=URL.createObjectURL(new Blob([JSON.stringify(data,null,1)],{type:'application/json'}));
   a.download='hq备份_'+today()+'.json'; a.click();
@@ -2204,6 +2215,9 @@ function restoreJSON(ev){
         if(i==null){ pm[k]=PAPER.length; PAPER.push(x); }
         else if(PAPER[i].status!=='closed'&&x.status==='closed') PAPER[i]=x; });
       savePaper();
+    }
+    if(d.m15fibDate&&d.m15fibDate===M15FIB_DATE&&d.m15fib&&typeof d.m15fib==='object'){
+      M15FIB=d.m15fib; try{ localStorage.setItem('m15fib_v1',JSON.stringify({date:M15FIB_DATE,fib:M15FIB})); }catch(e){}
     }
     // 锚点/提醒是“当天状态”,跨日恢复会把旧VWAP和旧触发污染到今天;只有同日备份才恢复。
     if(d.danchDate===today()&&d.danch&&typeof d.danch==='object'){
@@ -2951,7 +2965,8 @@ function m15FibLine(f,p){
   if(!f) return '';
   const tm=s=>String(s||'').slice(11,16), mark=v=>(p!=null&&v>0&&Math.abs(p/v-1)<=0.004)?'<b style="color:#b45309">'+P(v)+'👈</b>':P(v);
   const abc=P(f.a)+'('+tm(f.aT)+')→'+P(f.b)+'('+tm(f.bT)+')→'+P(f.c)+'('+tm(f.cT)+')';
-  return '<div class="atrnote">⏱ 15分小周期·只认完成K '+(f.dir>0?'↑ ':'↓ ')+abc+' · 回撤'+Math.round(f.retrace*100)+'%'
+  const sd=f.sessionDate?String(f.sessionDate).slice(5):'';
+  return '<div class="atrnote">⏱ '+(sd?sd+' ':'')+'15分小周期·只认完成K '+(f.dir>0?'↑ ':'↓ ')+abc+' · 回撤'+Math.round(f.retrace*100)+'%'
     +' · 目标1.0='+mark(f.t1)+' · 1.618='+mark(f.t1618)+' · 2.618='+mark(f.t2618)
     +' · '+(f.dir>0?'支撑C='+P(f.c)+' / 跌破A='+P(f.a)+'失效':'压力C='+P(f.c)+' / 升破A='+P(f.a)+'失效')
     +' <span class="dim">(小周期反应区,不是大周期反转确认)</span></div>';
