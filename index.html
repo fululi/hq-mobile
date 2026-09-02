@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#f5f6f8">
-<title>我的持仓 · 行情 v5.43</title>
+<title>我的持仓 · 行情 v5.44</title>
 <style>
 :root { color-scheme: light; }
 html { scroll-padding-top:118px; }
@@ -66,6 +66,10 @@ div.sec.collapsed::after { content:'▸'; }
 /* v5.40 指数卡的大周期档位:一行,离现价最近的那一档,完整四档在 title 悬停 */
 .ifb { margin-top:5px; font-size:11px; color:#475569; font-variant-numeric:tabular-nums; }
 .ifb b { font-size:13px; color:#0f172a; margin:0 2px; }
+.ifb .r { color:#b91c1c; }
+.ifb .s { color:#15803d; }
+.ifb .r b { color:#b91c1c; }
+.ifb .s b { color:#15803d; }
 details.mini > summary { font-size:11px; color:#8b95a5; cursor:pointer; list-style:none; padding:4px 0; user-select:none; }
 details.mini > summary::-webkit-details-marker { display:none; }
 details.mini > summary::after { content:' ▾'; }
@@ -1378,21 +1382,25 @@ function indexFibLine(f,p){
   // 导致指数卡/时间/总览/持仓全都渲染不出来。字段名是 legBase。
   // v5.40: 五行字压成一行 —— 大周期方向必须留(不看盘也要知道),但四张指数卡
   // 各占五行会把总览挤成字墙。只报离现价最近的那一档,完整四档收进悬停。
+  // v5.44: 只报最近一档是错的 —— 四个指数恰好最近的都在上方,于是全是压力、
+  // 一个支撑都没有,「跌下去看哪儿」根本没法回答。改成上下各给一个。
+  // 候选里加入段的两个端点(前高/前低):Fib四档都在头顶时,脚下至少还有段低点兜底。
   const lvAll=[[0.382,'38.2'],[0.5,'50'],[0.618,'61.8'],[0.786,'78.6']]
-    .map(x=>({k:x[1], v: up?hi-R*x[0] : lo+R*x[0]}));
-  // v5.42: 撑/压必须由「该价位在现价上方还是下方」决定,不能由段方向决定。
-  // 旧写法 up?'撑':'压' 在下跌段里把所有档都标成"压",可现价一旦涨过某档,
-  // 那档已经变成脚下的支撑,却还写着压 —— 就是「压了还涨」的来源。
-  const above=lvAll.filter(o=>o.v>p).sort((a,b)=>a.v-b.v)[0];   // 头顶最近一档
-  const below=lvAll.filter(o=>o.v<=p).sort((a,b)=>b.v-a.v)[0];  // 脚下最近一档
-  const pick=(!above?below:(!below?above:(Math.abs(above.v-p)<=Math.abs(p-below.v)?above:below)));
-  if(!pick) return '';
-  const isRes=pick.v>p, gap=Math.abs(pick.v-p)/p*100;
+    .map(x=>({k:x[1]+'%', v: up?hi-R*x[0] : lo+R*x[0]}))
+    .concat([{k:'前低',v:lo},{k:'前高',v:hi}]);
+  const above=lvAll.filter(o=>o.v>p).sort((a,b)=>a.v-b.v)[0];   // 头顶最近
+  const below=lvAll.filter(o=>o.v<p).sort((a,b)=>b.v-a.v)[0];   // 脚下最近
+  const g=v=>Math.abs(v-p)/p*100;
+  const seg=(o,lbl,cls2)=>o?`<span class="${cls2}">${lbl} <b>${P(o.v)}</b><span class="dim"> ${o.k}·距${g(o.v).toFixed(1)}%</span></span>`:'';
+  const parts=[
+    seg(above,'↑压力','r'),
+    seg(below,'↓支撑','s'),
+  ].filter(Boolean);
+  if(!parts.length) return '';
   const tip=(up?'上涨段 ':'下跌段 ')+P(lo)+'→'+P(hi)+' · '
-    +lvAll.map(o=>o.k+'%='+P(o.v)+(o.v>p?'(压)':'(撑)')).join(' · ')
+    +lvAll.map(o=>o.k+'='+P(o.v)+(o.v>p?'(压)':'(撑)')).join(' · ')
     +' · 扩展1.618='+P(up?lo+R*1.618:hi-R*1.618)+' · 只作大盘背景,不改个股档位';
-  return `<div class="ifb" title="${tip}">${isRes?'↑压力':'↓支撑'} <b>${P(pick.v)}</b>`
-    +`<span class="dim"> ${pick.k}% · 距${gap.toFixed(1)}%</span></div>`;
+  return `<div class="ifb" title="${tip}">${parts.join('<br>')}</div>`;
 }
 function m15FibCalc(kl, code, triSignal){
   if(!kl||kl.length<7) return {kind:'no-data'};
