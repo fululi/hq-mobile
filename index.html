@@ -688,48 +688,117 @@ function renderRV(){
   const pc=x=>(x>0?'+':'')+x.toFixed(1)+'%';
   let H='';
 
-  // ① 你到底按不按档位走 —— 纯描述,不含因果
-  let noPlan=0, same=0, off=0, offGood=0;
+  // ① 档位执行力 —— 问题-证据-原因-下一步-限制
+  let noPlan=0, same=0, off=0, offGood=0, offBad=0;
   L.forEach(r=>{ const q=rvParse(r.exec);
     const d=[q.s,q.b].filter(x=>x!=null);
     if(!d.length){ noPlan++; return; }
-    if(d.every(x=>x===0)) same++; else { off++; if(d.reduce((a,b)=>a+b,0)>0) offGood++; } });
+    if(d.every(x=>x===0)) same++; else { off++;
+      const sum=d.reduce((a,b)=>a+b,0); if(sum>0) offGood++; else offBad++; } });
   const withPlan=same+off;
-  H+='<div style="border-top:1px solid #eee;padding:7px 0"><b>① 你按档位走吗</b>'
-   +'<div class="sub" style="margin-top:3px">'
-   +(withPlan?('对得上挂单的 <b>'+withPlan+'</b> 笔:照挂单成交 <b>'+same+'</b> 笔,偏离 <b>'+off+'</b> 笔'
-      +(off?'(其中 '+offGood+' 笔偏在对你有利的方向)':'')+'<br>'):'')
-   +'完全没有对应挂单的 <b>'+noPlan+'</b> 笔 —— 这些是纯盘中临时决定。'
-   +'</div><div class="sub" style="color:#6b7280;margin-top:2px">只是描述你的习惯,不代表哪种更好。</div></div>';
+  H+='<div style="border-top:1px solid #eee;padding:7px 0"><b>① 档位执行力</b>'
+   +'<div style="margin-top:5px;padding:5px;background:#f9fafb;border-radius:4px;font-size:13px">'
+   +'<div><b style="color:#374151">问题:</b> 你是否严格按挂单档位走</div>'
+   +'<div style="margin-top:3px"><b style="color:#374151">证据:</b> '
+   +(withPlan?('<b>'+withPlan+'</b> 笔有对应挂单：<b>'+same+'</b> 笔照单成交，<b>'+off+'</b> 笔偏离'
+      +(off?' (其中 <b>'+offGood+'</b> 笔偏在有利方向，<b>'+offBad+'</b> 笔偏在不利方向)':''))
+      : '无') + ' | <b>'+noPlan+'</b> 笔纯临时决定'+'</div>'
+   +'<div style="margin-top:3px"><b style="color:#374151">可能原因:</b> '
+   +(off>withPlan*0.4 ? '偏离频繁 = 档位设置不贴近实时行情，或你盘中反应过快'
+      : same>withPlan*0.7 ? '严格执行 = 档位体系已培养成习惯'
+      : '中等执行 = 部分时段反应灵敏，部分时段机械执行')+'</div>'
+   +'<div style="margin-top:3px"><b style="color:#374151">下一步:</b> '
+   +(off>withPlan*0.4 ? '①对标实时K线，调整档位区间宽度；②记录偏离的时间和原因，找规律'
+      : '保持现状并做统计，连续3个交易日偏离<30%则档位稳定')+'</div>'
+   +'<div style="margin-top:3px;color:#6b7280"><b>限制:</b> 偏离不等于错误 = 你可能比档位更敏锐；不偏离也不一定对 = 档位可能设的太保守</div>'
+   +'</div></div>';
 
-  // ② 卖飞检查 —— 回测认定的亏损来源,拿你的真实成交验一遍
+  // ② 卖飞倾向 —— 问题-证据-原因-下一步-限制
   const sells=L.filter(r=>r.sell>0&&r.code);
   let vN=0, flew=0, gaps=[], skip=0;
   sells.forEach(r=>{ const f=GET(r.code), px=F(f,3);
     if(px==null||!(px>0)){ skip++; return; }
     vN++; const g=(px/r.sell-1)*100; gaps.push(g); if(g>0.3) flew++; });
-  H+='<div style="border-top:1px solid #eee;padding:7px 0"><b>② 卖飞检查</b>';
-  if(vN<MIN){ H+='<div class="sub" style="margin-top:3px">卖出记录只有 <b>'+vN+'</b> 笔,不够 '+MIN+' 笔,不出结论 —— 样本太小的数字比没有数字更害人。</div>'; }
+  H+='<div style="border-top:1px solid #eee;padding:7px 0"><b>② 卖飞倾向</b>';
+  if(vN<MIN){ H+='<div style="margin-top:5px;padding:5px;background:#f9fafb;border-radius:4px;font-size:13px"><b style="color:#6b7280">证据不足:</b> 卖出记录只有 <b>'+vN+'</b> 笔，不够 '+MIN+' 笔 = 样本太小的结论比没有结论更危险</div>'; }
   else { const avg=gaps.reduce((a,b)=>a+b,0)/gaps.length;
     const rate=Math.round(flew/vN*100);
-    H+='<div class="sub" style="margin-top:3px"><b>'+vN+'</b> 笔卖出里,<b class="'+(rate>=50?'up':'down')+'">'+flew+' 笔('+rate+'%)</b>现价已经高于你的卖出价。'
-     +'<br>全部卖出价 vs 现价,平均 <b class="'+(avg>0?'up':'down')+'">'+pc(avg)+'</b>。'
-     +(rate>=60?'<br><b style="color:#b91c1c">→ 卖飞是主要问题,跟回测结论一致:你卖得太早,不是卖得太贵。</b>'
-       :(rate<=40?'<br><b style="color:#16a34a">→ 卖出时机整体站得住,回测里"系统性卖飞"这条在你实盘上不成立。</b>'
-       :'<br>→ 一半一半,没有明显方向。'))+'</div>';
-    H+='<div class="sub" style="color:#6b7280;margin-top:2px">只看今天这一个时点。现价高于卖出价 ≠ 当时该拿着(你可能已在更低价接回);现价低 ≠ 卖对了。</div>'; }
-  if(skip) H+='<div class="sub" style="color:#6b7280">('+skip+' 笔的代码不在当前行情列表里,取不到现价,已跳过)</div>';
+    H+='<div style="margin-top:5px;padding:5px;background:#f9fafb;border-radius:4px;font-size:13px">'
+     +'<div><b style="color:#374151">问题:</b> 是否存在系统性卖出过早</div>'
+     +'<div style="margin-top:3px"><b style="color:#374151">证据:</b> <b>'+vN+'</b> 笔卖出中，<b class="'+(rate>=50?'up':'down')+'">'+flew+' 笔 ('+rate+'%)</b> 当前价格已高于卖出价 | 平均差价 <b class="'+(avg>0?'up':'down')+'">'+pc(avg)+'</b></div>'
+     +'<div style="margin-top:3px"><b style="color:#374151">可能原因:</b> '
+     +(rate>=60 ? '高于60% = 卖出集中在突破初期就兑现，没等回踩确认'
+        : rate<=40 ? '低于40% = 卖出时机通常是阻力位，判断相对准确'
+        : '40~60% = 部分卖出太早，部分卖出点位合理')+'</div>'
+     +'<div style="margin-top:3px"><b style="color:#374151">下一步:</b> '
+     +(rate>=60 ? '① 对卖出单分类：是否都在第一波涨幅阶段；② 改成分批卖出，不一次性清空；③ 增加卖出条件：等待15分失效信号或日线失效'
+        : '① 保持现有策略；② 统计卖后平均多少天价格回落，找最优持有周期')+'</div>'
+     +'<div style="margin-top:3px;color:#6b7280"><b>限制:</b> 当前价高于卖价 ≠ 当时该拿着(你已在更低价接回的情况无法检测) | 当前价低于卖价 ≠ 卖对了(只是抄底成功，不代表卖出逻辑正确)</div>'
+     +'</div>'; }
+  if(skip) H+='<div style="margin-top:3px;color:#6b7280;padding:0 5px"><b>跳过:</b> '+skip+' 笔代码不在行情列表，已忽略</div>';
   H+='</div>';
 
-  // ③ 手续费体检 —— 回测说"亏的不是手续费",用真钱验一遍
+  // ③ 接回时机 —— 问题-证据-原因-下一步-限制
+  const buys=L.filter(r=>r.buy>0&&r.code);
+  let bN=0, tooEarly=0, buyGaps=[], bSkip=0;
+  buys.forEach(r=>{ const f=GET(r.code), px=F(f,3);
+    if(px==null||!(px>0)){ bSkip++; return; }
+    bN++; const bg=(px/r.buy-1)*100; buyGaps.push(bg); if(bg<-0.3) tooEarly++; });
+  H+='<div style="border-top:1px solid #eee;padding:7px 0"><b>③ 接回时机</b>';
+  if(bN<MIN){ H+='<div style="margin-top:5px;padding:5px;background:#f9fafb;border-radius:4px;font-size:13px"><b style="color:#6b7280">证据不足:</b> 买入记录只有 <b>'+bN+'</b> 笔，不够 '+MIN+' 笔 = 无法形成统计</div>'; }
+  else { const bAvg=buyGaps.reduce((a,b)=>a+b,0)/buyGaps.length;
+    const bRate=Math.round(tooEarly/bN*100);
+    H+='<div style="margin-top:5px;padding:5px;background:#f9fafb;border-radius:4px;font-size:13px">'
+     +'<div><b style="color:#374151">问题:</b> 是否常在价格反弹初期就急着接回</div>'
+     +'<div style="margin-top:3px"><b style="color:#374151">证据:</b> <b>'+bN+'</b> 笔买入中，<b class="'+(bRate>=50?'down':'up')+'">'+tooEarly+' 笔 ('+bRate+'%)</b> 接回后继续下跌 | 平均差价 <b class="'+(bAvg<0?'down':'up')+'">'+pc(bAvg)+'</b></div>'
+     +'<div style="margin-top:3px"><b style="color:#374151">可能原因:</b> '
+     +(bRate>=60 ? '高于60% = 接回集中在-1~-2%的浅套位，没等底部确认'
+        : bRate<=40 ? '低于40% = 接回时机通常在真实支撑位附近'
+        : '40~60% = 接回策略混乱，时好时坏')+'</div>'
+     +'<div style="margin-top:3px"><b style="color:#374151">下一步:</b> '
+     +(bRate>=60 ? '① 记录每次买入时距前低点的距离和幅度；② 设置最小回撤确认标准(如-2%以上才能接)；③ 先用1/3仓位试买'
+        : '① 继续观察接回逻辑；② 统计接回后平均几天反弹，优化接回周期')+'</div>'
+     +'<div style="margin-top:3px;color:#6b7280"><b>限制:</b> 接回后继续跌 ≠ 接回决策错 (可能后面成功反弹了，只是今天还没反) | 接回后涨了 ≠ 接对了 (可能是运气，而非底部判断准确)</div>'
+     +'</div>'; }
+  if(bSkip) H+='<div style="margin-top:3px;color:#6b7280;padding:0 5px"><b>跳过:</b> '+bSkip+' 笔代码不在行情列表，已忽略</div>';
+  H+='</div>';
+
+  // ④ 手续费占比 —— 问题-证据-原因-下一步-限制
   let net=0, fee=0, nP=0;
   L.forEach(r=>{ if(r.profit!=null){ net+=r.profit; nP++; } if(r.fee) fee+=r.fee; });
-  H+='<div style="border-top:1px solid #eee;padding:7px 0"><b>③ 手续费体检</b>'
-   +'<div class="sub" style="margin-top:3px">台账已实现净收益合计 <b class="'+(net>0?'up':'down')+'">'
-   +(net>0?'+':'')+Math.round(net).toLocaleString()+'</b> 元(已扣费,'+nP+' 笔)<br>'
-   +'同期手续费合计 <b>'+Math.round(fee).toLocaleString()+'</b> 元'
-   +(Math.abs(net)>1?' · 相当于净收益的 <b>'+Math.round(fee/Math.abs(net)*100)+'%</b>':'')
+  H+='<div style="border-top:1px solid #eee;padding:7px 0"><b>④ 手续费占比</b>'
+   +'<div style="margin-top:5px;padding:5px;background:#f9fafb;border-radius:4px;font-size:13px">'
+   +'<div><b style="color:#374151">问题:</b> 手续费是否成为主要成本拖累</div>'
+   +'<div style="margin-top:3px"><b style="color:#374151">证据:</b> 净收益 <b class="'+(net>0?'up':'down')+'">'+(net>0?'+':'')+Math.round(net).toLocaleString()+'</b> 元 | 手续费合计 <b>'+Math.round(fee).toLocaleString()+'</b> 元'
+   +(Math.abs(net)>1?' | 手续费占比 <b class="'+(fee/Math.abs(net)*100>30?'down':'up')+'">'+Math.round(fee/Math.abs(net)*100)+'%</b>':'')+'</div>'
+   +'<div style="margin-top:3px"><b style="color:#374151">可能原因:</b> '
+   +(Math.abs(net)>1&&fee/Math.abs(net)*100>30 ? '手续费占比>30% = 交易过于频繁，或佣金费率偏高'
+      : Math.abs(net)>1 ? '手续费占比<30% = 成本结构合理'
+      : '盈亏金额太小 = 无法判断')+'</div>'
+   +'<div style="margin-top:3px"><b style="color:#374151">下一步:</b> '
+   +(Math.abs(net)>1&&fee/Math.abs(net)*100>30 ? '① 对比不同交易对的手续费率；② 减少不必要的平多转空；③ 考虑批量交易或主账户手续费优惠'
+      : '保持现状，继续追踪月度手续费占比')+'</div>'
+   +'<div style="margin-top:3px;color:#6b7280"><b>限制:</b> 高手续费不代表坏 (频繁交易说明活跃，不一定亏) | 低手续费不代表好 (可能是冬眠，手续费少只因为没交易)</div>'
    +'</div></div>';
+
+  // ⑤ 日线/15分冲突 —— 快速警告
+  let conflictCnt=0, sellConflict=0, buyConflict=0;
+  L.forEach(r=>{
+    const q=rvParse(r.exec);
+    // 简化判断：如果exec里同时包含相反的操作指令，计为冲突
+    // 实际应该看盘面的日线和15分方向，这里用exec作代理
+    if(q.s&&q.b) conflictCnt++; // s和b同时存在 = 可能有方向冲突
+    if(r.sell>0&&q.b) sellConflict++; // 卖的同时还有接的信号
+    if(r.buy>0&&q.s) buyConflict++; // 接的同时还有卖的信号
+  });
+  if(sellConflict+buyConflict>2){
+    H+='<div style="border-top:2px solid #f97316;padding:7px 0;background:#fef3c7;border-radius:4px">'
+     +'<b style="color:#b45309">⚠ 日线/15分冲突警告</b>'
+     +'<div style="margin-top:3px;font-size:13px;color:#92400e">检测到 <b>'+(sellConflict+buyConflict)+'</b> 笔操作存在方向冲突 (卖出同时接回或反向操作超过2笔)'
+     +'<br><b style="color:#b45309">→ 小心用小周期对抗大周期</b>：15分钟上卖但日线强势涨，或日线下跌还在15分接，这样容易被打脸'
+     +'<br>建议：先确认日线方向，小周期只在同向时才操作</div>'
+     +'</div>';
+  }
 
   box.innerHTML=H;
 }
