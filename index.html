@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#f5f6f8">
-<title>我的持仓 · 行情 v5.27</title>
+<title>我的持仓 · 行情 v5.28</title>
 <style>
 :root { color-scheme: light; }
 html { scroll-padding-top:118px; }
@@ -1376,6 +1376,28 @@ function m15FibCalc(kl, code, triSignal){
   }
   return {kind:'none', bars:a.length, reason:'未形成合格A-B-C摆动'};
 }
+// 15分钟数据统一成 [时间,开,收,高,低]；优先腾讯m15，失败再走新浪fetch/JSONP。
+function parseM15Rows(rows){
+  if(!Array.isArray(rows)) return null;
+  const out=rows.map(r=>{
+    if(Array.isArray(r)) return [r[0],+r[1],+r[2],+r[3],+r[4]];
+    if(r&&r.day!=null) return [r.day,+r.open,+r.close,+r.high,+r.low];
+    if(r&&r.time!=null) return [r.time,+r.open,+r.close,+r.high,+r.low];
+    return null;
+  }).filter(r=>r&&r[0]&&[1,2,3,4].every(i=>Number.isFinite(r[i])));
+  return out.length?out:null;
+}
+function loadM15Tencent(code, done){
+  const ctrl=new AbortController(); const tm=setTimeout(()=>ctrl.abort(),5000);
+  fetch('https://web.ifzq.gtimg.cn/appstock/app/kline/mkline?param='+code+',m15,,80',{signal:ctrl.signal})
+    .then(r=>r.text()).then(t=>{ clearTimeout(tm);
+      try{
+        const a=t.indexOf('{'), b=t.lastIndexOf('}'); if(a<0||b<=a){ done(null); return; }
+        const d=JSON.parse(t.slice(a,b+1)), node=d.data&&d.data[code];
+        done(parseM15Rows(node&&(node.m15||node.m15_today||node.m15_data)));
+      }catch(e){ done(null); }
+    }).catch(()=>{ clearTimeout(tm); done(null); });
+}
 // 新浪15分钟接口返回的是JSONP；file://页面或部分浏览器会拦截fetch，失败时改用script加载绕过跨域限制。
 function loadM15JSONP(code, done){
   const v='hqm15_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,8);
@@ -1409,22 +1431,27 @@ function loadM15(done){ // 15分钟三角扫描(新浪15分K,近80根≈5个交�
     const tick=(v,fb)=>{ if(got) return; got=true; if(v!=null) out[c]=v; if(fb) ofib[c]=fb; if(--left===0) fin(); };
     const consume=rows=>{
       try{
-        if(!Array.isArray(rows)||!rows.length){ tick(null); return; }
-        const kl=rows.map(r=>[r.day, +r.open, +r.high, +r.low, +r.close]);
+        const norm=parseM15Rows(rows);
+        if(!norm){ tick(null); return; }
+        const kl=norm;
         const tr=triDet(kl);
         const triSignal=tr&&tr.brk!==0?tr.brk:null;
         tick(triSignal,m15FibCalc(kl,c,triSignal));
       }catch(e){ tick(null); }
     };
-    const ctrl=new AbortController(); const tm=setTimeout(()=>ctrl.abort(), 6000);
-    fetch('https://quotes.sina.cn/cn/api/jsonp_v2.php/var%20x=/CN_MarketDataService.getKLineData?symbol='+c+'&scale=15&ma=no&datalen=80', {signal:ctrl.signal})
-      .then(r=>r.text()).then(t=>{
-        clearTimeout(tm);
-        try{
-          const m=t.match(/\[.*\]/s); if(!m){ loadM15JSONP(c,consume); return; }
-          consume(JSON.parse(m[0]));
-        }catch(e){ loadM15JSONP(c,consume); }
-      }).catch(()=>{ clearTimeout(tm); loadM15JSONP(c,consume); });
+    const trySina=()=>{
+      const ctrl=new AbortController(); const tm=setTimeout(()=>ctrl.abort(),6000);
+      fetch('https://quotes.sina.cn/cn/api/jsonp_v2.php/var%20x=/CN_MarketDataService.getKLineData?symbol='+c+'&scale=15&ma=no&datalen=80', {signal:ctrl.signal})
+        .then(r=>r.text()).then(t=>{
+          clearTimeout(tm);
+          try{
+            const m=t.match(/\[.*\]/s); if(!m){ loadM15JSONP(c,consume); return; }
+            consume(JSON.parse(m[0]));
+          }catch(e){ loadM15JSONP(c,consume); }
+        }).catch(()=>{ clearTimeout(tm); loadM15JSONP(c,consume); });
+    };
+    // 腾讯与页面主行情同源，优先使用；只有腾讯没有返回时才切新浪。
+    loadM15Tencent(c,rows=>{ if(rows) consume(rows); else trySina(); });
   });
 }
 function loadWTrend(done){
