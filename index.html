@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#f5f6f8">
-<title>我的持仓 · 行情 v5.17</title>
+<title>我的持仓 · 行情 v5.18</title>
 <style>
 :root { color-scheme: light; }
 * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
@@ -378,9 +378,11 @@ let TLOG; try{ TLOG=JSON.parse(localStorage.getItem(LOG))||[]; }catch(e){ TLOG=[
 // 手工编辑股数(核对多设备desync时经常这么做)会让posBefore链和当前shares脱节,
 // 旧写法在这种情况下prev×s0会算出离谱巨大的数字;健康场景下(无手工改)两种算法结果完全一致,
 // 但新写法始终以"当前真实股数"为锚,不会因快照过期而失真
-function todayPnlOf(code,shares,p,prev){
+// v5.18: 同一代码在多账户(招商/东财…)分开持仓时,必须按acct过滤台账——否则今天这账户没动,
+// 另一账户对同一代码的买卖现金流会被一起拉进来,算出的"今日盈亏"完全是两个账户混在一起的假数字
+function todayPnlOf(code,shares,p,prev,acct){
   if(p==null||prev==null) return null;
-  const rows=TLOG.filter(r=>r.code===code&&r.d===today());
+  const rows=TLOG.filter(r=>r.code===code&&r.d===today()&&(r.acct||'')===(acct||''));
   const cf=rows.reduce((s,r)=>s+((r.sell||0)*(r.qty||0))-((r.buy||0)*(r.bq||0))-(r.fee||0),0);
   const netQty=rows.reduce((s,r)=>s+((r.bq||0)-(r.qty||0)),0);
   const s0=shares-netQty;
@@ -1918,7 +1920,7 @@ function addTrade(){
   // v4.58: 接回价 vs 本人当日最低卖价 —— 补"优于挂单却是追高"的盲区
   const chaseChk=(px)=>{
     if(!px) return '';
-    const sells=TLOG.filter(r=>r.code===h.code&&r.d===d0&&r.sell>0).map(r=>r.sell);
+    const sells=TLOG.filter(r=>r.code===h.code&&r.d===d0&&r.sell>0&&(r.acct||'')===acctOf(h)).map(r=>r.sell);
     if(!sells.length) return '';
     const loSell=Math.min(...sells);
     if(px>loSell){ const up=(px/loSell-1)*100; return '⚠追高:接回价比今日最低卖价'+loSell.toFixed(2)+'高'+up.toFixed(1)+'%'; }
@@ -1956,6 +1958,7 @@ function addTrade(){
     h.cost=+(((posBefore.cost*posBefore.shares)+buy*bq+fee)/ns).toFixed(3); h.shares=ns;
   }
   rec.posBefore=posBefore; rec.posAfter={cost:h.cost, shares:h.shares};
+  rec.acct=acctOf(h); // v5.18: 记账时打上账户标签,同代码多账户(招商/东财…)分开持仓时"今日盈亏"才不会串账户
   TLOG.unshift(rec);
   save(); saveLog();
   lsSet('tlog_lastqty', String(rec.qty||rec.bq||100));
@@ -2364,7 +2367,7 @@ function doRender(){
     o.n++;
     if(px!=null&&h.shares>0){ const v=px*h.shares; o.mv+=v;
       // v5.13: 账户小计"今日"改用现金流口径(todayPnlOf),不再用 (现价-昨收)×当前股数——净加仓/净减仓/纯卖旧仓会失真
-      const tp=todayPnlOf(h.code,h.shares,px,pv0); if(tp!=null) o.day+=tp;
+      const tp=todayPnlOf(h.code,h.shares,px,pv0,acctOf(h)); if(tp!=null) o.day+=tp;
       if(h.cost>0) o.pnl+=(px-h.cost)*h.shares; } });
   const _ord=[]; acctList().forEach(a=>{ PF.holds.forEach((h,i)=>{ if(acctOf(h)===a) _ord.push(i); }); });
   const qVals={};
@@ -2388,7 +2391,7 @@ function doRender(){
     const gzH=(wth!=null&&dth!=null&&wth===dth&&wth!==0)?'<span class="badge flat">周日同向</span>':'';
     const extH=EXT[h.code], extBadge=extH?`<span class="badge flat">${extTxt(h.code)}</span>`:'';
     // v4.62: 今日该票的买入均价 —— 用来算"我水下买的,涨到这档一共赚几个点"
-    const _tb=TLOG.filter(r=>r.code===h.code&&r.d===today()&&r.buy>0&&r.bq>0);
+    const _tb=TLOG.filter(r=>r.code===h.code&&r.d===today()&&r.buy>0&&r.bq>0&&(r.acct||'')===acctOf(h));
     const _bq=_tb.reduce((s,r)=>s+r.bq,0);
     const avgBuy=_bq?_tb.reduce((s,r)=>s+r.buy*r.bq,0)/_bq:null;
     const _rch=refCloseOf(p,prev), _nxh=planNext();   // v4.81: 收盘后档位是明日的,基准要用今收
@@ -2435,10 +2438,10 @@ function doRender(){
     const dd=(p!=null&&h.cost)?(p-h.cost)/h.cost*100:null;
     const pnl=(p!=null&&h.cost)?(p-h.cost)*h.shares:null;
     const mv=p!=null?p*h.shares:null;
-    const todayPnl=todayPnlOf(h.code,h.shares,p,prev);
+    const todayPnl=todayPnlOf(h.code,h.shares,p,prev,acctOf(h));
     if(mv!=null){ totMv+=mv; totPnl+=(pnl||0); totDay+=(todayPnl||0); }
     // v5.13: _tdRealized 只用于"含做T+X"小字展示,不再参与今日盈亏主公式(见 todayPnlOf)
-    const _tdRealized=TLOG.filter(r=>r.code===h.code&&r.d===today()).reduce((s,r)=>s+(r.profit||0),0);
+    const _tdRealized=TLOG.filter(r=>r.code===h.code&&r.d===today()&&(r.acct||'')===acctOf(h)).reduce((s,r)=>s+(r.profit||0),0);
     const atrV=atrOf(h.code);
     let refTxt='';
     if(h.ref){ const rf=GET(h.ref); const rp=F(rf,32);
@@ -2582,7 +2585,7 @@ function doRender(){
       const _lot=100, _ft=feeOf(_S1,_B1,_lot,_lot,h.code).fee, _net=(_S1-_B1)*_lot-_ft;
       const roundS='一轮 B1→S1 <b class="up">+'+((_S1-_B1)/_B1*100).toFixed(1)+'点</b> 每手净<b>'
         +sg(Math.round(_net))+'元</b><span class="dim">(已扣费)</span>';
-      const _tt=TLOG.filter(r=>r.code===h.code&&r.d===today());
+      const _tt=TLOG.filter(r=>r.code===h.code&&r.d===today()&&(r.acct||'')===acctOf(h));
       let doneS='';
       if(_tt.length){
         let g=0, fe=0, nb=0, ns=0;
