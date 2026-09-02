@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#f5f6f8">
-<title>我的持仓 · 行情 v5.19</title>
+<title>我的持仓 · 行情 v5.21</title>
 <style>
 :root { color-scheme: light; }
 * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
@@ -2163,7 +2163,7 @@ function exportCSV(){
 function backupJSON(){
   // v5.18: 交易判断所依赖的证据状态必须跟着备份走,否则换设备/恢复后会出现
   // "页面看过但没有触发记录/预测快照/止损口径"的断层。旧字段仍保持兼容。
-  const data={ver:'v5.19',at:new Date().toISOString(),holds:PF.holds,watch:PF.watch,tlog:TLOG,plan:PLAN,fee:FEE,
+  const data={ver:'v5.21',at:new Date().toISOString(),holds:PF.holds,watch:PF.watch,tlog:TLOG,plan:PLAN,fee:FEE,
     fcast:FCAST,tfc:TFC,paper:PAPER,m15fibDate:M15FIB_DATE,m15fib:M15FIB,danchDate:today(),danch:DANCH,hitseenDate:today(),hitseen:HITSEEN};
   const a=document.createElement('a');
   a.href=URL.createObjectURL(new Blob([JSON.stringify(data,null,1)],{type:'application/json'}));
@@ -2704,8 +2704,15 @@ function doRender(){
         if(_ev) alertHit(h.code+o.t+today()+_ev.level, h.name+' 到'+o.t+' '+P(_ev.level)+(o.k==='s'?' 可卖':' 可接'));
         // v5.13: "到过"改用点时事件(dst.touch),不再拿今日高低点去比当前(会随ratchet移动的)档位值——
         // 档位盘中变宽后旧的hi>=o.x比较在数学上就是错的,会漏判/误判
-        if(o.k==='s') st=_prS+(_cx?'<b style="color:#dc2626">越过</b>':(touchSeen(dst,o.t,o.x)?'到过':'未到'));
-        else if(o.k==='b') st=_prS+(_cx?'<b style="color:#16a34a">越过</b>':(touchSeen(dst,o.t,o.x)?'到过':'未到'));
+        // 动态档位不能用收盘后的最终高低点反推“当时触发”:档位自身会随VWAP/ratchet移动。
+        // 有点时事件才叫“已记录触发”;只有日高/日低越过当前档,只能标为无时点证据,不能撒谎写“未到”。
+        if(o.k==='s'){
+          const ev=touchSeen(dst,o.t,o.x), dayCross=hi!=null&&hi>=o.x;
+          st=_prS+(_cx?'<b style="color:#dc2626">现价越过</b>':(ev?'已记录触发':(dayCross?'<span style="color:#b45309">日高超过当前档·无时点证据</span>':'无触发记录')));
+        } else if(o.k==='b'){
+          const ev=touchSeen(dst,o.t,o.x), dayCross=lo!=null&&lo<=o.x;
+          st=_prS+(_cx?'<b style="color:#16a34a">现价越过</b>':(ev?'已记录触发':(dayCross?'<span style="color:#b45309">日低越过当前档·无时点证据</span>':'无触发记录')));
+        }
         else if(o.k==='c'){ const pl=(p/h.cost-1)*100; st='<b class="'+cls(pl)+'">'+sg(pl.toFixed(1))+'%</b>'; }
         else st=dst.vw?(_vwok?'基准':'<span class="dim">锚'+(dst.vwAt?'于'+dst.vwAt.slice(11):'已锁定')+'</span>')
           :(mktLive()?'<b style="color:#d97706">开盘锚未捕获</b>':'<span class="dim">'+sessLbl()+'</span>');
