@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#f5f6f8">
-<title>我的持仓 · 行情 v5.34</title>
+<title>我的持仓 · 行情 v5.35</title>
 <style>
 :root { color-scheme: light; }
 html { scroll-padding-top:118px; }
@@ -1197,6 +1197,31 @@ function prefix(code){ code=code.trim();
 }
 
 // ---- ATR14: fetch方式取日K(ifzq支持CORS),失败自动换新浪兜底; 带超时,绝不阻塞渲染 ----
+// v5.35: 日线段起点改用 ZigZag 摆动识别(阈值12%)。
+// 旧口径「收盘跌破段基点就重启段」触发过频,实测9只票段长中位仅2天、5只只有1~2天,
+// 于是把「当天振幅」当成了「日线大周期」的 0 和 1 —— 例如515880标 0.629→0.695,
+// 而70日内真实高点 0.721(08-18) 压根没进段。锚点错,38.2%/61.8%/78.6% 全部错位。
+// ZigZag 只在反向波动≥12%时才确认换段:实测段长中位8天、段振幅中位16%,
+// 38.2%位距极值约6%,做T够得着。阈值调这里一处即可。
+const ZZ_TH=0.12;
+function zigzagSegStart(rows, th){
+  const n=rows.length; if(n<3) return n?String(rows[0][0]):'';
+  const H=i=>+rows[i][3], L=i=>+rows[i][4];
+  let piv=[0], dir=0, eH=H(0), eL=L(0), eHi=0, eLi=0;
+  for(let i=1;i<n;i++){
+    const h=H(i), l=L(i);
+    if(dir>=0){
+      if(h>eH){ eH=h; eHi=i; }
+      if(eH>0 && (eH-l)/eH>=th){ piv.push(eHi); dir=-1; eL=l; eLi=i; }
+    }
+    if(dir<=0){
+      if(l<eL){ eL=l; eLi=i; }
+      if(eL>0 && (h-eL)/eL>=th){ piv.push(eLi); dir=1; eH=h; eHi=i; }
+    }
+  }
+  const last=piv.length>1?piv[piv.length-1]:0;
+  return String(rows[last][0]);
+}
 function parseIfzq(c, txt){
   try{
     const res=JSON.parse(txt); const d=res&&res.data&&res.data[c];
@@ -1208,12 +1233,10 @@ function parseIfzq(c, txt){
     for(let i=1;i<settled.length;i++){ const hi=+settled[i][3],lo=+settled[i][4],pc=+settled[i-1][2];
       trs.push(Math.max(hi-lo,Math.abs(hi-pc),Math.abs(lo-pc))); }
     const last14=trs.slice(-14);
-    // 日线段(v4.46): 收盘从段内峰值回撤>=5%即切段,报当前段基点(收盘价口径)
-    let base=+settled[0][2], peak=base, baseD=settled[0][0];
-    for(let i=1;i<settled.length;i++){ const c=+settled[i][2];
-      if(c>peak){ peak=c; }
-      else if(peak>base&&(peak-c)/peak>=0.05){ base=c; baseD=settled[i][0]; peak=c; }
-      else if(c<base){ base=c; baseD=settled[i][0]; peak=c; } }
+    // 日线段(v5.35): 起点改用 ZigZag 摆动识别,取最近一个确认的转折点(见 zigzagSegStart 注释)
+    const baseD=zigzagSegStart(settled, ZZ_TH);
+    let base=+settled[0][2];
+    for(let i=0;i<settled.length;i++){ if(settled[i][0]===baseD){ base=+settled[i][2]; break; } }
     let legHi=null, legLo=null, legHiD='', legLoD='';
     for(let i=0;i<settled.length;i++){ if(settled[i][0]>=baseD){ const h2=+settled[i][3], l2=+settled[i][4];
       if(legHi==null||h2>legHi){ legHi=h2; legHiD=settled[i][0]; }
@@ -1319,11 +1342,10 @@ function indexFibCalc(code, rows){
   try{
     // 日线Fib只用已确认日K，不用盘中未收盘K
     const settled=settledRows(rows);
-    let base=+settled[0][2], peak=base, baseD=settled[0][0];
-    for(let i=1;i<settled.length;i++){ const c=+settled[i][2];
-      if(c>peak){ peak=c; }
-      else if(peak>base&&(peak-c)/peak>=0.05){ base=c; baseD=settled[i][0]; peak=c; }
-      else if(c<base){ base=c; baseD=settled[i][0]; peak=c; } }
+    // v5.35: 与个股同一口径,ZigZag 摆动识别定段起点
+    const baseD=zigzagSegStart(settled, ZZ_TH);
+    let base=+settled[0][2];
+    for(let i=0;i<settled.length;i++){ if(settled[i][0]===baseD){ base=+settled[i][2]; break; } }
     let legHi=null, legLo=null, legHiD='', legLoD='';
     for(let i=0;i<settled.length;i++){ if(settled[i][0]>=baseD){ const h2=+settled[i][3], l2=+settled[i][4];
       if(legHi==null||h2>legHi){ legHi=h2; legHiD=settled[i][0]; }
