@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#f5f6f8">
-<title>我的持仓 · 行情 v5.40</title>
+<title>我的持仓 · 行情 v5.41</title>
 <style>
 :root { color-scheme: light; }
 html { scroll-padding-top:118px; }
@@ -3315,7 +3315,7 @@ function m15FibLine(f,p,code){
   if(f.kind==='none'){
     const sd=f.sessionDate?String(f.sessionDate).slice(5):'';
     const bars=f.bars||0;
-    const triLine=triTxt?triTxt:'(三角未确认)';
+    const triLine=triTxt||'';
     return '<div class="atrnote">⏱ '+(sd?sd+' ':'')+'15分小周期<br>15分钟数据已获取·已完成K '+bars+'根·'+f.reason+triLine+'<br>暂不生成1.0/1.618/2.618</div>';
   }
   // 有Fib结构：需要根据triKind判断四态
@@ -3325,15 +3325,11 @@ function m15FibLine(f,p,code){
   const sd=f.sessionDate?String(f.sessionDate).slice(5):'';
   const bars=f.completedK||0;
 
-  // 根据triKind（来自f.triKind）显示状态
-  let statusLine='';
-  if(f.triKind==='fib-confirmed'){
-    statusLine='⏱ '+(sd?sd+' ':'')+'15分小周期·已完成K '+bars+'根·<b>三角已确认</b>';
-  } else if(f.triKind==='fib-no-breakout'){
-    statusLine='⏱ '+(sd?sd+' ':'')+'15分小周期·已完成K '+bars+'根·三角未确认';
-  } else {
-    statusLine='⏱ '+(sd?sd+' ':'')+'15分小周期·已完成K '+bars+'根';
-  }
+  // v5.41: 删掉「三角未确认」。实测三角稳健成立率仅1/9,"未确认"是8-9成情况下的
+  // 默认值 —— 恒定不变的标签不携带信息,却每次占一行、分一次注意力。
+  // 只有真突破时才出声。
+  const statusLine='⏱ '+(sd?sd+' ':'')+'15分小周期·已完成K '+bars+'根'
+    +(f.triKind==='fib-confirmed'?'·<b>三角已破</b>':'');
 
   return '<div class="atrnote">'+statusLine+'<br>'
     +(f.dir>0?'↑ ':'↓ ')+abc+'·回撤'+Math.round(f.retrace*100)+'%<br>'
