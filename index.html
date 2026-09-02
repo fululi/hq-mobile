@@ -2977,8 +2977,8 @@ function fibLine(lg,p){
 
   // 上涨段：低点先出现，且低点 < 高点
   if(!hiFirst && upSegment){ dirConfirmed=true; isUp=true; }
-  // 下跌段：高点先出现，且高点 > 低点
-  else if(hiFirst && !upSegment){ dirConfirmed=true; isUp=false; }
+  // 下跌段：高点先出现，且低点 < 高点（这是基本常识）
+  else if(hiFirst && upSegment){ dirConfirmed=true; isUp=false; }
 
   if(!dirConfirmed) return '<div class="atrnote">🌀 日线Fib方向未确认(高低点顺序或大小关系有误)</div>';
 
