@@ -1209,15 +1209,15 @@ function verdict(c){ // 五维合成一行作战结论(规则口径见回测框�
   return '无方向·按做T区间跑，出信号再动';
 }
 // 15分钟小周期Fib:只认当日已经完成的15分K,从最近一个有效A-B-C摆动推导扩展位。
-// A-B至少大于2.5倍当日典型15分波幅,C必须是未破A的有效回撤;不满足就宁可不显示。
+// A-B至少大于2.5倍当日典型15分波幅,C必须是未破A的有效回撤;不满足就返回无结构状态。
 function m15FibCalc(kl){
-  if(!kl||kl.length<7) return null;
+  if(!kl||kl.length<7) return {kind:'none', reason:'完成K不足7根'};
   const ds=[...new Set(kl.map(r=>String(r[0]).slice(0,10)))].sort();
   let sd=today(), a=kl.filter(r=>String(r[0]).slice(0,10)===sd);
   if(mktLive()&&a.length) a=a.slice(0,-1); // 当前正在形成的15分K不拿来确认拐点
   // 今日完成K不足时,从接口已有80根K里重建最近一个完整场次,用于跨日复盘。
   if(a.length<7){ sd=ds.filter(d=>d<today()).slice(-1)[0]||''; a=sd?kl.filter(r=>String(r[0]).slice(0,10)===sd):[]; }
-  if(a.length<7) return null;
+  if(a.length<7) return {kind:'none', reason:'完成K不足7根', completedK:a.length};
   const ranges=a.map(r=>Math.max(0,r[2]-r[3])).sort((x,y)=>x-y);
   const med=ranges[Math.floor(ranges.length/2)]||0;
   let ps=[];
@@ -1236,10 +1236,10 @@ function m15FibCalc(kl){
     else continue;
     if(!(R>Math.max(med*2.5,Math.abs(B.p)*0.003))) continue;
     const px=k=>dir>0?C.p+R*k:C.p-R*k;
-    return {sessionDate:sd,dir:dir,a:A.p,b:B.p,c:C.p,aT:A.t,bT:B.t,cT:C.t,retrace:+ret.toFixed(3),
-      t1:px(1),t1618:px(1.618),t2618:px(2.618)};
+    return {kind:'fib', sessionDate:sd, dir:dir, a:A.p, b:B.p, c:C.p, aT:A.t, bT:B.t, cT:C.t, retrace:+ret.toFixed(3),
+      t1:px(1), t1618:px(1.618), t2618:px(2.618), completedK:a.length};
   }
-  return null;
+  return {kind:'none', reason:'未形成合格A-B-C摆动', completedK:a.length};
 }
 let MSIG={}, M15FIB={}, M15FIB_DATE='', M15_TS=0;
 try{ const _mf=JSON.parse(localStorage.getItem('m15fib_v1')||'null');
@@ -2779,7 +2779,7 @@ function doRender(){
       <div class="proj"><span>${planLbl()}${_td.slice(5)}预判 <b class="flat">${preStr}</b><span class="qm" onclick="preWhy('${h.code}','${h.name}')">?</span>${PREHIT[h.code]?`<span class="sub" style="font-size:10px"> 实测${PREHIT[h.code].inr}%不出界</span>`:''}</span><span class="sub">${posTxt}${ampNote} · ${anchorNote(h.code,prev,p)}</span></div>
       <div class="proj" style="margin-top:2px"><span>${actRow(h.code,p,prev,lo,hi,_aLo,_aHi,_qd)}</span></div>
       ${fibLine(lg,p)}
-      ${m15FibLine(M15FIB[h.code],p)}
+      ${m15FibLine(M15FIB[h.code],p,[h.code,MSIG[h.code]])}
       <div class="proj vrd"><span>📋 <b style="color:${vCls(vd)}">${vd}</b></span></div>
       ${tradeZone}
       <a href="https://fululi.github.io/k-station/?code=${h.code}&lines=${tr.buys.map(x=>'b'+x.toFixed(2)).concat(tr.sells.map(x=>'s'+x.toFixed(2))).join(',')}" style="display:block;text-align:center;margin-top:8px;padding:8px;border-radius:8px;background:#2563eb;color:#fff;text-decoration:none;font-size:13px;font-weight:600">📈 看K线（做T价位已自动画好）</a>
@@ -2968,14 +2968,27 @@ function fibLine(lg,p){
   return '<div class="atrnote">🌀 日线大周期 '+(up?'↑ ':'↓ ')+P(up?lg.lo:lg.hi)+(d1?'('+d1.slice(5)+')':'')+'→'+P(up?lg.hi:lg.lo)+(d2?'('+d2.slice(5)+')':'')
     +' · '+(up?'回撤支撑 ':'反弹压力 ')+tx+' · 扩展1.618='+P(e1)+' · 2.618='+P(e2)+'</div>';
 }
-function m15FibLine(f,p){
-  if(!f) return '';
+function m15FibLine(f,p,tri){
+  let triTxt='';
+  if(tri){
+    const dtv=DT[tri[0]]||null;
+    triTxt=' · '+(tri[1]>0?'△15分破三角上沿':'△15分破三角下沿')+sigCtx(tri[1], dtv, '日线');
+  }
+  if(!f) return '<div class="atrnote">⏱ 15分小周期：暂无行情数据，未生成Fib'+triTxt+'</div>';
+  if(f.kind==='none'){
+    const sd=f.sessionDate?String(f.sessionDate).slice(5):'';
+    const ck=f.completedK||0;
+    return '<div class="atrnote">⏱ '+(sd?sd+' ':'')+'15分小周期 · 已完成K '+ck+'根 · '+f.reason+' · 暂不生成0.382/1.618/2.618'+triTxt+'</div>';
+  }
+  if(f.kind!=='fib') return '';
   const tm=s=>String(s||'').slice(11,16), mark=v=>(p!=null&&v>0&&Math.abs(p/v-1)<=0.004)?'<b style="color:#b45309">'+P(v)+'👈</b>':P(v);
   const abc=P(f.a)+'('+tm(f.aT)+')→'+P(f.b)+'('+tm(f.bT)+')→'+P(f.c)+'('+tm(f.cT)+')';
   const sd=f.sessionDate?String(f.sessionDate).slice(5):'';
-  return '<div class="atrnote">⏱ '+(sd?sd+' ':'')+'15分小周期·只认完成K '+(f.dir>0?'↑ ':'↓ ')+abc+' · 回撤'+Math.round(f.retrace*100)+'%'
+  const ck=f.completedK||0;
+  return '<div class="atrnote">⏱ '+(sd?sd+' ':'')+'15分小周期 · 已完成K '+ck+'根 · '+(f.dir>0?'↑ ':'↓ ')+abc+' · 回撤'+Math.round(f.retrace*100)+'%'
     +' · 目标1.0='+mark(f.t1)+' · 1.618='+mark(f.t1618)+' · 2.618='+mark(f.t2618)
     +' · '+(f.dir>0?'支撑C='+P(f.c)+' / 跌破A='+P(f.a)+'失效':'压力C='+P(f.c)+' / 升破A='+P(f.a)+'失效')
+    +triTxt
     +' <span class="dim">(小周期反应区,不是大周期反转确认)</span></div>';
 }
 function renderFcast(){
