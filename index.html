@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#f5f6f8">
-<title>我的持仓 · 行情 v5.09</title>
+<title>我的持仓 · 行情 v5.10</title>
 <style>
 :root { color-scheme: light; }
 * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
@@ -2518,7 +2518,7 @@ function doRender(){
       ${actBar}
       <div class="grid2">
         <div class="kv"><div class="k">回撤/盈亏率</div><div class="val ${dd!=null?cls(dd):'flat'}">${dd!=null?sg(dd.toFixed(2))+'%':'—'}</div></div>
-        <div class="kv"><div class="k">浮动盈亏</div><div class="val ${pnl!=null?cls(pnl):'flat'}">${pnl!=null?sg(Math.round(pnl).toLocaleString()):'—'}</div></div>
+        <div class="kv"><div class="k">浮动盈亏</div><div class="val ${pnl!=null?cls(pnl):'flat'}">${pnl!=null?sg(Math.round(pnl).toLocaleString()):'—'}</div><div class="k" style="margin-top:1px">今日 ${(p!=null&&prev!=null)?sg(Math.round((p-prev)*h.shares)):'—'}</div></div>
         <div class="kv"><div class="k">持仓市值</div><div class="val flat">${mv!=null?Math.round(mv).toLocaleString():'—'}</div></div>
         <div class="kv"><div class="k">今日振幅</div><div class="val flat">${ampPct!=null?ampPct.toFixed(2)+'%':'—'}</div></div>
       </div>
@@ -2629,6 +2629,8 @@ function doRender(){
    规则(回测框架口径)：收敛三角收盘突破 → 按信号日收盘模拟建仓；
    出场：反向破三角边止损 / 从峰值回撤1×ATR14移动止盈 / 满20天强制离场 */
 let PAPER=[]; try{ PAPER=JSON.parse(localStorage.getItem('paper_v1')||'[]'); }catch(e){}
+try{ const _bad=x=>x.status==='closed'&&x.entryD===x.exitD&&Math.abs(x.ret||0)<0.0005;
+  if(PAPER.some(_bad)){ PAPER=PAPER.filter(x=>!_bad(x)); savePaper(); } }catch(e){}
 function savePaper(){ try{ localStorage.setItem('paper_v1', JSON.stringify(PAPER.slice(-60))); }catch(e){} }
 // v4.50: 模拟仓可手动删(点两下确认)
 function delPaper(i,btn){ if(!btn.dataset.armed){ btn.dataset.armed='1'; btn.textContent='确认?'; setTimeout(()=>{ btn.dataset.armed=''; btn.textContent='删'; },2500); return; } PAPER.splice(i,1); savePaper(); renderPaper(); }
@@ -2661,11 +2663,14 @@ function atrLast(kl){
 function daysBetween(a,b){ return Math.round((new Date(b)-new Date(a))/864e5); }
 function nameOf(c){ const h=PF.holds.find(x=>x.code===c)||PF.watch.find(x=>x.code===c); return h?h.name:c; }
 function paperScan(c, kl){ // loadWTrend 拉到日线时顺带扫描
+  kl=settledRows(kl);   // v5.10: 盘中未完成K不算突破证据 —— 否则假突破当天开当天止损,统计全是0%
   const tr=triDet(kl);
   if(!tr||tr.brk===0) return;
   if(PAPER.some(x=>x.code===c&&x.status==='open')) return;
+  const bd=kl[kl.length-1][0];                       // 突破确认日=最后一根已收盘K
+  if(PAPER.some(x=>x.code===c&&x.entryD===bd)) return; // 同一突破日不重复建仓
   const c0=kl[kl.length-1][4];
-  PAPER.push({ code:c, name:nameOf(c), dir:tr.brk, entry:c0, entryD:today(),
+  PAPER.push({ code:c, name:nameOf(c), dir:tr.brk, entry:c0, entryD:bd,
     peak:c0, stop: tr.brk>0?tr.dn:tr.up, atr:atrLast(kl), status:'open' });
   savePaper();
 }
