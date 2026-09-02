@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#f5f6f8">
-<title>我的持仓 · 行情 v5.35</title>
+<title>我的持仓 · 行情 v5.36</title>
 <style>
 :root { color-scheme: light; }
 html { scroll-padding-top:118px; }
@@ -3044,7 +3044,7 @@ function doRender(){
       <div class="proj" style="margin-top:2px"><span>${actRow(h.code,p,prev,lo,hi,_aLo,_aHi,_qd)}</span></div>
       ${fibLine(lg,p)}
       ${m15FibLine(M15FIB[h.code], p, h.code)}
-      <div class="proj vrd"><span>📋 <b style="color:${vCls(vd)}">${vd}</b></span></div>
+      <div class="proj vrd"><span><span class="dim" style="font-weight:600">日线·周线</span> 📋 <b style="color:${vCls(vd)}">${vd}</b></span></div>
       ${tradeZone}
       <a href="https://fululi.github.io/k-station/?code=${h.code}&lines=${tr.buys.map(x=>'b'+x.toFixed(2)).concat(tr.sells.map(x=>'s'+x.toFixed(2))).join(',')}" style="display:block;text-align:center;margin-top:8px;padding:8px;border-radius:8px;background:#2563eb;color:#fff;text-decoration:none;font-size:13px;font-weight:600">📈 看K线（做T价位已自动画好）</a>
       <details class="fold" data-fk="vd-${h.code}"><summary>波动数据 · 信号跟踪 · 分档理由（想深究再点）</summary>
@@ -3112,7 +3112,7 @@ function doRender(){
     if(ffW) _sg2.push(`主力<b class="${cls(ffW.amt)}">${ffW.amt>=0?'+':''}${fmtAmt(ffW.amt)}</b>`);
     const _det=[sigTxt,wsgTxt,m15Txt,extWTxt,lnkWTxt,ffhW?' · '+ffhW:''].filter(Boolean).join('');
     return `<tr><td class="l" style="cursor:pointer" onclick="openK('${w.code}')">${w.name}<span class="sub"> ${w.code.replace(/^(sh|sz)/,'')}</span>
-      <details class="wl1" data-fk="ws-${w.code}" onclick="event.stopPropagation()"><summary class="vd">📋 <b style="color:${vCls(verdict(w.code))}">${verdict(w.code)}</b></summary>
+      <details class="wl1" data-fk="ws-${w.code}" onclick="event.stopPropagation()"><summary class="vd"><span class="dim" style="font-weight:600">日线·周线</span> 📋 <b style="color:${vCls(verdict(w.code))}">${verdict(w.code)}</b></summary>
       <span class="wlx sub">${w.theme||'未标题材'}</span>
       <span class="wlx sub sig1">${_sg2.join(' ')}</span>${addTxt}
       ${_det?`<span class="wlx sub">${_det}</span>`:''}</details></td>
