@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#f5f6f8">
-<title>我的持仓 · 行情 v5.31</title>
+<title>我的持仓 · 行情 v5.32</title>
 <style>
 :root { color-scheme: light; }
 html { scroll-padding-top:118px; }
@@ -1421,26 +1421,35 @@ function loadM15JSONP(code, done){
   sc.src='https://quotes.sina.cn/cn/api/jsonp_v2.php/var%20'+v+'=/CN_MarketDataService.getKLineData?symbol='+code+'&scale=15&ma=no&datalen=80';
   document.head.appendChild(sc);
 }
-let MSIG={}, M15FIB={}, M15FIB_DATE='', M15_TS=0;
+let MSIG={}, M15FIB={}, M15FIB_DATE='', M15_TS=0, M15_CODES='';
 try{ const _mf=JSON.parse(localStorage.getItem('m15fib_v1')||'null');
   if(_mf&&_mf.fib&&typeof _mf.fib==='object'){ M15FIB=_mf.fib; M15FIB_DATE=_mf.date||''; }
 }catch(e){}
-function loadM15(done){ // 15分钟三角扫描(新浪15分K,近80根≈5个交易日),15分钟内不重复拉
-  const n=Date.now(); if(n-M15_TS<15*60*1000 && (Object.keys(MSIG).length||Object.keys(M15FIB).length)){ done&&done(); return; }
-  M15_TS=n;
+function loadM15(done){ // 15分钟三角扫描(腾讯m15主源,新浪兜底),15分钟内不重复拉
   const codes=[...PF.holds.map(h=>h.code), ...PF.watch.map(w=>w.code)];
-  if(!codes.length){ done&&done(); return; }
-  const out={}, ofib={}; let left=codes.length, finished=false;
-  const fin=()=>{ if(finished) return; finished=true; MSIG=out;
-    // 当天没有足够完成K时保留上一场的小周期证据,不能因次日盘前空数据把昨天结构抹掉。
-    if(Object.keys(ofib).length){ M15FIB=ofib;
-      M15FIB_DATE=Object.values(ofib).map(x=>x.sessionDate||'').sort().slice(-1)[0]||today();
+  const sig=codes.slice().sort().join(','), n=Date.now();
+  // v5.32: 节流必须认"股票清单"。清单变了(恢复备份/加持仓/删观察)就立刻重拉——
+  // 否则刚恢复回来的持仓会因为localStorage里还留着旧M15FIB而被挡在15分钟节流外,全部显示"暂无"。
+  if(n-M15_TS<15*60*1000 && sig===M15_CODES && (Object.keys(MSIG).length||Object.keys(M15FIB).length)){ done&&done(); return; }
+  if(!codes.length){ MSIG={}; M15_CODES=''; done&&done(); return; }
+  const out={}, ofib={}; let left=codes.length, finished=false, okN=0;
+  const fin=()=>{ if(finished) return; finished=true;
+    // 三角信号与Fib必须同批提交:原先MSIG无条件覆盖、M15FIB只在非空时更新,
+    // 一份被清一份留旧值,才会出现"说没数据、又标着三角破"的自相矛盾。
+    MSIG=out; M15FIB=ofib; M15_CODES=sig;
+    M15FIB_DATE=Object.values(ofib).map(x=>(x&&x.sessionDate)||'').sort().slice(-1)[0]||'';
+    if(okN){ M15_TS=n;
       try{ localStorage.setItem('m15fib_v1',JSON.stringify({date:M15FIB_DATE,fib:M15FIB})); }catch(e){} }
+    else { M15_TS=n-14*60*1000; // 整批一个都没拿到:1分钟后允许重试,不把失败锁死15分钟
+      try{ localStorage.removeItem('m15fib_v1'); }catch(e){} }
     done&&done(); };
   setTimeout(fin, 8000);
   codes.forEach(c=>{
     let got=false;
-    const tick=(v,fb)=>{ if(got) return; got=true; if(v!=null) out[c]=v; if(fb) ofib[c]=fb; if(--left===0) fin(); };
+    // 取不到就显式写no-data,不让上一批的旧结构冒充本批结果。
+    const tick=(v,fb)=>{ if(got) return; got=true; if(v!=null) out[c]=v;
+      if(fb){ okN++; ofib[c]=fb; } else ofib[c]={kind:'no-data'};
+      if(--left===0) fin(); };
     const consume=rows=>{
       try{
         const norm=parseM15Rows(rows);
@@ -2455,9 +2464,16 @@ function restoreJSON(ev){
       try{ localStorage.setItem(HITK,JSON.stringify({date:today(),seen:HITSEEN})); }catch(e){}
     }
     save(); saveLog(); savePlan(); ATR_DATE='';
-    render(); renderLog(); renderPlan();
+    // v5.32: 落盘与渲染分开兜底。原先两者共用一个catch,只要render抛错就报"文件不对,恢复失败",
+    // 而数据其实已经存进去了,真实报错被吞掉 —— 这条提示会把人带到"备份坏了"的错误方向。
+    try{ render(); renderLog(); renderPlan(); }
+    catch(re){
+      console.error('[restore] 数据已落盘,渲染失败:', re);
+      toast('数据已恢复并存盘,但渲染出错:'+((re&&re.message)||re)+' · 刷新页面重试');
+      return;
+    }
     toast('已恢复: 持仓'+d.holds.length+' 台账合并后'+TLOG.length+'条(新增'+added.length+') · 预测'+FCAST.length+'场 · 模拟仓'+PAPER.length+'笔');
-  }catch(e){ toast('文件不对,恢复失败'); } };
+  }catch(e){ console.error('[restore] 解析或写入失败:', e); toast('恢复失败:'+((e&&e.message)||'文件格式不对')); } };
   rd.readAsText(f);
 }
 function renderLog(){
