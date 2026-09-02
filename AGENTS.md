@@ -41,3 +41,4 @@
 | 导出/备份 | exportCSV 1166 · backupJSON 1197 · restoreJSON 1204 · copyCoach 1114 |
 | 模拟建仓 | triDet 1483 · paperScan 1511 · renderPaper 1520 |
 | 添加/删除股 | confirmAdd 931 · doAdd 922 · delItem 948 · editField 953 |
+| 场次账/预测快照(v4.98+) | snapFcast/fcOf/bindActual/settledRows(anchorNote 前) · LASTK · targetDay/sessState · actRow(实际行四态) · preHitOf 三处调用已套 settledRows 剔除未完成日K |

@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#f5f6f8">
-<title>我的持仓 · 行情 v4.97</title>
+<title>我的持仓 · 行情 v4.99</title>
 <style>
 :root { color-scheme: light; }
 * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
@@ -818,6 +818,114 @@ function refCloseOf(p,prev){ return (planNext()&&p!=null&&p>0)?p:prev; }
 // v4.96: 这份行情快照是哪一天的(盘前腾讯还给上一场的收盘,'今日实际'不能硬写今日)
 function qDay(code){ const t=F(GET(code),30); if(t==null) return ''; const z=String(Math.round(t)); return /^\d{8}/.test(z)?z.slice(4,6)+'-'+z.slice(6,8):''; }
 function anchorOf(code,p,prev){ if(planNext()&&p!=null&&p>0) return p; if(prev==null) return p; const f=GET(code), op=F(f,5), a=atrOf(code); if(op!=null&&op>0&&a!=null&&Math.abs(op-prev)>=0.5*a) return op; return prev; } // v4.79: op>0 —— 盘前腾讯返今开0.00,不加这个判断全部档位会锚成0
+/* ================= v4.98 场次账:预测快照(写一次,永不覆盖) =================
+   口径: 一个(目标交易日,代码)只存第一次生成的那份预判。生成后基准/ATR/上下沿冻结,
+   场次结束后只把「已确认日K」的实际高低挂上去,绝不拿今天重算的区间回填昨天。 */
+const FCK='fcast_v1';
+const FCVER='v4.98';
+let FCAST=[]; try{ FCAST=JSON.parse(localStorage.getItem(FCK)||'[]'); }catch(e){ FCAST=[]; }
+function saveFcast(){ lsSet(FCK, JSON.stringify(FCAST.slice(-800))); }
+function ymd(d){ const z=n=>(n<10?'0':'')+n; return d.getFullYear()+'-'+z(d.getMonth()+1)+'-'+z(d.getDate()); }
+function nowStamp(){ const d=new Date(), z=n=>(n<10?'0':'')+n; return ymd(d)+' '+z(d.getHours())+':'+z(d.getMinutes()); }
+// 目标交易日: 本场未收盘=今天; 已收盘/周末=下一个工作日。无节假日表,遇休市顺延(tdApprox)
+function targetDay(){
+  const d=new Date(), w=d.getDay(), t=d.getHours()*60+d.getMinutes();
+  if(w>=1&&w<=5&&t<900) return ymd(d);
+  const x=new Date(d.getTime()); do{ x.setDate(x.getDate()+1); }while(x.getDay()===0||x.getDay()===6);
+  return ymd(x);
+}
+// 目标场次的「时钟」状态。注意:时钟到点 != 日K已更新,已结算与否由 act 决定
+function sessState(td){
+  const d=new Date(), t=d.getHours()*60+d.getMinutes();
+  if(td!==ymd(d)) return 'pre';
+  if(t<570) return 'pre';
+  if(t<=900) return 'live';
+  return 'wait';
+}
+function genSess(){ const d=new Date(), w=d.getDay(), t=d.getHours()*60+d.getMinutes();
+  if(w<1||w>5) return '休市'; if(t<570) return '盘前'; if(t<=900) return '盘中'; return '收盘后'; }
+function qTime(code){ const t=F(GET(code),30); if(t==null) return ''; const z=String(Math.round(t));
+  return /^\d{14}/.test(z)?(z.slice(0,4)+'-'+z.slice(4,6)+'-'+z.slice(6,8)+' '+z.slice(8,10)+':'+z.slice(10,12)):''; }
+// 锚点类型(与 refCloseOf 同一口径): 盘前/盘后锚在快照日收盘; 盘中锚在昨收或跳空today开
+function anchorType(code,prev,p){
+  if(planNext()) return '收盘';
+  const f=GET(code), op=F(f,5), a=atrOf(code);
+  if(prev!=null&&op!=null&&op>0&&a!=null&&Math.abs(op-prev)>=0.5*a) return '今开';
+  return '昨收';
+}
+function invalidOf(c){ try{ const s2=PAPER.find(x=>x.code===c&&x.status==='open');
+  return s2?('日线收盘'+(s2.dir>0?'跌破':'升破')+P(s2.stop)+'确认撤(盘中触及仅预警)'):''; }catch(e){ return ''; } }
+function fcOf(code,td){ for(let i=FCAST.length-1;i>=0;i--) if(FCAST[i].code===code&&FCAST[i].targetDate===td) return FCAST[i]; return null; }
+// 写一次: 同一(目标日,代码)已存在就原样返回,绝不覆盖
+function snapFcast(o){
+  if(!o||!o.code||!o.targetDate||o.lo==null||o.hi==null||!(o.base>0)) return null;
+  const ex=fcOf(o.code,o.targetDate); if(ex) return ex;
+  const r={ id:o.targetDate+'-'+o.code, code:o.code, name:o.name||'', targetDate:o.targetDate,
+    tdApprox:true, genSess:genSess(), generatedAt:nowStamp(), dataAsOf:o.dataAsOf||'',
+    quoteDate:o.quoteDate||'', quoteTime:o.quoteTime||'', base:+(+o.base).toFixed(3),
+    anchorType:o.anchorType||'', atr:(o.atr!=null?+(+o.atr).toFixed(4):null),
+    ampF:(o.ampF!=null?+(+o.ampF).toFixed(3):1), lo:+(+o.lo).toFixed(3), hi:+(+o.hi).toFixed(3),
+    trendState:o.trendState||'', invalidation:o.invalidation||'', ver:FCVER, act:null };
+  FCAST.push(r); saveFcast(); return r;
+}
+// 场次结束后用「已确认日K」把实际挂到旧快照上 —— 只挂,不重算预判
+function bindActual(code, rows){   // rows: 腾讯原始 [date,open,close,high,low,vol]
+  if(!rows||!rows.length) return;
+  let dirty=false; const m={};
+  for(let i=Math.max(0,rows.length-60);i<rows.length;i++) m[rows[i][0]]=rows[i];
+  const st=settledRows(rows), lastSettled=st.length?st[st.length-1][0]:'';
+  for(let i=0;i<FCAST.length;i++){
+    const f=FCAST[i];
+    if(f.code!==code||f.act) continue;
+    const r=m[f.targetDate]; if(!r) continue;
+    if(f.targetDate>lastSettled) continue;   // 该场次的日K还没封盘,不结算
+    const op=+r[1], cl=+r[2], hi=+r[3], lo=+r[4];
+    if(!(hi>0&&lo>0)) continue;
+    f.act={ sessionDate:r[0], open:op, high:hi, low:lo, close:cl, src:'dayK', filledAt:nowStamp(),
+      hitUpper:hi>f.hi, hitLower:lo<f.lo, out:(hi>f.hi||lo<f.lo),
+      upMargin:+(f.hi-hi).toFixed(3), dnMargin:+(lo-f.lo).toFixed(3) };
+    dirty=true;
+  }
+  if(dirty) saveFcast();
+}
+// 覆盖率/复盘的分母只收完整场次: 盘中那根未完成的当日K必须剔除,
+// 否则同一天早上/下午/收盘后会算出三个不同的历史胜率
+function settledRows(rows){
+  if(!rows||!rows.length) return rows;
+  const d=new Date(), t=d.getHours()*60+d.getMinutes();
+  return (rows[rows.length-1][0]===ymd(d)&&t<=900)?rows.slice(0,-1):rows;
+}
+let LASTK={};   // code -> 已确认的最新日K {date,o,h,l,c}
+/* v4.98: 「实际」行四态 —— 未开盘/盘中(事件流)/收盘待日K/已收盘(结算账)。
+   盘中触及只预警不进统计; 出界判定只认已确认日K,优先用当场冻结快照做对照 */
+function actRow(code,p,prev,lo,hi,aLo,aHi,qd){
+  const tdd=today().slice(5), live=mktLive();
+  const lk=LASTK[code];
+  const lbl=(qd||(live?tdd:'上一交易日'))+'实际 ';
+  const rng=(l2,h2)=>'<b class="flat">'+(l2!=null?P(l2):'—')+' ~ '+(h2!=null?P(h2):'—')+'</b>';
+  // 盘中: 实时高低可见,触及=预警,不写"已出界"
+  if(live&&qd===tdd){
+    let s=lbl+rng(lo,hi)+' <span class="sub">(进行中·未收盘)</span>';
+    if(hi!=null&&aHi!=null&&hi>=aHi) s+=' <span class="sub" style="color:#b45309">⚠盘中已触及预判上沿,等收盘确认</span>';
+    else if(lo!=null&&aLo!=null&&lo<=aLo) s+=' <span class="sub" style="color:#b45309">⚠盘中已击穿预判下沿,等收盘确认</span>';
+    else if(hi!=null&&aHi!=null&&lo!=null&&aLo!=null) s+=' <span class="sub">距上沿'+P(aHi-hi)+' · 距下沿'+P(lo-aLo)+'</span>';
+    return s;
+  }
+  // 已收盘且日K已确认: 用当场快照(冻结口径)判定,纳入覆盖率
+  if(lk&&qd&&lk.date.slice(5)===qd){
+    const fc=fcOf(code,lk.date);
+    const fHi=fc?fc.hi:aHi, fLo=fc?fc.lo:aLo;
+    let out=null;
+    if(fc&&fc.act) out=fc.act.out;
+    else if(fHi!=null&&fLo!=null) out=(lk.h>fHi||lk.l<fLo);
+    return lbl+rng(lk.l,lk.h)+' <span class="sub">(已收盘·日K确认)</span>'
+      +(out!=null?(' <span class="sub">'+(out?'<b style="color:#b91c1c">已出界</b>':'未出界')+' · 纳入覆盖率</span>'):'');
+  }
+  // 收盘时间到/盘前/周末: 快照还是上一场的数据,日K未确认,不进统计
+  const d=new Date(), t=d.getHours()*60+d.getMinutes();
+  const wait=(t>900)?'收盘时间到·等待日K确认':'上一场·待日K对照';
+  return lbl+rng(lo,hi)+' <span class="sub">('+wait+')</span>';
+}
 function anchorNote(code,prev,p){ if(planNext()) return planLbl()+'计划·锚='+((p!=null&&p>0)?'现价'+P(p):'上一收盘'); const f=GET(code), op=F(f,5), a=atrOf(code); if(prev!=null&&op!=null&&op>0&&a!=null&&Math.abs(op-prev)>=0.5*a) return '跳空'+sg(((op/prev-1)*100).toFixed(1))+'%开盘·锚=今开'+P(op); return '锚=昨收'+P(prev); } // v4.97: 标签要跟refCloseOf实际用的基准一致,planNext()下现价有效就该说"锚=现价",别一律说"锚=上一收盘"误导
 function ampBase(code,todayAmp){
   const o=ATR[code];
@@ -947,7 +1055,7 @@ function computeLink(cm){ // 每票对四大指数算250日相关性+极端日�
       .then(r=>r.json()).then(d=>{ clearTimeout(tm);
         const node=d.data&&d.data[ix[0]], rows=node&&(node.qfqday||node.day);
         if(rows&&rows.length){ const m={}; rows.forEach(r=>{ m[r[0]]=+r[2]; }); ipx[ix[0]]=m;
-          try{ const _ph=preHitOf(rows.map(r=>[r[0],+r[1],+r[3],+r[4],+r[2]]));
+          try{ const _ph=preHitOf(settledRows(rows.map(r=>[r[0],+r[1],+r[3],+r[4],+r[2]])));
             if(_ph){ PREHIT[ix[0]]=_ph; localStorage.setItem(PHK,JSON.stringify({date:today(),ph:PREHIT})); phDirty(); } }catch(e){} }
         if(--left===0) fin2();
       }).catch(()=>{ clearTimeout(tm); if(--left===0) fin2(); });
@@ -1025,9 +1133,12 @@ function loadWTrend(done){
         const node=d.data&&d.data[c], rows=node&&(node.qfqday||node.day);
         if(!rows||rows.length<40){ tick(null); return; }
         closesMap[c]=rows.map(r=>[r[0],+r[2]]);
+        try{ const _st=settledRows(rows); if(_st.length){ const _l=_st[_st.length-1];
+          LASTK[c]={date:_l[0], o:+_l[1], c:+_l[2], h:+_l[3], l:+_l[4]}; } }catch(e){}
+        try{ bindActual(c, rows); }catch(e){}
         try{ paperScan(c, rows.map(r=>[r[0], +r[1], +r[3], +r[4], +r[2], +r[5]])); }catch(e){}
         try{ const _pr=calcPos(rows.map(r=>[r[0],+r[1],+r[3],+r[4],+r[2]])); if(_pr) oposn[c]=_pr; }catch(e){}
-        try{ const _ph=preHitOf(rows.map(r=>[r[0],+r[1],+r[3],+r[4],+r[2]]));
+        try{ const _ph=preHitOf(settledRows(rows.map(r=>[r[0],+r[1],+r[3],+r[4],+r[2]])));
           if(_ph){ PREHIT[c]=_ph; localStorage.setItem(PHK,JSON.stringify({date:today(),ph:PREHIT})); phDirty(); } }catch(e){}
         try{ const _hn=(PF.holds.concat(PF.watch).find(x=>x.code===c)||{}).name||'';
           const _bs=btSweep(c,_hn,rows.map(r=>[r[0],+r[1],+r[3],+r[4],+r[2]])); if(_bs) obt[c]=_bs; }catch(e){}
@@ -1102,7 +1213,7 @@ function loadIdxHit(done){
     fetch('https://web.ifzq.gtimg.cn/appstock/app/fqkline/get?param='+c+',day,,,300,qfq',{signal:ctrl.signal})
       .then(r=>r.json()).then(d=>{ clearTimeout(tm);
         const node=d.data&&d.data[c], rows=node&&(node.qfqday||node.day);
-        if(rows&&rows.length){ const _ph=preHitOf(rows.map(r=>[r[0],+r[1],+r[3],+r[4],+r[2]]));
+        if(rows&&rows.length){ const _ph=preHitOf(settledRows(rows.map(r=>[r[0],+r[1],+r[3],+r[4],+r[2]])));
           if(_ph){ PREHIT[c]=_ph; try{ localStorage.setItem(PHK,JSON.stringify({date:today(),ph:PREHIT})); }catch(e){} } }
         fin(); })
       .catch(()=>{ clearTimeout(tm); delete PHTRY[c]; fin(); }); // 只有网络失败才允许重试,数据不够不重试
@@ -2210,7 +2321,10 @@ function doRender(){
     const preHi=_preP?_preP.hi:null, preLo=_preP?_preP.lo:null;
     const _aHi=_actP?_actP.hi:null, _aLo=_actP?_actP.lo:null;
     const _qd=qDay(h.code), _actLbl=_nxP?(_qd||'上一交易日'):'今日';
-    const preStr=(preHi!=null)?P(preLo)+' ~ '+P(preHi):'—';
+    const _td=targetDay();
+    const _snap=snapFcast({code:h.code,name:h.name,targetDate:_td,base:refCloseOf(p,prev),atr:a2,ampF:ampF,lo:preLo,hi:preHi,anchorType:anchorType(h.code,prev,p),dataAsOf:_qd,quoteTime:qTime(h.code),invalidation:invalidOf(h.code)});
+    const _dLo=_snap?_snap.lo:preLo, _dHi=_snap?_snap.hi:preHi;
+    const preStr=(_dHi!=null)?P(_dLo)+' ~ '+P(_dHi):'—';
     // 盘前/收盘后 p 就是基准本身,拿它比自己永远"在区间内",没信息量,直接不显示
     const posTxt=_nxP?'':((p!=null&&preHi!=null&&preLo!=null)?(p>=preHi?'▲现价破预判上沿':(p<=preLo?'▼现价破预判下沿':'在预判区间内')):'');
     const lg=legOf(h.code);
@@ -2346,8 +2460,8 @@ function doRender(){
         <div class="kv"><div class="k">持仓市值</div><div class="val flat">${mv!=null?Math.round(mv).toLocaleString():'—'}</div></div>
         <div class="kv"><div class="k">今日振幅</div><div class="val flat">${ampPct!=null?ampPct.toFixed(2)+'%':'—'}</div></div>
       </div>
-      <div class="proj"><span>${planNext()?planLbl():'今日'}预判 <b class="flat">${preStr}</b><span class="qm" onclick="preWhy('${h.code}','${h.name}')">?</span>${PREHIT[h.code]?`<span class="sub" style="font-size:10px"> 实测${PREHIT[h.code].inr}%不出界</span>`:''}</span><span class="sub">${posTxt}${ampNote} · ${anchorNote(h.code,prev,p)}</span></div>
-      <div class="proj" style="margin-top:2px"><span>${_actLbl}实际 <b class="flat">${lo!=null?P(lo):'—'} ~ ${hi!=null?P(hi):'—'}</b></span><span class="sub">${hi!=null&&_aHi!=null?(hi>=_aHi?'最高摸到预判上沿':'最高距上沿还差'+P(_aHi-hi)):''}${lo!=null&&_aLo!=null?(lo<=_aLo?' · 最低击穿预判下沿':' · 最低距下沿还差'+P(lo-_aLo)):''}${_nxP?' <span class="sub">(该场次自己的预判 '+P(_aLo)+'~'+P(_aHi)+')</span>':''}</span></div>
+      <div class="proj"><span>${planLbl()}${_td.slice(5)}预判 <b class="flat">${preStr}</b><span class="qm" onclick="preWhy('${h.code}','${h.name}')">?</span>${PREHIT[h.code]?`<span class="sub" style="font-size:10px"> 实测${PREHIT[h.code].inr}%不出界</span>`:''}</span><span class="sub">${posTxt}${ampNote} · ${anchorNote(h.code,prev,p)}</span></div>
+      <div class="proj" style="margin-top:2px"><span>${actRow(h.code,p,prev,lo,hi,_aLo,_aHi,_qd)}</span></div>
       <div class="proj vrd"><span>📋 <b style="color:${vCls(vd)}">${vd}</b></span></div>
       ${tradeZone}
       <a href="https://fululi.github.io/k-station/?code=${h.code}&lines=${tr.buys.map(x=>'b'+x.toFixed(2)).concat(tr.sells.map(x=>'s'+x.toFixed(2))).join(',')}" style="display:block;text-align:center;margin-top:8px;padding:8px;border-radius:8px;background:#2563eb;color:#fff;text-decoration:none;font-size:13px;font-weight:600">📈 看K线（做T价位已自动画好）</a>
