@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#f5f6f8">
-<title>我的持仓 · 行情 v5.42</title>
+<title>我的持仓 · 行情 v5.43</title>
 <style>
 :root { color-scheme: light; }
 html { scroll-padding-top:118px; }
@@ -116,6 +116,9 @@ td { border-top:1px solid #f2f4f6; }
 .wdel { font-size:11px; color:#c2410c; background:#fdece3; border:none; padding:3px 8px; border-radius:6px; font-weight:600; }
 .up{color:#d0342c;} .down{color:#12924a;} .flat{color:#4b5563;}
 .tk { border-bottom:1.5px dashed currentColor; cursor:pointer; padding:0 1px; }
+/* v5.43 账户标:同代码多账户时才出现,用于区分招商/东财两笔 */
+.acct { display:inline-block; margin-left:5px; padding:1px 5px; border-radius:3px; background:#eef2ff; color:#4338ca; font-size:10px; font-weight:700; vertical-align:1px; }
+.acct.none { background:#fef3c7; color:#92400e; }
 .tierbox { display:flex; gap:8px; margin-top:10px; }
 .tier { flex:1; border-radius:12px; padding:8px 10px 10px; }
 .tier.tb { background:#f0fdf4; border:1.5px solid #86efac; }
@@ -2048,6 +2051,17 @@ function editField(type,i,field,val){
 // acct 为空 = 未分组,老数据零改动照常显示(只有一个空账户时连分组头都不画)。
 let ACCS={};
 function acctOf(h){ return (h.acct||'').trim(); }
+// v5.43: 同一代码分在多个账户(招商/东财)时,卡面必须能分清是哪一笔 ——
+// 此前只有点开编辑才看得到账户,两笔600105在卡面上长得一模一样。
+// 只要该代码出现多笔就都标(含未填账户的,标"未标"提示你去补),
+// 单笔的票不加无用噪音。
+function acctTag(h){
+  const same=PF.holds.filter(x=>x.code===h.code);
+  if(same.length<2) return '';
+  const a=acctOf(h);
+  return a?'<span class="acct">'+a+'</span>'
+          :'<span class="acct none" title="这只票有多笔持仓,建议补上账户名便于区分">未标</span>';
+}
 function acctList(){ const r=[]; PF.holds.forEach(h=>{ const a=acctOf(h); if(r.indexOf(a)<0) r.push(a); }); return r; }
 function acctMulti(){ const l=acctList(); return l.length>1||(l.length===1&&l[0]!==''); }
 function acctHdr(a){
@@ -2193,26 +2207,35 @@ function renderT(){ try{ renderBT(); }catch(e){} try{ renderRV(); }catch(e){}
     const aS=parseFloat((document.getElementById('tSell')||{}).value), aB=parseFloat((document.getElementById('tBuy')||{}).value);
     const selH2=PF.holds[+((document.getElementById('tSel')||{}).value)||0], isSel=selH2&&selH2.code===h.code;
     const tq=Math.max(100,Math.round((h.shares||400)/4/100)*100);
-    const ann=(x,dir,j)=>{ // dir>0 低吸档(锚=卖出价aS) dir<0 高抛档(锚=接回价aB); v4.54 只有表单选中的票才用表单价,其他票用对侧同序号档(标约),不再串票
+    // v5.43: 做T计划瘦身。原先每格5样东西(档号/价格/距离%/概率%/换行的净赚),
+    // 两三档×两侧 = 一行20~30个数字,挂单时找不到要抄的那个价。
+    // 取舍:价格+距离留面上(挂单直接用);净赚收进悬停(它是估算却占整行);
+    // 概率只在≥50%或≤20%时显示(中间值不携带信息)。
+    const annT=(x,dir,j)=>{ // 悬停用的净赚文本,不再占版面
       let a=dir>0?aS:aB, est=false;
       if(!isSel||isNaN(a)||a<=0){ const opp=dir>0?tr.sells:tr.buys; a=opp[Math.min(j||0,opp.length-1)]; est=true; }
       if(a==null||isNaN(a)||a<=0) return '';
       const diff=dir>0?a-x:x-a;
       const fee=dir>0?feeOf(a,x,tq,tq,h.code).fee:feeOf(x,a,tq,tq,h.code).fee;
       const net=diff*tq-fee;
-      const bp=dir>0?x:a, nr=bp?net/(bp*tq)*100:0;
-      return `<br><span class="sub" style="font-size:10px">${est?'约':''}净<b style="color:${net>=0?'#dc2626':'#16a34a'}">${sg(Math.round(net))}</b>/${tq}股</span>`;
+      return (est?'约':'')+'净'+sg(Math.round(net))+'元/'+tq+'股';
     };
     const _nx=planNext(), _rc=refCloseOf(p,prev);
     const _dp2=DPOS[h.code];
-    const prb=(x,side)=>{ if(!_dp2||!_rc) return '';
-      const pr=hitPr(side==='buy'?_dp2.DN:_dp2.UP, Math.abs(x/_rc-1)*100);
-      return pr!=null?`<span class="prb2${pr>=50?' hi':(pr<=20?' lo':'')}">${pr}%</span>`:''; };
+    const prbV=(x,side)=>{ if(!_dp2||!_rc) return null;
+      return hitPr(side==='buy'?_dp2.DN:_dp2.UP, Math.abs(x/_rc-1)*100); };
     const gapS2=x=>{ if(p==null||p<=0) return ''; const g=(x/p-1)*100;
       return `<span class="gp">${sg(g.toFixed(1))}%</span>`; };
-    const bs=tr.buys.length?tr.buys.map((x,j)=>`<span class="tk" onclick="fillT('${h.code}',${x},'buy')">${tr.buys.length>1?'①②③'[j]:''}${P(x)} ${gapS2(x)} ${prb(x,'buy')}${ann(x,1,j)}</span>`).join(' '):'—';
-    const ss=tr.sells.length?tr.sells.map((x,j)=>`<span class="tk" onclick="fillT('${h.code}',${x},'sell')">${tr.sells.length>1?'①②③'[j]:''}${P(x)} ${gapS2(x)} ${prb(x,'sell')}${ann(x,-1,j)}</span>`).join(' '):'—';
-    const html=`<tr><td class="l">${h.name}${tf.lv>0?' <span class="badge '+tf.cls+'" style="margin:0">'+(tf.lv>=2?'⚠':(tf.label==='大盘异动'?'异动':tf.label.replace('趋势偏','趋')))+'</span>':''}</td>
+    const cell=(x,j,side)=>{
+      const dir=side==='buy'?1:-1;
+      const pr=prbV(x,side);
+      const showPr=(pr!=null&&(pr>=50||pr<=20))?`<span class="prb2${pr>=50?' hi':' lo'}">${pr}%</span>`:'';
+      const tip=[P(x), (pr!=null?'触及'+pr+'%':''), annT(x,dir,j)].filter(Boolean).join(' · ');
+      return `<span class="tk" title="${tip}" onclick="fillT('${h.code}',${x},'${side}')">${P(x)} ${gapS2(x)}${showPr}</span>`;
+    };
+    const bs=tr.buys.length?tr.buys.map((x,j)=>cell(x,j,'buy')).join(' '):'—';
+    const ss=tr.sells.length?tr.sells.map((x,j)=>cell(x,j,'sell')).join(' '):'—';
+    const html=`<tr><td class="l">${h.name}${acctTag(h)}${tf.lv>0?' <span class="badge '+tf.cls+'" style="margin:0">'+(tf.lv>=2?'⚠':(tf.label==='大盘异动'?'异动':tf.label.replace('趋势偏','趋')))+'</span>':''}</td>
       <td class="flat">${_nx?((_rc&&nb.base)?'预期'+(nb.base/_rc*100).toFixed(1)+'%':'—'):(ampPct!=null?ampPct.toFixed(2)+'%':'—')}<br><span class="sub">${_nx?'今日'+(ampPct!=null?ampPct.toFixed(1)+'%':'—'):(atrUse!=null?'ATR用'+atrUse+'%'+(nb.narrow?'·窄档':''):'')}</span></td>
       <td class="down">${bs}</td><td class="up">${ss}</td></tr>`;
     // 最快触发距离: 现价到最近一个未越过档位的%
@@ -3050,7 +3073,7 @@ function doRender(){
         +'<table class="qt2">'+rows+'</table><div class="qf">'+roundS+doneS+'</div>'+'<div class="qf">'+foot+'<span class="dim"> · %=历史同幅度触及频率(无条件,非今日概率)</span></div>'+dline+'</div>';
     })();
     return `<div class="card">${delBtn}
-      <div class="row1"><div><span class="nm">${h.name}</span><span class="code">${h.code.replace(/^(sh|sz)/,'')}</span>${badge}${wtBadge}${dtBadgeH}${wsgTxtH}${m15Badge}${gzH}${extBadge}</div>
+      <div class="row1"><div><span class="nm">${h.name}</span><span class="code">${h.code.replace(/^(sh|sz)/,'')}</span>${acctTag(h)}${badge}${wtBadge}${dtBadgeH}${wsgTxtH}${m15Badge}${gzH}${extBadge}</div>
         <div class="pct ${cls(pct)}">${pct!=null?sg(pct.toFixed(2))+'%':''}<button class="ctog" onclick="togCard('${h.code}')">${COLL[h.code]?'▸':'▾'}</button></div></div>
       <div class="row1" style="margin-top:4px"><div class="px ${cls(pct)}">${P(p)}</div>
         <div class="sub">${cleared?'<b style="color:#c2410c">已清仓</b> · 0股':(()=>{
