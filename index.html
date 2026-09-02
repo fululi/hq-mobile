@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#f5f6f8">
-<title>我的持仓 · 行情 v5.01</title>
+<title>我的持仓 · 行情 v5.02</title>
 <style>
 :root { color-scheme: light; }
 * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
@@ -203,6 +203,7 @@ details.fold > summary::-webkit-details-marker { display:none; }
 details.fold > summary::after { content:'\25be'; position:absolute; right:2px; top:0; color:#9aa1ab; display:inline-block; transition:transform .15s; }
 details.fold[open] > summary::after { transform:rotate(180deg); }
 details.fold:not([open]) > summary { margin-bottom:0; }
+.ctog { border:none; background:transparent; font-size:13px; color:#9aa1ab; padding:2px 4px; margin-left:4px; }
 .foot { font-size:11px; color:#9aa1ab; line-height:1.6; margin-top:8px; padding:0 2px; }
 </style>
 </head>
@@ -1334,6 +1335,8 @@ function refresh(manual){
   s.onerror=()=>{ document.getElementById('time').textContent='网络拉取失败,请检查网络后点刷新'; s.remove(); done(); if(manual) toast('刷新失败,请检查网络'); };
   document.body.appendChild(s);
 }
+let COLL={}; try{ COLL=JSON.parse(localStorage.getItem('hqm_coll_v1')||'{}'); }catch(e){ COLL={}; }
+function togCard(c){ COLL[c]=!COLL[c]; lsSet('hqm_coll_v1',JSON.stringify(COLL)); render(); }
 function toggleEdit(){ editMode=!editMode;
   let fb=document.getElementById('edFloat');
   if(editMode&&!fb){ fb=document.createElement('div'); fb.id='edFloat';
@@ -2449,7 +2452,7 @@ function doRender(){
     })();
     return `<div class="card">${delBtn}
       <div class="row1"><div><span class="nm">${h.name}</span><span class="code">${h.code.replace(/^(sh|sz)/,'')}</span>${badge}${wtBadge}${dtBadgeH}${wsgTxtH}${m15Badge}${gzH}${extBadge}</div>
-        <div class="pct ${cls(pct)}">${pct!=null?sg(pct.toFixed(2))+'%':''}</div></div>
+        <div class="pct ${cls(pct)}">${pct!=null?sg(pct.toFixed(2))+'%':''}<button class="ctog" onclick="togCard('${h.code}')">${COLL[h.code]?'▸':'▾'}</button></div></div>
       <div class="row1" style="margin-top:4px"><div class="px ${cls(pct)}">${P(p)}</div>
         <div class="sub">${cleared?'<b style="color:#c2410c">已清仓</b> · 0股':(()=>{
           let t='成本 <b class="cst">'+h.cost+'</b> · '+h.shares+'股';
@@ -2459,6 +2462,7 @@ function doRender(){
               t+=d>0.05?'<i class="evg">还需+'+d.toFixed(1)+'%</i>'
                 :(d<-0.05?'<i class="evo">已越过'+Math.abs(d).toFixed(1)+'%</i>':'<i class="evo">刚好保本</i>'); } }
           return t; })()}</div></div>
+      <div class="cbody" style="${(COLL[h.code]&&!editMode)?'display:none':''}">
       ${actBar}
       <div class="grid2">
         <div class="kv"><div class="k">回撤/盈亏率</div><div class="val ${dd!=null?cls(dd):'flat'}">${dd!=null?sg(dd.toFixed(2))+'%':'—'}</div></div>
@@ -2480,6 +2484,7 @@ function doRender(){
       ${tf.lv>=1?`<div class="tnote">⚠ 为什么分${tf.lv>=2?'3':'2'}档:${Math.abs(pct||0)>=6?'个股单日涨跌超6%':(Math.abs(pct||0)>=3?'个股涨跌超3%':((ampPct!=null&&ampPct>=5)?'今日振幅超5%':'关联板块/大盘异动'))}。分档=分批:①号位先动且少量,留子弹等②号位,别一笔全进全出。</div>`:''}
       </details>
       ${editRow}
+      </div>
     </div>`;
   }).map((_html,_k)=>{ const _a=acctOf(PF.holds[_ord[_k]]);
       return ((_k===0||acctOf(PF.holds[_ord[_k-1]])!==_a)?acctHdr(_a):'')+_html; })
