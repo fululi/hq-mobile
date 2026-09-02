@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#f5f6f8">
-<title>我的持仓 · 行情 v5.29</title>
+<title>我的持仓 · 行情 v5.31</title>
 <style>
 :root { color-scheme: light; }
 html { scroll-padding-top:118px; }
@@ -1334,9 +1334,9 @@ function indexFibCalc(code, rows){
 function indexFibLine(f,p){
   if(!f||f.kind!=='index-fib') return '';
   if(p==null||f.legBase==null||!(f.legHi>0)||!(f.legLo>0)||!(f.legHi>f.legLo)) return '<div class="atrnote">📏指数日线Fib方向未确认</div>';
-  const base=+f.legBase, hi=+f.legHi, lo=+f.legLo, tol=Math.max(1e-9,Math.abs(base)*0.0005);
-  const up=String(f.legLoD)<String(f.legHiD)&&base<=lo+tol;
-  const dn=String(f.legHiD)<String(f.legLoD)&&base>=hi-tol;
+  const hi=+f.legHi, lo=+f.legLo;
+  const up=String(f.legLoD)<String(f.legHiD)&&hi>lo&&(!f.legFrom||String(f.legFrom)<=String(f.legLoD));
+  const dn=String(f.legHiD)<String(f.legLoD)&&hi>lo&&(!f.legFrom||String(f.legFrom)<=String(f.legHiD));
   if(!up&&!dn) return '<div class="atrnote">📏指数日线Fib方向未确认(仅供环境参考)</div>';
   const R=hi-lo, lv=[['38.2%',up?hi-R*.382:lo+R*.382],['50%',up?hi-R*.5:lo+R*.5],['61.8%',up?hi-R*.618:lo+R*.618]];
   const tx=lv.map(x=>x[0]+'='+P(x[1])).join(' · ');
@@ -1713,7 +1713,7 @@ function loadSync(){
 function refresh(manual){
   const btn=document.querySelector('.rf');
   if(manual&&btn){ btn.textContent='刷新中…'; btn.disabled=true; }
-  if(manual){ INDEX_FIB_DATE=''; localStorage.removeItem('IDX_FIB_CACHE'); ATR_DATE=''; }
+  if(manual){ INDEX_FIB_DATE=''; localStorage.removeItem('IDX_FIB_CACHE'); ATR_DATE=''; M15_TS=0; }
   const done=()=>{ if(manual&&btn){ btn.textContent='刷新'; btn.disabled=false; } };
   const s=document.createElement('script');
   s.src='https://qt.gtimg.cn/q='+allCodes().join(',')+'&_='+Date.now();
@@ -3183,13 +3183,13 @@ function fibLine(lg,p){
   const hasHiD=lg.hiD&&lg.hiD.length>0, hasLoD=lg.loD&&lg.loD.length>0;
   if(!hasHiD||!hasLoD) return '<div class="atrnote">🌀 日线Fib方向未确认(缺少高低点日期)</div>';
 
-  const base=+lg.base, hi=+lg.hi, lo=+lg.lo, tol=Math.max(1e-9,Math.abs(base)*0.0005);
+  const hi=+lg.hi, lo=+lg.lo;
   const hiFirst=String(lg.hiD)<String(lg.loD), loFirst=String(lg.loD)<String(lg.hiD);
   const from=lg.from?String(lg.from):'';
   // 上涨段：段基点在低点之下/相等，低点先出现，高点后出现。
-  const upEvidence=loFirst&&hi>lo&&base<=lo+tol&&(!from||from<=String(lg.loD));
+  const upEvidence=loFirst&&hi>lo&&(!from||from<=String(lg.loD));
   // 下跌段：段基点在高点之上/相等，高点先出现，低点后出现。
-  const downEvidence=hiFirst&&hi>lo&&base>=hi-tol&&(!from||from<=String(lg.hiD));
+  const downEvidence=hiFirst&&hi>lo&&(!from||from<=String(lg.hiD));
   if(!upEvidence&&!downEvidence) return '<div class="atrnote">🌀 日线Fib方向未确认(缺少同一波段的A/B价格+时间证据)</div>';
   const isUp=upEvidence;
 
@@ -3221,7 +3221,7 @@ function m15FibLine(f,p,code){
   if(f.kind==='none'){
     const sd=f.sessionDate?String(f.sessionDate).slice(5):'';
     const bars=f.bars||0;
-    const triLine=triTxt?triTxt:'(三角状态未知)';
+    const triLine=triTxt?triTxt:'(三角未确认)';
     return '<div class="atrnote">⏱ '+(sd?sd+' ':'')+'15分小周期<br>15分钟数据已获取·已完成K '+bars+'根·'+f.reason+triLine+'<br>暂不生成1.0/1.618/2.618</div>';
   }
   // 有Fib结构：需要根据triKind判断四态
