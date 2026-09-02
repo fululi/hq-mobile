@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#f5f6f8">
-<title>我的持仓 · 行情 v5.11</title>
+<title>我的持仓 · 行情 v5.14</title>
 <style>
 :root { color-scheme: light; }
 * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
@@ -219,6 +219,7 @@ details.fold:not([open]) > summary { margin-bottom:0; }
 
 <div class="sum" id="sum" style="display:none">
   <div class="b"><div class="k">持仓总市值</div><div class="v flat" id="sumMv">—</div></div>
+  <div class="b" style="text-align:center"><div class="k">今日盈亏</div><div class="v" id="sumDay">—</div></div>
   <div class="b" style="text-align:right"><div class="k">合计浮动盈亏</div><div class="v" id="sumPnl">—</div></div>
 </div>
 
@@ -377,6 +378,16 @@ if(!PF || typeof PF!=='object' || Array.isArray(PF)){ const rs=Array.isArray(PF)
 if(!Array.isArray(PF.holds)) PF.holds=[];
 if(!Array.isArray(PF.watch)) PF.watch=[];
 let TLOG; try{ TLOG=JSON.parse(localStorage.getItem(LOG))||[]; }catch(e){ TLOG=[]; }
+// v5.13: 今日盈亏改用现金流恒等式,不再用"(现价-昨收)×当前股数+今日已实现"拼——净加仓/净减仓/纯卖旧仓都会失真(GPT review确认)
+// 今日盈亏 = 现价×期末股数 + 今日成交现金流(卖入-买出-费) - 昨收×期初(昨收时)股数
+// posBefore/posAfter 是 addTrade() 每笔都记的持仓快照,TLOG最新在前,今天最后一条(数组里最旧那笔)的 posBefore 就是"昨收时的持仓"
+function todayPnlOf(code,shares,p,prev){
+  if(p==null||prev==null) return null;
+  const rows=TLOG.filter(r=>r.code===code&&r.d===today());
+  const cf=rows.reduce((s,r)=>s+((r.sell||0)*(r.qty||0))-((r.buy||0)*(r.bq||0))-(r.fee||0),0);
+  const s0=rows.length?rows[rows.length-1].posBefore.shares:shares;
+  return p*shares+cf-prev*s0;
+}
 let PLAN; try{ PLAN=JSON.parse(localStorage.getItem('tplan_v1'))||[]; }catch(e){ PLAN=[]; }
 function lsSet(k,v){ try{ localStorage.setItem(k,v); return true; }catch(e){
   try{ alert('本机存储写入失败,这一笔没保存下来。\n常见原因:浏览器隐私/无痕模式,或存储空间满。\n先别关页面。'); }catch(e2){}
@@ -455,10 +466,17 @@ function sessLbl(){ const d=new Date(), w=d.getDay(), t=d.getHours()*60+d.getMin
 
 // 轻提示(WPS等环境不支持alert弹窗)
 // v5.03: 当日VWAP开盘锚。开盘后VWAP首次成熟(15分)时钉住,供单边日ratchet用;次日自动重锚
+// v5.13: 单边日ratchet状态持久化(修复GPT review确认的bug)——oneDn/oneUp一旦今天触发过就整天生效,
+// 不因反弹/回落而复位;s1/s2/b1/b2一旦被推到过的更宽值,今天不再退回;touch按"当时价 vs 当时档位"记一次性事件,不用日高低倒推
 let DANCH={}; try{ const _d=JSON.parse(localStorage.getItem('hqm_da_v1')||'null'); if(_d&&_d.date===today()) DANCH=_d.m||{}; }catch(e){}
-function dAnchor(code,vw,ok){ if(!ok||!(vw>0)) return DANCH[code]||null;
-  if(!DANCH[code]){ DANCH[code]=vw; try{ localStorage.setItem('hqm_da_v1',JSON.stringify({date:today(),m:DANCH})); }catch(e){} }
-  return DANCH[code]; }
+function dayState(code){
+  if(!DANCH[code]) DANCH[code]={vw:null,oneDn:false,oneUp:false,s1:null,s2:null,b1:null,b2:null,touch:{S1:false,S2:false,B1:false,B2:false}};
+  return DANCH[code];
+}
+function saveDanch(){ try{ localStorage.setItem('hqm_da_v1',JSON.stringify({date:today(),m:DANCH})); }catch(e){} }
+function dAnchor(code,vw,ok){ const st=dayState(code);
+  if(ok&&vw>0&&!st.vw){ st.vw=vw; saveDanch(); }
+  return st.vw; }
 // v4.75: 盘中到价主动提醒。只在"未到->刚越过"跃迁时响一次,收盘不响,当日不重复。
 let HITSEEN={}; const HITK='hqm_hit_v1'; let BASETITLE='';
 try{ const _h=JSON.parse(localStorage.getItem(HITK)||'null'); if(_h&&_h.date===today()) HITSEEN=_h.seen||{}; }catch(e){}
@@ -938,6 +956,49 @@ function actRow(code,p,prev,lo,hi,aLo,aHi,qd){
   const wait=(t>900)?'收盘时间到·等待日K确认':'上一场·待日K对照';
   return lbl+rng(lo,hi)+' <span class="sub">('+wait+')</span>';
 }
+// v5.13: 做T档位(高抛/低吸价位本身)预测-实际数据沉淀,与 snapFcast/bindActual 同一套 snapshot-then-settle 口径
+const TFK='tfcast_v1', TFVER='v5.13';
+let TFC=[]; try{ TFC=JSON.parse(localStorage.getItem(TFK)||'[]'); }catch(e){ TFC=[]; }
+function saveTfc(){ lsSet(TFK, JSON.stringify(TFC.slice(-800))); }
+function tfOf(code,td){ for(let i=TFC.length-1;i>=0;i--) if(TFC[i].code===code&&TFC[i].targetDate===td) return TFC[i]; return null; }
+// 写一次: 同一(目标日,代码)已存在就原样返回,绝不覆盖。trendLv/legAge是后面按"平稳/趋势""刚转向/已趋势较久"分组算命中率用的标签
+function snapTier(o){
+  if(!o||!o.code||!o.targetDate||!((o.sells&&o.sells.length)||(o.buys&&o.buys.length))) return null;
+  const ex=tfOf(o.code,o.targetDate); if(ex) return ex;
+  const r={ id:o.targetDate+'-'+o.code, code:o.code, name:o.name||'', targetDate:o.targetDate,
+    genSess:genSess(), generatedAt:nowStamp(),
+    sells:(o.sells||[]).map(x=>+(+x).toFixed(3)), buys:(o.buys||[]).map(x=>+(+x).toFixed(3)),
+    trendLv:o.trendLv!=null?o.trendLv:0, legAge:o.legAge!=null?o.legAge:null,
+    ver:TFVER, act:null, exec:null };
+  TFC.push(r); saveTfc(); return r;
+}
+// 场次结束后用「已确认日K」判定各档当天有没有被摸到 —— 只挂,不重算档位
+function bindTierActual(code, rows){
+  if(!rows||!rows.length) return;
+  let dirty=false; const m={};
+  for(let i=Math.max(0,rows.length-60);i<rows.length;i++) m[rows[i][0]]=rows[i];
+  const st=settledRows(rows), lastSettled=st.length?st[st.length-1][0]:'';
+  for(let i=0;i<TFC.length;i++){
+    const f=TFC[i];
+    if(f.code!==code||f.act) continue;
+    const r=m[f.targetDate]; if(!r) continue;
+    if(f.targetDate>lastSettled) continue;   // 该场次的日K还没封盘,不结算
+    const hi=+r[3], lo=+r[4];
+    if(!(hi>0&&lo>0)) continue;
+    f.act={ sessionDate:r[0], high:hi, low:lo, filledAt:nowStamp(),
+      hitSell:f.sells.map(x=>hi>=x), hitBuy:f.buys.map(x=>lo<=x) };
+    // 与 TLOG 联动(仅标注参考,不影响命中率统计): 同日成交价落在某档 ±1% 内,视为"照着这档做了T"
+    const tds=TLOG.filter(x=>x.code===code&&x.d===f.targetDate);
+    if(tds.length){
+      const near=(px,arr)=>arr.some(x=>x>0&&Math.abs(px/x-1)<0.01);
+      const execSell=f.sells.length>0&&tds.some(x=>x.sell>0&&near(x.sell,f.sells));
+      const execBuy=f.buys.length>0&&tds.some(x=>x.buy>0&&near(x.buy,f.buys));
+      if(execSell||execBuy) f.exec={sell:execSell,buy:execBuy};
+    }
+    dirty=true;
+  }
+  if(dirty) saveTfc();
+}
 function anchorNote(code,prev,p){ if(planNext()) return planLbl()+'计划·锚='+((p!=null&&p>0)?'现价'+P(p):'上一收盘'); const f=GET(code), op=F(f,5), a=atrOf(code); if(prev!=null&&op!=null&&op>0&&a!=null&&Math.abs(op-prev)>=0.5*a) return '跳空'+sg(((op/prev-1)*100).toFixed(1))+'%开盘·锚=今开'+P(op); return '锚=昨收'+P(prev); } // v4.97: 标签要跟refCloseOf实际用的基准一致,planNext()下现价有效就该说"锚=现价",别一律说"锚=上一收盘"误导
 function ampBase(code,todayAmp){
   const o=ATR[code];
@@ -1158,6 +1219,7 @@ function loadWTrend(done){
         try{ const _st=settledRows(rows); if(_st.length){ const _l=_st[_st.length-1];
           LASTK[c]={date:_l[0], o:+_l[1], c:+_l[2], h:+_l[3], l:+_l[4]}; } }catch(e){}
         try{ bindActual(c, rows); }catch(e){}
+        try{ bindTierActual(c, rows); }catch(e){}
         try{ paperScan(c, rows.map(r=>[r[0], +r[1], +r[3], +r[4], +r[2], +r[5]])); }catch(e){}
         try{ const _pr=calcPos(rows.map(r=>[r[0],+r[1],+r[3],+r[4],+r[2]])); if(_pr) oposn[c]=_pr; }catch(e){}
         try{ const _ph=preHitOf(settledRows(rows.map(r=>[r[0],+r[1],+r[3],+r[4],+r[2]])));
@@ -1614,7 +1676,9 @@ function acctMulti(){ const l=acctList(); return l.length>1||(l.length===1&&l[0]
 function acctHdr(a){
   if(!acctMulti()) return '';
   const o=ACCS[a]; if(!o) return '';
-  return '<div class="acch"><b>'+(a||'未分组')+'</b><span>'+o.n+'只 · 市值'+Math.round(o.mv).toLocaleString()+'</span></div>';
+  // v5.13: 恢复v5.11撤掉的"今日/浮盈"——当时撤是因为口径不准(手录数据算不准),现在o.day已改用todayPnlOf现金流口径,不是原来那个不准的公式
+  return '<div class="acch"><b>'+(a||'未分组')+'</b><span>'+o.n+'只 · 市值'+Math.round(o.mv).toLocaleString()
+    +' · 今日<i class="'+cls(o.day)+'">'+sg(Math.round(o.day))+'</i> · 浮盈<i class="'+cls(o.pnl)+'">'+sg(Math.round(o.pnl))+'</i></span></div>';
 }
 
 // ---- v4.85 批量导入持仓: 从券商App抄一遍太累,支持整段粘贴 ----
@@ -2004,6 +2068,9 @@ function backupJSON(){
   a.download='hq备份_'+today()+'.json'; a.click();
   toast('已备份: 持仓'+PF.holds.length+' 台账'+TLOG.length+'条');
 }
+// v5.14: 恢复备份原来是整体覆盖——多设备各自录台账时,谁后恢复谁就把对方独有的记录冲掉。
+// 台账(TLOG)是只增不改的流水,天然能按内容去重合并,改成合并不覆盖;持仓(holds)是当前状态快照,
+// 两端独立记账后谁的shares/cost更"对"没法自动判断,合并不出正确答案,所以仍整体换,但换之前把差异摊开来确认,不再无声覆盖
 function restoreJSON(ev){
   const f=ev.target.files&&ev.target.files[0]; ev.target.value='';
   if(!f) return;
@@ -2011,12 +2078,23 @@ function restoreJSON(ev){
   rd.onload=()=>{ try{
     const d=JSON.parse(rd.result);
     if(!d||!Array.isArray(d.holds)) throw 0;
+    const incoming=Array.isArray(d.tlog)?d.tlog:[];
+    const key=r=>[r.d,r.code,r.sell||0,r.buy||0,r.qty||0,r.bq||0,(+r.fee||0).toFixed(2),r.note||''].join('|');
+    const seen=new Set(TLOG.map(key));
+    const added=incoming.filter(r=>!seen.has(key(r)));
+    const curTodayN=TLOG.filter(r=>r.d===today()).length;
+    const atStr=d.at?d.at.slice(0,16).replace('T',' '):'未知时间';
+    const msg='备份('+atStr+'):持仓'+d.holds.length+'只 · 台账'+incoming.length+'条\n'
+      +'当前设备:持仓'+PF.holds.length+'只 · 今日已有台账'+curTodayN+'条\n\n'
+      +'持仓会整体换成备份里的('+PF.holds.length+'→'+d.holds.length+'只,当前设备独有的持仓改动会丢);'
+      +'台账改为合并,只新增备份里当前没有的'+added.length+'条,不会删除当前已有的任何一条。\n\n确定恢复?';
+    if(!confirm(msg)) return;
     PF.holds=d.holds; PF.watch=Array.isArray(d.watch)?d.watch:[];
-    TLOG=Array.isArray(d.tlog)?d.tlog:[]; PLAN=Array.isArray(d.plan)?d.plan:[];
+    TLOG=TLOG.concat(added); PLAN=Array.isArray(d.plan)?d.plan:PLAN;
     if(d.fee&&d.fee.comm!=null) FEE=d.fee;
     save(); saveLog(); savePlan(); ATR_DATE='';
     render(); renderLog(); renderPlan();
-    toast('已恢复: 持仓'+d.holds.length+' 台账'+TLOG.length+'条');
+    toast('已恢复: 持仓'+d.holds.length+' 台账合并后'+TLOG.length+'条(新增'+added.length+')');
   }catch(e){ toast('文件不对,恢复失败'); } };
   rd.readAsText(f);
 }
@@ -2271,14 +2349,15 @@ function doRender(){
     }
   }
 
-  let totMv=0, totPnl=0;
+  let totMv=0, totPnl=0, totDay=0;
   // v4.85: 先算好每个账户的小计,再按账户把持仓排成组(排的是下标,editField/delItem 的 i 不受影响)
   ACCS={};
   PF.holds.forEach(h=>{ const a=acctOf(h), f=GET(h.code), px=F(f,3), pv0=F(f,4);
     const o=ACCS[a]||(ACCS[a]={n:0,mv:0,pnl:0,day:0});
     o.n++;
     if(px!=null&&h.shares>0){ const v=px*h.shares; o.mv+=v;
-      if(pv0!=null) o.day+=(px-pv0)*h.shares;
+      // v5.13: 账户小计"今日"改用现金流口径(todayPnlOf),不再用 (现价-昨收)×当前股数——净加仓/净减仓/纯卖旧仓会失真
+      const tp=todayPnlOf(h.code,h.shares,px,pv0); if(tp!=null) o.day+=tp;
       if(h.cost>0) o.pnl+=(px-h.cost)*h.shares; } });
   const _ord=[]; acctList().forEach(a=>{ PF.holds.forEach((h,i)=>{ if(acctOf(h)===a) _ord.push(i); }); });
   const qVals={};
@@ -2349,7 +2428,10 @@ function doRender(){
     const dd=(p!=null&&h.cost)?(p-h.cost)/h.cost*100:null;
     const pnl=(p!=null&&h.cost)?(p-h.cost)*h.shares:null;
     const mv=p!=null?p*h.shares:null;
-    if(mv!=null){ totMv+=mv; totPnl+=(pnl||0); }
+    const todayPnl=todayPnlOf(h.code,h.shares,p,prev);
+    if(mv!=null){ totMv+=mv; totPnl+=(pnl||0); totDay+=(todayPnl||0); }
+    // v5.13: _tdRealized 只用于"含做T+X"小字展示,不再参与今日盈亏主公式(见 todayPnlOf)
+    const _tdRealized=TLOG.filter(r=>r.code===h.code&&r.d===today()).reduce((s,r)=>s+(r.profit||0),0);
     const atrV=atrOf(h.code);
     let refTxt='';
     if(h.ref){ const rf=GET(h.ref); const rp=F(rf,32);
@@ -2383,6 +2465,9 @@ function doRender(){
     // 盘前/收盘后 p 就是基准本身,拿它比自己永远"在区间内",没信息量,直接不显示
     const posTxt=_nxP?'':((p!=null&&preHi!=null&&preLo!=null)?(p>=preHi?'▲现价破预判上沿':(p<=preLo?'▼现价破预判下沿':(a2!=null&&preHi-p<0.5*a2?'⚠接近预判上沿(差'+P(preHi-p)+')':(a2!=null&&p-preLo<0.5*a2?'⚠接近预判下沿(差'+P(p-preLo)+')':'在预判区间内')))):'');
     const lg=legOf(h.code);
+    // v5.13: 做T档位快照——用同一轮已算好的 tr.sells/tr.buys/tf.lv,legAge按小波段起点到目标日的自然日数估算
+    const _legAge=(lg&&lg.from)?Math.round((new Date(_td)-new Date(lg.from))/86400000):null;
+    try{ snapTier({code:h.code,name:h.name,targetDate:_td,sells:tr.sells,buys:tr.buys,trendLv:tf.lv,legAge:_legAge}); }catch(e){}
     const legGain=(lg&&p!=null)?(p/lg.base-1)*100:null;
     const lvH=LV[h.code]||{}, devA=(p!=null&&lvH.de!=null&&atrV)?(p-lvH.de)/atrV:null;
     const devY=(p!=null&&lvH.de!=null)?p-lvH.de:null, devPct=(devY!=null&&lvH.de)?devY/lvH.de*100:null;
@@ -2428,17 +2513,33 @@ function doRender(){
     // v4.71: 做T量化条。基准=分时均价VWAP(水位线),不是昨收。均价随成交实时移动,
     // 所以价格突破区间后区间自己跟着走,不会像昨收锚那样整天失效——这就是"过了怎么跟上"。
     const _vw=vwapOf(f), _a=atrOf(h.code), _atrp=(_a!=null&&prev)?_a/prev*100:null;
-    // v4.79: 开盘头15分钟VWAP只由极少数成交撑起来,带子会乱跳,标注为未成熟并停掉自动到价提醒
-    const _vwok=!(mktLive()&&mktMin()<15), _vwmin=mktMin();
+    // v5.13: 修复成熟判定原来写反(!(...)),盘前/午休/盘后/周末会恒为true——尤其9:15-9:30集合竞价期间
+    // mktLive()仍是false但vwapOf()已有噪音很大的早期读数,原逻辑会把这个当"成熟"钉成当日锚
+    const _vwok=mktLive()&&mktMin()>=15, _vwmin=mktMin();
     const actBar=(()=>{
       if(p==null||!_vw) return '';
       const dev=(p/_vw-1)*100;
       const k1=Math.max(0.6,(_atrp||4)*0.2), k2=Math.max(1.5,(_atrp||4)*0.45);
       const _op=F(f,5), _vw0=dAnchor(h.code,_vw,_vwok);
-      const _oneUp=(_op>0&&_a!=null&&p-_op>=_a), _oneDn=(_op>0&&_a!=null&&_op-p>=_a);
+      // v5.13: 单边日状态持久化——今天触发过一次就整天生效(dst.oneDn/oneUp),不因盘中反弹/回落而复位;
+      // 档位一旦被ratchet推到过的更宽值,今天不再退回窄值(dst.s1/s2/b1/b2)
+      const dst=dayState(h.code);
+      const _oneUpNow=(_op>0&&_a!=null&&p-_op>=_a), _oneDnNow=(_op>0&&_a!=null&&_op-p>=_a);
+      if(_oneDnNow&&!dst.oneDn){ dst.oneDn=true; saveDanch(); }
+      if(_oneUpNow&&!dst.oneUp){ dst.oneUp=true; saveDanch(); }
       let S1=_vw*(1+k1/100), S2=_vw*(1+k2/100), B1=_vw*(1-k1/100), B2=_vw*(1-k2/100);
-      if(_vw0&&_oneDn){ const s1=_vw0*(1+k1/100), s2=_vw0*(1+k2/100); if(s1>S1)S1=s1; if(s2>S2)S2=s2; }
-      if(_vw0&&_oneUp){ const b1=_vw0*(1-k1/100), b2=_vw0*(1-k2/100); if(b1<B1)B1=b1; if(b2<B2)B2=b2; }
+      if(_vw0&&dst.oneDn){ const s1=_vw0*(1+k1/100), s2=_vw0*(1+k2/100); if(s1>S1)S1=s1; if(s2>S2)S2=s2;
+        if(dst.s1==null||S1>dst.s1){ dst.s1=S1; saveDanch(); } else S1=dst.s1;
+        if(dst.s2==null||S2>dst.s2){ dst.s2=S2; saveDanch(); } else S2=dst.s2; }
+      if(_vw0&&dst.oneUp){ const b1=_vw0*(1-k1/100), b2=_vw0*(1-k2/100); if(b1<B1)B1=b1; if(b2<B2)B2=b2;
+        if(dst.b1==null||B1<dst.b1){ dst.b1=B1; saveDanch(); } else B1=dst.b1;
+        if(dst.b2==null||B2<dst.b2){ dst.b2=B2; saveDanch(); } else B2=dst.b2; }
+      if(p!=null){
+        if(p>=S1&&!dst.touch.S1){ dst.touch.S1=true; saveDanch(); }
+        if(p>=S2&&!dst.touch.S2){ dst.touch.S2=true; saveDanch(); }
+        if(p<=B1&&!dst.touch.B1){ dst.touch.B1=true; saveDanch(); }
+        if(p<=B2&&!dst.touch.B2){ dst.touch.B2=true; saveDanch(); }
+      }
       const L=[{t:'S2',x:S2},{t:'S1',x:S1},{t:'B1',x:B1},{t:'B2',x:B2}];
       const mp=(typeof PLAN!=='undefined'?PLAN:[]).filter(x=>x.code===h.code&&x.hit);
       const up=L.filter(o=>o.x>p).sort((x,y)=>x.x-y.x)[0], dn=L.filter(o=>o.x<p).sort((x,y)=>y.x-x.x)[0];
@@ -2458,8 +2559,10 @@ function doRender(){
         const _prS=(_pr!=null)?'<span class="pr'+(_pr>=50?' hi':(_pr<=20?' lo':''))+'">'+_pr+'%</span> ':'';
         const _cx=(o.k==='s')?(p>=o.x):((o.k==='b')?(p<=o.x):false);
         if(_cx&&_vwok&&(o.k==='s'||o.k==='b')) alertHit(h.code+o.t+today(), h.name+' 到'+o.t+' '+P(o.x)+(o.k==='s'?' 可卖':' 可接'));
-        if(o.k==='s') st=_prS+(_cx?'<b style="color:#dc2626">越过</b>':((hi!=null&&hi>=o.x)?'到过':'未到'));
-        else if(o.k==='b') st=_prS+(_cx?'<b style="color:#16a34a">越过</b>':((lo!=null&&lo<=o.x)?'到过':'未到'));
+        // v5.13: "到过"改用点时事件(dst.touch),不再拿今日高低点去比当前(会随ratchet移动的)档位值——
+        // 档位盘中变宽后旧的hi>=o.x比较在数学上就是错的,会漏判/误判
+        if(o.k==='s') st=_prS+(_cx?'<b style="color:#dc2626">越过</b>':(dst.touch[o.t]?'到过':'未到'));
+        else if(o.k==='b') st=_prS+(_cx?'<b style="color:#16a34a">越过</b>':(dst.touch[o.t]?'到过':'未到'));
         else if(o.k==='c'){ const pl=(p/h.cost-1)*100; st='<b class="'+cls(pl)+'">'+sg(pl.toFixed(1))+'%</b>'; }
         else st=_vwok?'基准':'<b style="color:#d97706">构建中'+_vwmin+'分</b>';
         rows+='<tr class="'+(o.k==='c'?'cst':(o.k==='m'?'mid':''))+'"><td class="qk">'+o.t+'</td>'
@@ -2484,7 +2587,7 @@ function doRender(){
           +'<span class="dim"> 卖'+ns+'/接'+nb+'股 · 费'+Math.round(fe)+'</span>';
       }
       const wl=(!_vwok?'⚠':'')+(dev<=-0.15?'水下':(dev>=0.15?'水上':'贴线'));
-      const foot=(_vw0&&_oneDn?'⚠单边日·卖点钉开盘锚不下挪 · ':(_vw0&&_oneUp?'⚠单边日·买点钉开盘锚不上追 · ':''))+(mp.length? '⚡挂单到价 '+mp.length+'笔 · '+mp.map(x=>(x.side==='sell'?'卖':'买')+P(x.price)).join(' ')
+      const foot=(_vw0&&dst.oneDn?'⚠单边日·卖点钉开盘锚不下挪 · ':(_vw0&&dst.oneUp?'⚠单边日·买点钉开盘锚不上追 · ':''))+(mp.length? '⚡挂单到价 '+mp.length+'笔 · '+mp.map(x=>(x.side==='sell'?'卖':'买')+P(x.price)).join(' ')
         : '下一触发 ↓'+(dn?dn.t+' '+P(dn.x)+' 跌'+Math.abs((dn.x/p-1)*100).toFixed(1)+'%':'—')
           +'  ↑'+(up?up.t+' '+P(up.x)+' 涨'+((up.x/p-1)*100).toFixed(1)+'%':'—'));
       const dp=DPOS[h.code];
@@ -2517,7 +2620,7 @@ function doRender(){
       ${actBar}
       <div class="grid2">
         <div class="kv"><div class="k">回撤/盈亏率</div><div class="val ${dd!=null?cls(dd):'flat'}">${dd!=null?sg(dd.toFixed(2))+'%':'—'}</div></div>
-        <div class="kv"><div class="k">浮动盈亏</div><div class="val ${pnl!=null?cls(pnl):'flat'}">${pnl!=null?sg(Math.round(pnl).toLocaleString()):'—'}</div><div class="k" style="margin-top:1px">今日 ${(p!=null&&prev!=null)?sg(Math.round((p-prev)*h.shares)):'—'}</div></div>
+        <div class="kv"><div class="k">浮动盈亏</div><div class="val ${pnl!=null?cls(pnl):'flat'}">${pnl!=null?sg(Math.round(pnl).toLocaleString()):'—'}</div><div class="k" style="margin-top:1px">今日 ${todayPnl!=null?sg(Math.round(todayPnl)):'—'}${_tdRealized?'<span class="sub" style="font-size:9px"> (含做T'+sg(Math.round(_tdRealized))+')</span>':''}</div></div>
         <div class="kv"><div class="k">持仓市值</div><div class="val flat">${mv!=null?Math.round(mv).toLocaleString():'—'}</div></div>
         <div class="kv"><div class="k">今日振幅</div><div class="val flat">${ampPct!=null?ampPct.toFixed(2)+'%':'—'}</div></div>
       </div>
@@ -2602,6 +2705,8 @@ function doRender(){
 
   const sumEl=document.getElementById('sum'); sumEl.style.display='flex';
   document.getElementById('sumMv').textContent = Math.round(totMv).toLocaleString();
+  const de=document.getElementById('sumDay'); de.textContent=sg(Math.round(totDay).toLocaleString());
+  de.className='v '+cls(totDay);
   const pe=document.getElementById('sumPnl'); pe.textContent=sg(Math.round(totPnl).toLocaleString());
   pe.className='v '+cls(totPnl);
   document.getElementById('time').textContent='行情时间 '+(fmtT(when)||'—');
