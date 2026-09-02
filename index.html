@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#f5f6f8">
-<title>我的持仓 · 行情 v5.06</title>
+<title>我的持仓 · 行情 v5.07</title>
 <style>
 :root { color-scheme: light; }
 * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
@@ -273,6 +273,8 @@ details.fold:not([open]) > summary { margin-bottom:0; }
 
 <div class="sec"><span>做T回测 · 样本外</span><span class="sub" id="btSum"></span></div>
 <div id="btBox" class="card"><div class="sub">首次加载后自动算(本机,约1秒)</div></div>
+<div class="sec"><span>预判复盘 · 场次账</span><span class="sub">每场预判冻结存档,收盘后日K结算</span></div>
+<div id="fcBox" class="card"><div class="sub">积累中…</div></div>
 <div class="sec"><span>实盘复盘 · 你自己的成交</span><span class="sub" id="rvSum"></span></div>
 <div id="rvBox" class="card"><div class="sub">读你自己的台账,不改任何数据</div></div>
 
@@ -365,7 +367,7 @@ const DEFAULT = {
   watch:[]
 };
 const K_UP=0.3, K_DN=0.5, ATR_FLOOR=0.75;
-const LS='portfolio_v2', LOG='tlog_v2', ATRK='atr14_v1', FEEK='fee_v1';
+const LS='portfolio_v2', LOG='tlog_v2', ATRK='atr14_v2', FEEK='fee_v1';
 let PF, editMode=false, MKT=null, ATR={}, ATR_DATE='', ATR_FAIL=false;
 let FEE={comm:0.025, stamp:0.05, min:5}; // 佣金万2.5、印花税0.05%(卖出)、最低佣金5元(ETF不适用)
 try { PF = JSON.parse(localStorage.getItem(LS)) || JSON.parse(JSON.stringify(DEFAULT)); }
@@ -522,7 +524,7 @@ function narrowBase(code,base,todayAmp){
 }
 // 取ATR数值(兼容旧缓存纯数字格式)
 function atrOf(code){ const o=ATR[code]; return o==null?null:((typeof o==='number')?o:o.atr); }
-function legOf(code){ const o=ATR[code]; return (o&&typeof o==='object'&&o.legBase>0)?{base:o.legBase,from:o.legFrom}:null; }
+function legOf(code){ const o=ATR[code]; return (o&&typeof o==='object'&&o.legBase>0)?{base:o.legBase,from:o.legFrom,hi:o.legHi,lo:o.legLo}:null; }
 // 波幅基准 = max(当日振幅, ATR14×0.75, 昨日真实波幅×0.6) — 涨/跌停次日自动加宽
 // 跳空日锚定(v4.54): 今开较昨收跳空≥0.5×ATR → 锚=今开;否则锚=昨收,全天锁定
 let DPOS={}; const DPOSK='hqm_pos_v1';
@@ -1004,7 +1006,10 @@ function parseIfzq(c, txt){
       if(c>peak){ peak=c; }
       else if(peak>base&&(peak-c)/peak>=0.05){ base=c; baseD=rows[i][0]; peak=c; }
       else if(c<base){ base=c; baseD=rows[i][0]; peak=c; } }
-    return {atr:last14.reduce((a,b)=>a+b,0)/last14.length, lastTR:trs[trs.length-1], legBase:base, legFrom:baseD, lastHi:+rows[rows.length-1][3], lastLo:+rows[rows.length-1][4], lastC:+rows[rows.length-1][2]};
+    let legHi=null, legLo=null;
+    for(let i=0;i<rows.length;i++){ if(rows[i][0]>=baseD){ const h2=+rows[i][3], l2=+rows[i][4];
+      if(legHi==null||h2>legHi) legHi=h2; if(legLo==null||l2<legLo) legLo=l2; } }
+    return {atr:last14.reduce((a,b)=>a+b,0)/last14.length, lastTR:trs[trs.length-1], legBase:base, legFrom:baseD, legHi:legHi, legLo:legLo, lastHi:+rows[rows.length-1][3], lastLo:+rows[rows.length-1][4], lastC:+rows[rows.length-1][2]};
   }catch(e){ return null; }
 }
 function parseSina(txt){
@@ -2523,7 +2528,7 @@ function doRender(){
       ${tradeZone}
       <a href="https://fululi.github.io/k-station/?code=${h.code}&lines=${tr.buys.map(x=>'b'+x.toFixed(2)).concat(tr.sells.map(x=>'s'+x.toFixed(2))).join(',')}" style="display:block;text-align:center;margin-top:8px;padding:8px;border-radius:8px;background:#2563eb;color:#fff;text-decoration:none;font-size:13px;font-weight:600">📈 看K线（做T价位已自动画好）</a>
       <details class="fold" data-fk="vd-${h.code}"><summary>波动数据 · 信号跟踪 · 分档理由（想深究再点）</summary>
-      ${legTxt}
+      ${legTxt}${fibLine(lg,p)}
       <div class="atrnote">${atrTxt}</div>
       ${ffTxt}
       ${ffhT?`<div class="atrnote">${ffhT}</div>`:''}
@@ -2605,6 +2610,7 @@ function doRender(){
   const ps=document.getElementById('prwSel'); if(ps) ps.value=PRW;
   const tde=document.getElementById('tDate'); if(tde&&!tde.value) tde.value=today();
   renderT();
+  renderFcast();
   renderPaper();
   // 标题栏：有持仓票跌破ATR下沿时显示⚠计数，手机标签页可感知
   const _brkN=PF.holds.filter(h=>{
@@ -2662,10 +2668,37 @@ function paperScan(c, kl){ // loadWTrend 拉到日线时顺带扫描
     peak:c0, stop: tr.brk>0?tr.dn:tr.up, atr:atrLast(kl), status:'open' });
   savePaper();
 }
+// v5.07: 预判复盘 —— 沉淀每场"预判vs实际",周度汇总准确率。数据来自fcast_v1快照(写一次冻结,日K结算)
+// v5.07: 斐波那契回调位 —— 本段低→高的 38.2/50/61.8/78.6% 回撤支撑 + 1.618扩展,现价贴近的档位高亮
+function fibLine(lg,p){
+  if(!lg||!(lg.hi>0)||!(lg.lo>0)||!(lg.hi>lg.lo)) return '';
+  const R=lg.hi-lg.lo, lv=[[0.382,'38.2%'],[0.5,'50%'],[0.618,'61.8%'],[0.786,'78.6%']];
+  const tx=lv.map(x=>{ const px=lg.hi-R*x[0];
+    const near=(p!=null&&Math.abs(p/px-1)<0.005);
+    return near?('<b style="color:#b45309">'+x[1]+'='+P(px)+'👈</b>'):(x[1]+'='+P(px)); }).join(' · ');
+  return '<div class="atrnote">🌀 本段 '+P(lg.lo)+'→'+P(lg.hi)+' · 回调支撑 '+tx+' · 扩展1.618='+P(lg.lo+R*1.618)+'</div>';
+}
+function renderFcast(){
+  const el=document.getElementById('fcBox'); if(!el) return;
+  const done=FCAST.filter(f=>f.act), pend=FCAST.filter(f=>!f.act);
+  if(!done.length){ el.innerHTML='<div class="sub">暂无已结算场次 · 进行中 '+pend.length+' 场 · 每天预判生成即冻结,收盘日K确认后自动结算</div>'; return; }
+  const n=done.length, inr=done.filter(f=>!f.act.out).length, pct=Math.round(inr/n*100);
+  const wk={};
+  done.forEach(f=>{ const k=weekNo(f.targetDate); const o2=wk[k]||(wk[k]={n:0,inn:0}); o2.n++; if(!f.act.out) o2.inn++; });
+  const wrows=Object.keys(wk).sort().reverse().slice(0,8).map(k=>{ const o2=wk[k];
+    return '<div class="prow"><span class="sub">'+k+'</span><span>'+o2.n+'场 · 未出界 <b>'+Math.round(o2.inn/o2.n*100)+'%</b></span></div>'; }).join('');
+  const recent=done.slice(-8).reverse().map(f=>'<div class="prow"><span class="sub">'+f.targetDate.slice(5)+' '+f.name+' 预判'+P(f.lo)+'~'+P(f.hi)+' → 实际'+P(f.act.low)+'~'+P(f.act.high)+'</span><b class="'+(f.act.out?'down':'up')+'">'+(f.act.out?'出界':'未出界')+'</b></div>').join('');
+  el.innerHTML='<div style="display:flex;justify-content:space-between;align-items:baseline"><b style="font-size:14px">累计 '+n+' 场已结算</b><b style="font-size:20px">'+pct+'% <span class="sub">未出界</span></b></div>'
+    +'<div class="sub">进行中 '+pend.length+' 场 · 盘中不计,日K确认才结算</div>'
+    +'<div style="border-top:1px solid #e6e8ec;margin-top:6px;padding-top:6px"><b>周度复盘</b>'+wrows+'</div>'
+    +'<div style="border-top:1px solid #e6e8ec;margin-top:6px;padding-top:6px"><b>最近场次</b>'+recent+'</div>';
+}
 function renderPaper(){
   const el=document.getElementById('paper'); if(!el) return;
   if(!PAPER.length){ el.innerHTML='<div class="sub" style="padding:10px 12px">暂无模拟仓 · 每天自动扫描持仓+观察票的收敛三角，突破当日按收盘价记录建仓，不需要任何AI。</div>'; return; }
-  el.innerHTML=PAPER.slice().reverse().map(x=>{
+  const _cl=PAPER.filter(x=>x.status==='closed');
+  const _pstat=_cl.length?('<div class="sub" style="padding:6px 12px">三角信号已了结 '+_cl.length+' 笔 · 胜率 '+Math.round(_cl.filter(x=>x.ret>0).length/_cl.length*100)+'% · 平均 '+sg((_cl.reduce((a,x)=>a+x.ret,0)/_cl.length*100).toFixed(1))+'%</div>'):'';
+  el.innerHTML=_pstat+PAPER.slice().reverse().map(x=>{
     if(x.status==='open'){
       const f=GET(x.code), p=f?F(f,3):null;
       if(p!=null){
