@@ -1104,20 +1104,22 @@ function parseIfzq(c, txt){
     const res=JSON.parse(txt); const d=res&&res.data&&res.data[c];
     const rows=(d&&(d.qfqday||d.day))||[];
     if(rows.length<15) return null;
+    // 日线Fib只用已确认日K，不用盘中未收盘K
+    const settled=settledRows(rows);
     let trs=[];
-    for(let i=1;i<rows.length;i++){ const hi=+rows[i][3],lo=+rows[i][4],pc=+rows[i-1][2];
+    for(let i=1;i<settled.length;i++){ const hi=+settled[i][3],lo=+settled[i][4],pc=+settled[i-1][2];
       trs.push(Math.max(hi-lo,Math.abs(hi-pc),Math.abs(lo-pc))); }
     const last14=trs.slice(-14);
     // 日线段(v4.46): 收盘从段内峰值回撤>=5%即切段,报当前段基点(收盘价口径)
-    let base=+rows[0][2], peak=base, baseD=rows[0][0];
-    for(let i=1;i<rows.length;i++){ const c=+rows[i][2];
+    let base=+settled[0][2], peak=base, baseD=settled[0][0];
+    for(let i=1;i<settled.length;i++){ const c=+settled[i][2];
       if(c>peak){ peak=c; }
-      else if(peak>base&&(peak-c)/peak>=0.05){ base=c; baseD=rows[i][0]; peak=c; }
-      else if(c<base){ base=c; baseD=rows[i][0]; peak=c; } }
+      else if(peak>base&&(peak-c)/peak>=0.05){ base=c; baseD=settled[i][0]; peak=c; }
+      else if(c<base){ base=c; baseD=settled[i][0]; peak=c; } }
     let legHi=null, legLo=null, legHiD='', legLoD='';
-    for(let i=0;i<rows.length;i++){ if(rows[i][0]>=baseD){ const h2=+rows[i][3], l2=+rows[i][4];
-      if(legHi==null||h2>legHi){ legHi=h2; legHiD=rows[i][0]; }
-      if(legLo==null||l2<legLo){ legLo=l2; legLoD=rows[i][0]; } } }
+    for(let i=0;i<settled.length;i++){ if(settled[i][0]>=baseD){ const h2=+settled[i][3], l2=+settled[i][4];
+      if(legHi==null||h2>legHi){ legHi=h2; legHiD=settled[i][0]; }
+      if(legLo==null||l2<legLo){ legLo=l2; legLoD=settled[i][0]; } } }
     return {atr:last14.reduce((a,b)=>a+b,0)/last14.length, lastTR:trs[trs.length-1], legBase:base, legFrom:baseD,
       legHi:legHi, legLo:legLo, legHiD:legHiD, legLoD:legLoD,
       lastHi:+rows[rows.length-1][3], lastLo:+rows[rows.length-1][4], lastC:+rows[rows.length-1][2]};
@@ -1210,7 +1212,7 @@ function verdict(c){ // 五维合成一行作战结论(规则口径见回测框�
 }
 // 15分钟小周期Fib:只认当日已经完成的15分K,从最近一个有效A-B-C摆动推导扩展位。
 // A-B至少大于2.5倍当日典型15分波幅,C必须是未破A的有效回撤;不满足就返回无结构状态。
-function m15FibCalc(kl){
+function m15FibCalc(kl, code){
   if(!kl||kl.length<7) return {kind:'no-data'};
   const ds=[...new Set(kl.map(r=>String(r[0]).slice(0,10)))].sort();
   let sd=today(), a=kl.filter(r=>String(r[0]).slice(0,10)===sd);
@@ -1236,7 +1238,9 @@ function m15FibCalc(kl){
     else continue;
     if(!(R>Math.max(med*2.5,Math.abs(B.p)*0.003))) continue;
     const px=k=>dir>0?C.p+R*k:C.p-R*k;
-    return {kind:'fib', sessionDate:sd, dir:dir, a:A.p, b:B.p, c:C.p, aT:A.t, bT:B.t, cT:C.t, retrace:+ret.toFixed(3),
+    const tri=code?MSIG[code]:null;
+    const triKind=(tri&&tri!==0)?'fib-confirmed':'fib-no-breakout';
+    return {kind:'fib', triKind:triKind, tri:tri, sessionDate:sd, dir:dir, a:A.p, b:B.p, c:C.p, aT:A.t, bT:B.t, cT:C.t, retrace:+ret.toFixed(3),
       t1:px(1), t1618:px(1.618), t2618:px(2.618), completedK:a.length};
   }
   return {kind:'none', bars:a.length, reason:'未形成合格A-B-C摆动'};
@@ -1270,7 +1274,7 @@ function loadM15(done){ // 15分钟三角扫描(新浪15分K,近80根≈5个交�
           const rows=JSON.parse(m[0]);
           const kl=rows.map(r=>[r.day, +r.open, +r.high, +r.low, +r.close]);
           const tr=triDet(kl);
-          tick(tr&&tr.brk!==0?tr.brk:null,m15FibCalc(kl));
+          tick(tr&&tr.brk!==0?tr.brk:null,m15FibCalc(kl, c));
         }catch(e){ tick(null); }
       }).catch(()=>{ clearTimeout(tm); tick(null); });
   });
@@ -1318,32 +1322,34 @@ function loadWTrend(done){
           if(_ph){ PREHIT[c]=_ph; localStorage.setItem(PHK,JSON.stringify({date:today(),ph:PREHIT})); phDirty(); } }catch(e){}
         try{ const _hn=(PF.holds.concat(PF.watch).find(x=>x.code===c)||{}).name||'';
           const _bs=btSweep(c,_hn,rows.map(r=>[r[0],+r[1],+r[3],+r[4],+r[2]])); if(_bs) obt[c]=_bs; }catch(e){}
+        // 日线方向只用已确认日K
+        const settled=settledRows(rows);
         try{ const wbars=[]; let wk2='', cur=null;
-          rows.forEach(r=>{ const k=weekNo(r[0]);
+          settled.forEach(r=>{ const k=weekNo(r[0]);
             if(k!==wk2){ if(cur) wbars.push(cur); wk2=k; cur=[r[0],+r[1],+r[3],+r[4],+r[2]]; }
             else { cur[2]=Math.max(cur[2],+r[3]); cur[3]=Math.min(cur[3],+r[4]); cur[4]=+r[2]; } });
           if(cur) wbars.push(cur);
           const wtr=triDet(wbars); if(wtr&&wtr.brk!==0) osig[c]=wtr.brk; }catch(e){}
         const weeks=[]; let wk='', wc=null;
-        rows.forEach(r=>{ const k=weekNo(r[0]); if(k!==wk){ if(wc!=null) weeks.push(wc); wk=k; } wc=+r[2]; });
+        settled.forEach(r=>{ const k=weekNo(r[0]); if(k!==wk){ if(wc!=null) weeks.push(wc); wk=k; } wc=+r[2]; });
         weeks.push(wc);
         if(weeks.length<10){ tick(null); return; }
         let e=weeks[0]; const k2=2/21;
         weeks.forEach(c2=>{ e=e*(1-k2)+c2*k2; });
         const last=weeks[weeks.length-1];
-        const dcl=rows.map(r=>+r[2]); let de=dcl[0]; const kd=2/21;
+        const dcl=settled.map(r=>+r[2]); let de=dcl[0]; const kd=2/21;
         dcl.forEach(x=>{ de=de*(1-kd)+x*kd; });
         const dlast=dcl[dcl.length-1];
         let ev=null;
         try{
           const n2=dcl.length, ma20=dcl.slice(-20).reduce((a2,b2)=>a2+b2,0)/20;
-          let at=0; for(let j=n2-14;j<n2;j++){ const pc=+rows[j-1][2], hh=+rows[j][3], ll=+rows[j][4]; at+=Math.max(hh-ll,Math.abs(hh-pc),Math.abs(ll-pc)); } at/=14;
+          let at=0; for(let j=n2-14;j<n2;j++){ const pc=+settled[j-1][2], hh=+settled[j][3], ll=+settled[j][4]; at+=Math.max(hh-ll,Math.abs(hh-pc),Math.abs(ll-pc)); } at/=14;
           let g2=0, l2=0;
           for(let j=n2-14;j<n2;j++){ const dd=dcl[j]-dcl[j-1]; if(dd>0) g2+=dd; else l2-=dd; }
           const rsi=l2===0?100:100-100/(1+g2/l2);
           const dev=at>0?(dcl[n2-1]-ma20)/at:0;
-          const loPrev=Math.min.apply(null, rows.slice(-20,-3).map(r=>+r[4])), lo3=Math.min.apply(null, rows.slice(-3).map(r=>+r[4]));
-          const hiPrev=Math.max.apply(null, rows.slice(-20,-3).map(r=>+r[3])), hi3=Math.max.apply(null, rows.slice(-3).map(r=>+r[3]));
+          const loPrev=Math.min.apply(null, settled.slice(-20,-3).map(r=>+r[4])), lo3=Math.min.apply(null, settled.slice(-3).map(r=>+r[4]));
+          const hiPrev=Math.max.apply(null, settled.slice(-20,-3).map(r=>+r[3])), hi3=Math.max.apply(null, settled.slice(-3).map(r=>+r[3]));
           if(dev<=-2||rsi<=30) ev={dir:-1, dev:+dev.toFixed(1), rsi:Math.round(rsi), stab:lo3>=loPrev};
           else if(dev>=2||rsi>=70) ev={dir:1, dev:+dev.toFixed(1), rsi:Math.round(rsi), stab:hi3<=hiPrev};
         }catch(e2){}
@@ -1491,9 +1497,11 @@ function loadSync(){
       const gap=(-2)-wv, tg=rows.filter(o=>o.i===wi).sort((x,y)=>x.b-y.b).slice(-3).reverse();
       if(tg.length) html+='<div class="warn2">'+(gap<0
         ? wi+'距极端日(-2%)还差<b>'+Math.abs(gap).toFixed(2)+'%</b> · 若触发:'
-        : '<b>'+wi+'已入极端日</b> · 理论满打:')
+        : '<b>'+wi+'已入极端日</b> · 理论跟随值:')
         +tg.map(o=>' '+o.n+'<b class="down">'+(o.b*-2).toFixed(1)+'%</b>').join('')
-        +'<span class="dim"> (β×-2%,250日均值)</span></div>';
+        +'<span class="dim"> (β×-2%,250日均值)</span>'
+        +(gap>=0?'<br><span class="dim">指数实际'+sg(wv.toFixed(2))+'% · 理论值 '+tg.map(o=>sg((o.b*wv).toFixed(1))+'%').join(', ')+' · 免责：仅供参考，非满仓/满额或买卖指令</span>':'')
+        +'</div>';
     }
   }
   html+='<div class="sub" style="margin-top:5px">β=该票在指数±2%日的历史放大倍数(250日) · 该=指数今日×β · α=实-该 · α≤-1.5⚠杀个股非杀大盘 · α≥+1.5✦资金托</div>';
@@ -2779,7 +2787,7 @@ function doRender(){
       <div class="proj"><span>${planLbl()}${_td.slice(5)}预判 <b class="flat">${preStr}</b><span class="qm" onclick="preWhy('${h.code}','${h.name}')">?</span>${PREHIT[h.code]?`<span class="sub" style="font-size:10px"> 实测${PREHIT[h.code].inr}%不出界</span>`:''}</span><span class="sub">${posTxt}${ampNote} · ${anchorNote(h.code,prev,p)}</span></div>
       <div class="proj" style="margin-top:2px"><span>${actRow(h.code,p,prev,lo,hi,_aLo,_aHi,_qd)}</span></div>
       ${fibLine(lg,p)}
-      ${m15FibLine(M15FIB[h.code],p,[h.code,MSIG[h.code]])}
+      ${m15FibLine(M15FIB[h.code], p, h.code)}
       <div class="proj vrd"><span>📋 <b style="color:${vCls(vd)}">${vd}</b></span></div>
       ${tradeZone}
       <a href="https://fululi.github.io/k-station/?code=${h.code}&lines=${tr.buys.map(x=>'b'+x.toFixed(2)).concat(tr.sells.map(x=>'s'+x.toFixed(2))).join(',')}" style="display:block;text-align:center;margin-top:8px;padding:8px;border-radius:8px;background:#2563eb;color:#fff;text-decoration:none;font-size:13px;font-weight:600">📈 看K线（做T价位已自动画好）</a>
@@ -2958,24 +2966,41 @@ function settlePaperDaily(c,kl){
 // v5.07: 预判复盘 —— 沉淀每场"预判vs实际",周度汇总准确率。数据来自fcast_v1快照(写一次冻结,日K结算)
 // v5.19: 日线大周期与15分钟小周期分层。扩展位只作反应区,不直接改做T档位/触发交易。
 function fibLine(lg,p){
-  if(!lg||!(lg.hi>0)||!(lg.lo>0)||!(lg.hi>lg.lo)) return '';
-  const R=lg.hi-lg.lo, up=(!lg.hiD||!lg.loD||lg.loD<=lg.hiD), lv=[[0.382,'38.2%'],[0.5,'50%'],[0.618,'61.8%'],[0.786,'78.6%']];
-  const tx=lv.map(x=>{ const px=up?lg.hi-R*x[0]:lg.lo+R*x[0];
+  if(!lg||!(lg.hi>0)||!(lg.lo>0)) return '';
+  // A/B波段方向必须有明确的时间+价格证据
+  // 检查高低点的先后顺序和价格大小关系
+  const hasHiD=lg.hiD&&lg.hiD.length>0, hasLoD=lg.loD&&lg.loD.length>0;
+  if(!hasHiD||!hasLoD) return '<div class="atrnote">🌀 日线Fib方向未确认(缺少高低点日期)</div>';
+
+  const hiFirst=(lg.hiD<lg.loD), upSegment=(lg.lo<lg.hi);
+  let dirConfirmed=false, isUp=false;
+
+  // 上涨段：低点先出现，且低点 < 高点
+  if(!hiFirst && upSegment){ dirConfirmed=true; isUp=true; }
+  // 下跌段：高点先出现，且高点 > 低点
+  else if(hiFirst && !upSegment){ dirConfirmed=true; isUp=false; }
+
+  if(!dirConfirmed) return '<div class="atrnote">🌀 日线Fib方向未确认(高低点顺序或大小关系有误)</div>';
+
+  const R=lg.hi-lg.lo, lv=[[0.382,'38.2%'],[0.5,'50%'],[0.618,'61.8%'],[0.786,'78.6%']];
+  const tx=lv.map(x=>{ const px=isUp?lg.hi-R*x[0]:lg.lo+R*x[0];
     const near=(p!=null&&Math.abs(p/px-1)<0.005);
     return near?('<b style="color:#b45309">'+x[1]+'='+P(px)+'👈</b>'):(x[1]+'='+P(px)); }).join(' · ');
-  const e1=up?lg.lo+R*1.618:lg.hi-R*1.618, e2=up?lg.lo+R*2.618:lg.hi-R*2.618;
-  const d1=(up?lg.loD:lg.hiD)||lg.from||'', d2=(up?lg.hiD:lg.loD)||'';
-  return '<div class="atrnote">🌀 日线大周期 '+(up?'↑ ':'↓ ')+P(up?lg.lo:lg.hi)+(d1?'('+d1.slice(5)+')':'')+'→'+P(up?lg.hi:lg.lo)+(d2?'('+d2.slice(5)+')':'')
-    +' · '+(up?'回撤支撑 ':'反弹压力 ')+tx+' · 扩展1.618='+P(e1)+' · 2.618='+P(e2)+'</div>';
+  const e1=isUp?lg.lo+R*1.618:lg.hi-R*1.618, e2=isUp?lg.lo+R*2.618:lg.hi-R*2.618;
+  const d1=(isUp?lg.loD:lg.hiD)||lg.from||'', d2=(isUp?lg.hiD:lg.loD)||'';
+  return '<div class="atrnote">🌀 日线大周期 '+(isUp?'↑ ':'↓ ')+P(isUp?lg.lo:lg.hi)+(d1?'('+d1.slice(5)+')':'')+'→'+P(isUp?lg.hi:lg.lo)+(d2?'('+d2.slice(5)+')':'')
+    +' · '+(isUp?'回撤支撑 ':'反弹压力 ')+tx+' · 扩展1.618='+P(e1)+' · 2.618='+P(e2)+'</div>';
 }
-function m15FibLine(f,p,tri){
-  let triTxt='';
-  if(tri&&tri[1]){
-    const dtv=DT[tri[0]]||null;
-    if(dtv==null||dtv===0) triTxt=' · △15分'+(tri[1]>0?'上破':'下破')+'(日线无方向)';
+function m15FibLine(f,p,code){
+  // 处理MSIG中的三角信息
+  let triTxt='', tri=null;
+  if(code && MSIG[code]){
+    tri=MSIG[code];
+    const dtv=DT[code]||null;
+    if(dtv==null||dtv===0) triTxt=' · △15分'+(tri>0?'上破':'下破')+'(日线无方向)';
     else {
-      const same=(tri[1]>0&&dtv>0)||(tri[1]<0&&dtv<0);
-      triTxt=' · △15分'+(tri[1]>0?'上破':'下破')+(same?'(日线同向=顺势)':'(日线反向='+(tri[1]>0?'反弹':'回调')+'性质)');
+      const same=(tri>0&&dtv>0)||(tri<0&&dtv<0);
+      triTxt=' · △15分'+(tri>0?'上破':'下破')+(same?'(日线同向=顺势)':'(日线反向='+(tri>0?'反弹':'回调')+'性质)');
     }
   }
   // 完全无数据
@@ -2988,13 +3013,24 @@ function m15FibLine(f,p,tri){
     const triLine=triTxt?triTxt:'(三角状态未知)';
     return '<div class="atrnote">⏱ '+(sd?sd+' ':'')+'15分小周期<br>15分钟数据已获取·已完成K '+bars+'根·'+f.reason+triLine+'<br>暂不生成1.0/1.618/2.618</div>';
   }
-  // 有Fib结构
+  // 有Fib结构：需要根据triKind判断四态
   if(f.kind!=='fib') return '';
   const tm=s=>String(s||'').slice(11,16), mark=v=>(p!=null&&v>0&&Math.abs(p/v-1)<=0.004)?'<b style="color:#b45309">'+P(v)+'👈</b>':P(v);
   const abc=P(f.a)+'('+tm(f.aT)+')→'+P(f.b)+'('+tm(f.bT)+')→'+P(f.c)+'('+tm(f.cT)+')';
   const sd=f.sessionDate?String(f.sessionDate).slice(5):'';
   const bars=f.completedK||0;
-  return '<div class="atrnote">⏱ '+(sd?sd+' ':'')+'15分小周期·已完成K '+bars+'根<br>'
+
+  // 根据triKind（来自f.triKind）显示状态
+  let statusLine='';
+  if(f.triKind==='fib-confirmed'){
+    statusLine='⏱ '+(sd?sd+' ':'')+'15分小周期·已完成K '+bars+'根·<b>三角已确认</b>';
+  } else if(f.triKind==='fib-no-breakout'){
+    statusLine='⏱ '+(sd?sd+' ':'')+'15分小周期·已完成K '+bars+'根·三角未确认';
+  } else {
+    statusLine='⏱ '+(sd?sd+' ':'')+'15分小周期·已完成K '+bars+'根';
+  }
+
+  return '<div class="atrnote">'+statusLine+'<br>'
     +(f.dir>0?'↑ ':'↓ ')+abc+'·回撤'+Math.round(f.retrace*100)+'%<br>'
     +'目标1.0='+mark(f.t1)+'·1.618='+mark(f.t1618)+'·2.618='+mark(f.t2618)+'<br>'
     +(f.dir>0?'支撑C='+P(f.c)+' / 跌破A='+P(f.a)+'失效':'压力C='+P(f.c)+' / 升破A='+P(f.a)+'失效')
