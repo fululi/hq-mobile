@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#0b0e12">
-<title>我的持仓 · 行情 v5.55</title>
+<title>我的持仓 · 行情 v5.56</title>
 <style>
 /* v5.46 完整版换肤:暗色行情终端。只动皮肤——所有类名/布局/交互结构原样,计算逻辑零改动。
    调色板: 底#0b0e12 卡#14181e 描边#232a33 主文#dde3ec 次文#9ba5b4 涨#f4655f 跌#2ebd7f 强调#4c8dff */
@@ -236,7 +236,7 @@ details.fold:not([open]) > summary { margin-bottom:0; }
 .rvtabs button { flex:1; border:0; background:none; color:#9ba5b4; font-size:13px; font-weight:600; padding:8px 4px; border-radius:7px; letter-spacing:.04em; }
 .rvtabs button.on { background:#1d2634; color:#f2f5f9; }
 .ksf { width:100%; height:72vh; border:1px solid #232a33; border-radius:10px; background:#0b0e12; margin-top:6px; display:block; }
-.btc { width:100%; height:280px; display:block; border-radius:8px; margin-top:6px; background:#12161c; }
+.btc { width:100%; height:310px; display:block; border-radius:8px; margin-top:6px; background:#12161c; touch-action:none; }
 .foot { font-size:11.5px; color:#8d97a6; line-height:1.6; margin-top:8px; padding:0 2px; }
 </style>
 </head>
@@ -3677,83 +3677,145 @@ function battleOpen(i){ const d=document.querySelector('details[data-fk="bt-'+i+
 function drawBattle(i){
   const bd=BATTLE[i]; if(!bd) return;
   const cv=document.getElementById('btc_'+i); if(!cv) return;
-  loadM5(bd.code,rows=>{
-    const cv2=document.getElementById('btc_'+i); if(!cv2) return; // 重渲染后节点可能换了
-    const W=cv2.width=cv2.clientWidth*2, H=cv2.height=560, x=cv2.getContext('2d');
-    const dp=bd.p3?3:2, fmt=v=>v.toFixed(dp);
-    x.fillStyle='#12161c'; x.fillRect(0,0,W,H);
-    if(!rows||rows.length<40){ x.fillStyle='#8d97a6'; x.font='22px -apple-system'; x.textAlign='center'; x.fillText('5分钟数据没拉到,稍后再点开一次',W/2,H/2); return; }
-    // ---- 主图(价格) ----
-    let pmin=Infinity,pmax=-Infinity;
-    rows.forEach(r=>{ pmin=Math.min(pmin,r[3]); pmax=Math.max(pmax,r[2]); });
-    [].concat(bd.buys||[],bd.sells||[],[bd.preLo,bd.preHi]).forEach(v=>{ if(v!=null){ pmin=Math.min(pmin,v); pmax=Math.max(pmax,v); } });
-    const pad=(pmax-pmin)*0.06||0.01; pmin-=pad; pmax+=pad;
-    const L=78,R=10,T=10, PB=356, MT=384, MB=H-34, pw=W-L-R;
-    const Y=v=>T+(PB-T)*(1-(v-pmin)/(pmax-pmin)), X=j=>L+pw*(j+0.5)/rows.length;
-    const band=(a,b,col)=>{ if(a==null||b==null) return; const y1=Y(Math.max(a,b)),y2=Y(Math.min(a,b));
-      x.fillStyle=col; x.fillRect(L,y1,pw,Math.max(3,y2-y1)); };
-    if(bd.buys&&bd.buys.length) band(bd.buys[0],bd.buys[bd.buys.length-1],'rgba(46,189,127,.10)');
-    if(bd.sells&&bd.sells.length) band(bd.sells[0],bd.sells[bd.sells.length-1],'rgba(244,101,95,.10)');
-    const line=(v,col,dash,lbl)=>{ if(v==null||v<pmin||v>pmax) return;
-      x.strokeStyle=col; x.lineWidth=2; x.setLineDash(dash);
-      x.beginPath(); x.moveTo(L,Y(v)); x.lineTo(W-R,Y(v)); x.stroke(); x.setLineDash([]);
-      x.fillStyle=col; x.font='bold 20px -apple-system'; x.textAlign='left'; x.fillText(lbl+' '+fmt(v),4,Y(v)+7); };
-    (bd.buys||[]).forEach((v,j)=>line(v,'#2ebd7f',[7,5],'B'+(j+1)));
-    (bd.sells||[]).forEach((v,j)=>line(v,'#f4655f',[7,5],'S'+(j+1)));
-    line(bd.preLo,'#8d97a6',[2,5],'下沿'); line(bd.preHi,'#8d97a6',[2,5],'上沿');
-    if(bd.cost>0) line(bd.cost,'#b7a4f7',[1,4],'成本');
-    const cw=Math.max(2,pw/rows.length*0.6);
-    rows.forEach((r,j)=>{ const up=r[4]>=r[1]; x.strokeStyle=x.fillStyle=up?'#f4655f':'#2ebd7f'; x.lineWidth=1.5;
-      x.beginPath(); x.moveTo(X(j),Y(r[2])); x.lineTo(X(j),Y(r[3])); x.stroke();
-      const y1=Y(Math.max(r[1],r[4])), y2=Y(Math.min(r[1],r[4]));
-      x.fillRect(X(j)-cw/2,y1,cw,Math.max(2,y2-y1)); });
-    // 日期分隔线(贯穿主副图)
-    x.fillStyle='#8d97a6'; x.font='18px -apple-system'; x.textAlign='left'; x.fillText(rows[0][0].slice(5,10),L+4,H-10);
-    for(let j=1;j<rows.length;j++) if(rows[j][0].slice(0,10)!==rows[j-1][0].slice(0,10)){
-      const xx=L+pw*j/rows.length;
-      x.strokeStyle='#2a323d'; x.setLineDash([3,5]); x.beginPath(); x.moveTo(xx,T); x.lineTo(xx,MB); x.stroke(); x.setLineDash([]);
-      x.fillStyle='#8d97a6'; x.fillText(rows[j][0].slice(5,10),xx+4,H-10);
-    }
-    const lastC=rows[rows.length-1][4];
-    x.fillStyle='#e8edf4'; x.font='bold 22px -apple-system'; x.textAlign='right'; x.fillText(fmt(lastC),W-R-4,Y(lastC)-8);
-    x.strokeStyle='#e8edf4'; x.lineWidth=1; x.setLineDash([1,3]);
+  loadM5(bd.code,rows=>{ if(rows&&rows.length) BTROWS[i]=rows; paintBattle(i); });
+}
+// v5.56: 作战图交互化——单指拖平移/双指捏缩放/点一下十字线对价;桌面鼠标拖+滚轮。字体标记全加大。
+let BTROWS={}, BTV={};
+function paintBattle(i){
+  const bd=BATTLE[i]; if(!bd) return;
+  const cv=document.getElementById('btc_'+i); if(!cv) return;
+  const all=BTROWS[i];
+  const W=cv.width=cv.clientWidth*2, H=cv.height=620, x=cv.getContext('2d');
+  const dp=bd.p3?3:2, fmt=v=>v.toFixed(dp);
+  x.fillStyle='#12161c'; x.fillRect(0,0,W,H);
+  if(!all||all.length<40){ x.fillStyle='#aeb8c6'; x.font='24px -apple-system'; x.textAlign='center'; x.fillText('5分钟数据没拉到,收起再点开重试',W/2,H/2); return; }
+  if(!cv._bound){ bindBattle(cv,i); cv._bound=1; }
+  let v=BTV[i]; if(!v||v.n>all.length){ v=BTV[i]={s:0,n:all.length,cx:null,cy:null}; }
+  v.n=Math.max(20,Math.min(all.length,Math.round(v.n)));
+  v.s=Math.max(0,Math.min(all.length-v.n,Math.round(v.s)));
+  const rows=all.slice(v.s,v.s+v.n);
+  let pmin=Infinity,pmax=-Infinity;
+  rows.forEach(r=>{ pmin=Math.min(pmin,r[3]); pmax=Math.max(pmax,r[2]); });
+  [].concat(bd.buys||[],bd.sells||[],[bd.preLo,bd.preHi]).forEach(q=>{ if(q!=null){ pmin=Math.min(pmin,q); pmax=Math.max(pmax,q); } });
+  const pad=(pmax-pmin)*0.06||0.01; pmin-=pad; pmax+=pad;
+  const L=92,R=12,T=12, PB=396, MT=424, MB=H-40, pw=W-L-R;
+  const Y=q=>T+(PB-T)*(1-(q-pmin)/(pmax-pmin)), X=j=>L+pw*(j+0.5)/rows.length;
+  cv._geo={L,R,T,PB,MT,MB,pw,pmin,pmax,rowsN:rows.length};
+  const band=(q1,q2,col)=>{ if(q1==null||q2==null) return; const y1=Y(Math.max(q1,q2)),y2=Y(Math.min(q1,q2));
+    x.fillStyle=col; x.fillRect(L,y1,pw,Math.max(3,y2-y1)); };
+  if(bd.buys&&bd.buys.length) band(bd.buys[0],bd.buys[bd.buys.length-1],'rgba(46,189,127,.10)');
+  if(bd.sells&&bd.sells.length) band(bd.sells[0],bd.sells[bd.sells.length-1],'rgba(244,101,95,.10)');
+  const line=(q,col,dash,lbl)=>{ if(q==null||q<pmin||q>pmax) return;
+    x.strokeStyle=col; x.lineWidth=2.5; x.setLineDash(dash);
+    x.beginPath(); x.moveTo(L,Y(q)); x.lineTo(W-R,Y(q)); x.stroke(); x.setLineDash([]);
+    x.fillStyle=col; x.font='bold 24px -apple-system'; x.textAlign='left'; x.fillText(lbl+' '+fmt(q),4,Y(q)+8); };
+  (bd.buys||[]).forEach((q,j)=>line(q,'#2ebd7f',[8,6],'B'+(j+1)));
+  (bd.sells||[]).forEach((q,j)=>line(q,'#f4655f',[8,6],'S'+(j+1)));
+  line(bd.preLo,'#aeb8c6',[2,6],'下沿'); line(bd.preHi,'#aeb8c6',[2,6],'上沿');
+  if(bd.cost>0) line(bd.cost,'#b7a4f7',[1,5],'成本');
+  const cw=Math.max(2,pw/rows.length*0.62);
+  rows.forEach((r,j)=>{ const up=r[4]>=r[1]; x.strokeStyle=x.fillStyle=up?'#f4655f':'#2ebd7f'; x.lineWidth=1.6;
+    x.beginPath(); x.moveTo(X(j),Y(r[2])); x.lineTo(X(j),Y(r[3])); x.stroke();
+    const y1=Y(Math.max(r[1],r[4])), y2=Y(Math.min(r[1],r[4]));
+    x.fillRect(X(j)-cw/2,y1,cw,Math.max(2,y2-y1)); });
+  x.fillStyle='#aeb8c6'; x.font='20px -apple-system'; x.textAlign='left'; x.fillText(rows[0][0].slice(5,16),L+4,H-12);
+  for(let j=1;j<rows.length;j++) if(rows[j][0].slice(0,10)!==rows[j-1][0].slice(0,10)){
+    const xx=L+pw*j/rows.length;
+    x.strokeStyle='#2a323d'; x.setLineDash([3,6]); x.beginPath(); x.moveTo(xx,T); x.lineTo(xx,MB); x.stroke(); x.setLineDash([]);
+    x.fillStyle='#aeb8c6'; x.fillText(rows[j][0].slice(5,10),xx+4,H-12);
+  }
+  const lastC=all[all.length-1][4];
+  if(lastC>=pmin&&lastC<=pmax){
+    x.fillStyle='#e8edf4'; x.font='bold 26px -apple-system'; x.textAlign='right'; x.fillText(fmt(lastC),W-R-4,Y(lastC)-10);
+    x.strokeStyle='#e8edf4'; x.lineWidth=1; x.setLineDash([1,4]);
     x.beginPath(); x.moveTo(L,Y(lastC)); x.lineTo(W-R,Y(lastC)); x.stroke(); x.setLineDash([]);
-    // ---- 副图: 真实MACD(12,26,9) + 顶底背离(真算的,不是贴纸) ----
-    const ema=(arr,n)=>{ const k=2/(n+1), out=[]; let e=arr[0]; for(const v of arr){ e=v*k+e*(1-k); out.push(e); } return out; };
-    const cls5=rows.map(r=>r[4]);
-    const e12=ema(cls5,12), e26=ema(cls5,26);
-    const dif=cls5.map((_,j)=>e12[j]-e26[j]), dea=ema(dif,9);
-    const hist=dif.map((v,j)=>v-dea[j]);
-    let mm=0; for(let j=26;j<rows.length;j++) mm=Math.max(mm,Math.abs(dif[j]),Math.abs(dea[j]),Math.abs(hist[j]));
-    if(mm===0) mm=1;
-    const Ym=v=>{ const mid=(MT+MB)/2; return mid-(v/mm)*((MB-MT)/2-6); };
-    x.strokeStyle='#2a323d'; x.lineWidth=1; x.beginPath(); x.moveTo(L,Ym(0)); x.lineTo(W-R,Ym(0)); x.stroke();
-    x.fillStyle='#8d97a6'; x.font='17px -apple-system'; x.textAlign='left'; x.fillText('MACD(12,26,9) 5分',4,MT+16);
-    for(let j=26;j<rows.length;j++){ x.fillStyle=hist[j]>=0?'rgba(244,101,95,.75)':'rgba(46,189,127,.75)';
-      const y0=Ym(0), y1=Ym(hist[j]); x.fillRect(X(j)-cw/2,Math.min(y0,y1),cw,Math.max(1,Math.abs(y1-y0))); }
-    const pline=(arr,col)=>{ x.strokeStyle=col; x.lineWidth=2; x.beginPath();
-      for(let j=26;j<rows.length;j++){ const xx=X(j),yy=Ym(arr[j]); j===26?x.moveTo(xx,yy):x.lineTo(xx,yy); } x.stroke(); };
-    pline(dif,'#e8edf4'); pline(dea,'#e0b64f');
-    // 背离: 近段两个摆动低点,价创新低而DIF抬高=底背离;两个摆动高点,价创新高而DIF走低=顶背离
-    const w2=6, lows=[], highs=[];
-    for(let j=26+w2;j<rows.length-1;j++){
-      let lo=true, hi=true;
-      for(let k2=Math.max(26,j-w2);k2<=Math.min(rows.length-1,j+w2);k2++){
-        if(rows[k2][3]<rows[j][3]) lo=false;
-        if(rows[k2][2]>rows[j][2]) hi=false; }
-      if(lo&&(!lows.length||j-lows[lows.length-1]>w2)) lows.push(j);
-      if(hi&&(!highs.length||j-highs[highs.length-1]>w2)) highs.push(j);
+  }
+  // ---- 副图 MACD(12,26,9) 全量算,只画可见窗 ----
+  const ema=(arr,n)=>{ const k=2/(n+1), out=[]; let e=arr[0]; for(const q of arr){ e=q*k+e*(1-k); out.push(e); } return out; };
+  const cls5=all.map(r=>r[4]);
+  const e12=ema(cls5,12), e26=ema(cls5,26);
+  const dif=cls5.map((_,j)=>e12[j]-e26[j]), dea=ema(dif,9);
+  const hist=dif.map((q,j)=>q-dea[j]);
+  let mm=0; for(let j=Math.max(26,v.s);j<v.s+v.n;j++) mm=Math.max(mm,Math.abs(dif[j]),Math.abs(dea[j]),Math.abs(hist[j]));
+  if(mm===0) mm=1;
+  const Ym=q=>{ const mid=(MT+MB)/2; return mid-(q/mm)*((MB-MT)/2-8); };
+  x.strokeStyle='#2a323d'; x.lineWidth=1; x.beginPath(); x.moveTo(L,Ym(0)); x.lineTo(W-R,Ym(0)); x.stroke();
+  x.fillStyle='#aeb8c6'; x.font='20px -apple-system'; x.textAlign='left'; x.fillText('MACD(12,26,9) 5分',4,MT+20);
+  for(let j=0;j<rows.length;j++){ const g=v.s+j; if(g<26) continue;
+    x.fillStyle=hist[g]>=0?'rgba(244,101,95,.8)':'rgba(46,189,127,.8)';
+    const y0=Ym(0), y1=Ym(hist[g]); x.fillRect(X(j)-cw/2,Math.min(y0,y1),cw,Math.max(1.5,Math.abs(y1-y0))); }
+  const pline=(arr,col)=>{ x.strokeStyle=col; x.lineWidth=2.5; x.beginPath(); let st=false;
+    for(let j=0;j<rows.length;j++){ const g=v.s+j; if(g<26) continue; const xx=X(j),yy=Ym(arr[g]);
+      st?x.lineTo(xx,yy):x.moveTo(xx,yy); st=true; } x.stroke(); };
+  pline(dif,'#e8edf4'); pline(dea,'#e0b64f');
+  // 背离(全量找,只标可见窗内的)
+  const w2=6, lows=[], highs=[];
+  for(let j=26+w2;j<all.length-1;j++){
+    let lo2=true, hi2=true;
+    for(let k2=Math.max(26,j-w2);k2<=Math.min(all.length-1,j+w2);k2++){
+      if(all[k2][3]<all[j][3]) lo2=false;
+      if(all[k2][2]>all[j][2]) hi2=false; }
+    if(lo2&&(!lows.length||j-lows[lows.length-1]>w2)) lows.push(j);
+    if(hi2&&(!highs.length||j-highs[highs.length-1]>w2)) highs.push(j);
+  }
+  const mark=(g,txt,col,top)=>{ if(g<v.s||g>=v.s+v.n) return; const j=g-v.s, xx=X(j);
+    x.fillStyle=col; x.beginPath();
+    const yy=top?Ym(Math.max(dif[g],hist[g]))-18:Ym(Math.min(dif[g],hist[g]))+18;
+    x.moveTo(xx,yy); x.lineTo(xx-11,top?yy-18:yy+18); x.lineTo(xx+11,top?yy-18:yy+18); x.closePath(); x.fill();
+    x.font='bold 24px -apple-system'; x.textAlign='center'; x.fillText(txt,xx,top?yy-28:yy+48); };
+  if(lows.length>=2){ const p1=lows[lows.length-2], p2=lows[lows.length-1];
+    if(all[p2][3]<all[p1][3]&&dif[p2]>dif[p1]) mark(p2,'底背离','#5cc8d8',false); }
+  if(highs.length>=2){ const p1=highs[highs.length-2], p2=highs[highs.length-1];
+    if(all[p2][2]>all[p1][2]&&dif[p2]<dif[p1]) mark(p2,'顶背离','#ff8a80',true); }
+  // ---- 十字线 ----
+  if(v.cx!=null){
+    const j=Math.max(0,Math.min(rows.length-1,Math.floor((v.cx-L)/pw*rows.length)));
+    const r=rows[j], xx=X(j);
+    x.strokeStyle='#7aa8ff'; x.lineWidth=1.5; x.setLineDash([4,4]);
+    x.beginPath(); x.moveTo(xx,T); x.lineTo(xx,MB); x.stroke();
+    if(v.cy!=null&&v.cy>=T&&v.cy<=PB){
+      x.beginPath(); x.moveTo(L,v.cy); x.lineTo(W-R,v.cy); x.stroke();
+      const pv=pmin+(1-(v.cy-T)/(PB-T))*(pmax-pmin);
+      x.setLineDash([]); x.fillStyle='#7aa8ff'; x.fillRect(W-R-118,v.cy-30,118,38);
+      x.fillStyle='#0b0e12'; x.font='bold 26px -apple-system'; x.textAlign='right'; x.fillText(fmt(pv),W-R-8,v.cy-2);
     }
-    const mark=(j,txt,col,top)=>{ const xx=X(j);
-      x.fillStyle=col; x.beginPath();
-      const yy=top?Ym(Math.max(dif[j],hist[j]))-14:Ym(Math.min(dif[j],hist[j]))+14;
-      x.moveTo(xx,yy); x.lineTo(xx-8,top?yy-14:yy+14); x.lineTo(xx+8,top?yy-14:yy+14); x.closePath(); x.fill();
-      x.font='bold 19px -apple-system'; x.textAlign='center'; x.fillText(txt,xx,top?yy-22:yy+38); };
-    if(lows.length>=2){ const a=lows[lows.length-2], b=lows[lows.length-1];
-      if(rows[b][3]<rows[a][3]&&dif[b]>dif[a]) mark(b,'底背离','#5cc8d8',false); }
-    if(highs.length>=2){ const a=highs[highs.length-2], b=highs[highs.length-1];
-      if(rows[b][2]>rows[a][2]&&dif[b]<dif[a]) mark(b,'顶背离','#ff8a80',true); }
-  });
+    x.setLineDash([]);
+    if(r){ x.fillStyle='rgba(20,26,35,.92)'; x.fillRect(L+6,T+4,470,46);
+      x.fillStyle='#e8edf4'; x.font='22px -apple-system'; x.textAlign='left';
+      x.fillText(r[0].slice(5,16)+'  开'+fmt(r[1])+' 高'+fmt(r[2])+' 低'+fmt(r[3])+' 收'+fmt(r[4]),L+14,T+36); }
+  }
+}
+function bindBattle(cv,i){
+  const sc=()=>cv.width/cv.clientWidth; // css像素→canvas像素
+  let mode=null, sx=0, sy=0, s0=0, pinch0=0, n0=0, moved=false;
+  const pos=e=>{ const rc=cv.getBoundingClientRect(); const t=e.touches&&e.touches[0]||e;
+    return {x:(t.clientX-rc.left)*sc(), y:(t.clientY-rc.top)*sc()}; };
+  const dist=e=>{ const a=e.touches[0], b=e.touches[1]; return Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY); };
+  const V=()=>BTV[i]||(BTV[i]={s:0,n:(BTROWS[i]||[]).length||96,cx:null,cy:null});
+  cv.addEventListener('touchstart',e=>{ e.preventDefault(); const v=V();
+    if(e.touches.length===2){ mode='zoom'; pinch0=dist(e); n0=v.n; return; }
+    mode='pan'; moved=false; const p=pos(e); sx=p.x; sy=p.y; s0=v.s; },{passive:false});
+  cv.addEventListener('touchmove',e=>{ e.preventDefault(); const v=V(); const all=BTROWS[i]; if(!all) return;
+    if(mode==='zoom'&&e.touches.length===2){ const d2=dist(e); if(!pinch0) return;
+      v.n=n0*pinch0/d2; paintBattle(i); return; }
+    if(mode==='pan'){ const p=pos(e); const dx=p.x-sx;
+      if(Math.abs(dx)>6||Math.abs(p.y-sy)>6) moved=true;
+      v.s=s0-dx/( (cv._geo?cv._geo.pw:cv.width) )*v.n; paintBattle(i); } },{passive:false});
+  cv.addEventListener('touchend',e=>{ const v=V();
+    if(mode==='pan'&&!moved){ const p={x:sx,y:sy};
+      if(v.cx!=null&&Math.abs(v.cx-p.x)<30){ v.cx=null; v.cy=null; } else { v.cx=p.x; v.cy=p.y; }
+      paintBattle(i); }
+    mode=null; pinch0=0; });
+  // 桌面: 拖=平移, 滚轮=缩放, 移动=十字线
+  cv.addEventListener('mousedown',e=>{ e.preventDefault(); mode='pan'; moved=false; const p=pos(e); sx=p.x; sy=p.y; s0=V().s; });
+  cv.addEventListener('mousemove',e=>{ const v=V();
+    if(mode==='pan'){ const p=pos(e); if(Math.abs(p.x-sx)>4) moved=true;
+      v.s=s0-(p.x-sx)/((cv._geo?cv._geo.pw:cv.width))*v.n; paintBattle(i); return; }
+    const p=pos(e); v.cx=p.x; v.cy=p.y; paintBattle(i); });
+  cv.addEventListener('mouseup',()=>{ mode=null; });
+  cv.addEventListener('mouseleave',()=>{ const v=V(); mode=null; v.cx=null; v.cy=null; paintBattle(i); });
+  cv.addEventListener('wheel',e=>{ e.preventDefault(); const v=V();
+    v.n=v.n*(e.deltaY>0?1.15:0.87); paintBattle(i); },{passive:false});
 }
 setInterval(()=>{ const d=new Date(),t=d.getHours()*60+d.getMinutes(),w=d.getDay();
   if(!document.hidden&&!editMode&&w>=1&&w<=5&&((t>=565&&t<=690)||(t>=780&&t<=900))) refresh(); }, 20000);
