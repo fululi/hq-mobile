@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#0b0e12">
-<title>我的持仓 · 行情 v5.48</title>
+<title>我的持仓 · 行情 v5.49</title>
 <style>
 /* v5.46 完整版换肤:暗色行情终端。只动皮肤——所有类名/布局/交互结构原样,计算逻辑零改动。
    调色板: 底#0b0e12 卡#14181e 描边#232a33 主文#dde3ec 次文#9ba5b4 涨#f4655f 跌#2ebd7f 强调#4c8dff */
@@ -232,6 +232,7 @@ details.fold:not([open]) > summary { margin-bottom:0; }
 .quickActions button { height:34px; padding:0 14px; border-radius:11px; border:none; background:transparent; color:#c3cad6; font-size:13px; font-weight:600; letter-spacing:.04em; line-height:1; cursor:pointer; }
 .quickActions button:active { background:#1d2634; transform:translateY(1px); }
 @media (min-width:700px) { .quickActions { left:auto; right:20px; transform:none; } }
+.btc { width:100%; height:190px; display:block; border-radius:8px; margin-top:6px; background:#12161c; }
 .foot { font-size:11.5px; color:#8d97a6; line-height:1.6; margin-top:8px; padding:0 2px; }
 </style>
 </head>
@@ -3175,6 +3176,8 @@ function doRender(){
       </details>
       <div class="proj vrd"><span><span class="dim" style="font-weight:600">日线·周线</span> 📋 <b style="color:${vCls(vd)}">${vd}</b></span></div>
       ${tradeZone}
+      ${(BATTLE[i]={code:h.code,buys:tr.buys,sells:tr.sells,preLo:preLo,preHi:preHi,cost:h.cost,p3:(p!=null&&p<10)},'')}
+      <details class="fold" data-fk="bt-${i}" ontoggle="battleOpen(${i})"><summary>盘中作战图 · 5分钟K + 档位色带 + 预判区间</summary><canvas id="btc_${i}" class="btc"></canvas></details>
       <a href="https://fululi.github.io/k-station/?code=${h.code}&lines=${tr.buys.map(x=>'b'+x.toFixed(2)).concat(tr.sells.map(x=>'s'+x.toFixed(2))).join(',')}" style="display:block;text-align:center;margin-top:8px;padding:8px;border-radius:8px;background:#2563eb;color:#fff;text-decoration:none;font-size:13px;font-weight:600">📈 看K线（做T价位已自动画好）</a>
       <details class="fold" data-fk="vd-${h.code}"><summary>波动数据 · 信号跟踪 · 分档理由（想深究再点）</summary>
       ${legTxt}
@@ -3277,6 +3280,8 @@ function doRender(){
   }).length;
   document.title=_brkN>0?'⚠'+_brkN+'票破下沿 · 我的持仓':'我的持仓 · 行情';
   document.querySelectorAll('details[data-fk]').forEach(d=>{ if(_fo[d.getAttribute('data-fk')]) d.open=true; });
+  // v5.49: 盘中作战图——点开着的,每次重渲染后跟着重画(数据有60秒缓存,不会打爆接口)
+  document.querySelectorAll('details[data-fk^="bt-"]').forEach(d=>{ if(d.open) drawBattle(+d.getAttribute('data-fk').slice(3)); });
   if(_aid){ setTimeout(()=>{
     const el=document.getElementById(_aid);
     if(el&&el.tagName==="INPUT"){ el.value=_av||""; try{ el.setSelectionRange(_as,_as); }catch(e){} el.focus(); }
@@ -3559,6 +3564,64 @@ function renderPaper(){
   ids.map(id=>document.getElementById(id)).filter(Boolean).forEach(el=>io.observe(el));
 })();
 refresh();
+// v5.49 盘中作战图: 5分钟K(近2天)+低吸/高抛色带+预判区间虚线+成本线,画进卡片。
+// 数据走新浪5分K(与15分同一接口),60秒缓存;纯canvas零依赖。
+let BATTLE={}, M5C={};
+function loadM5(code,cb){
+  const c=M5C[code], n=Date.now();
+  if(c&&n-c.t<60000){ cb(c.rows); return; }
+  const ctrl=new AbortController(); const tm=setTimeout(()=>ctrl.abort(),6000);
+  fetch('https://quotes.sina.cn/cn/api/jsonp_v2.php/var%20x=/CN_MarketDataService.getKLineData?symbol='+code+'&scale=5&ma=no&datalen=96',{signal:ctrl.signal})
+    .then(r=>r.text()).then(t=>{ clearTimeout(tm);
+      try{ const m=t.match(/\[.*\]/s); const rows=JSON.parse(m[0]).map(r=>[r.day,+r.open,+r.high,+r.low,+r.close]);
+        M5C[code]={t:n,rows:rows}; cb(rows); }catch(e){ cb(null); } })
+    .catch(()=>{ clearTimeout(tm); cb(null); });
+}
+function battleOpen(i){ const d=document.querySelector('details[data-fk="bt-'+i+'"]'); if(d&&d.open) drawBattle(i); }
+function drawBattle(i){
+  const bd=BATTLE[i]; if(!bd) return;
+  const cv=document.getElementById('btc_'+i); if(!cv) return;
+  loadM5(bd.code,rows=>{
+    const cv2=document.getElementById('btc_'+i); if(!cv2) return; // 重渲染后节点可能换了
+    const W=cv2.width=cv2.clientWidth*2, H=cv2.height=380, x=cv2.getContext('2d');
+    const dp=bd.p3?3:2, fmt=v=>v.toFixed(dp);
+    x.fillStyle='#12161c'; x.fillRect(0,0,W,H);
+    if(!rows||rows.length<5){ x.fillStyle='#8d97a6'; x.font='22px -apple-system'; x.textAlign='center'; x.fillText('5分钟数据没拉到,稍后再点开一次',W/2,H/2); return; }
+    let pmin=Infinity,pmax=-Infinity;
+    rows.forEach(r=>{ pmin=Math.min(pmin,r[3]); pmax=Math.max(pmax,r[2]); });
+    [].concat(bd.buys||[],bd.sells||[],[bd.preLo,bd.preHi]).forEach(v=>{ if(v!=null){ pmin=Math.min(pmin,v); pmax=Math.max(pmax,v); } });
+    const pad=(pmax-pmin)*0.06||0.01; pmin-=pad; pmax+=pad;
+    const L=78,R=10,T=10,B=34, pw=W-L-R, ph=H-T-B;
+    const Y=v=>T+ph*(1-(v-pmin)/(pmax-pmin)), X=j=>L+pw*(j+0.5)/rows.length;
+    const band=(a,b,col)=>{ if(a==null||b==null) return; const y1=Y(Math.max(a,b)),y2=Y(Math.min(a,b));
+      x.fillStyle=col; x.fillRect(L,y1,pw,Math.max(3,y2-y1)); };
+    if(bd.buys&&bd.buys.length) band(bd.buys[0],bd.buys[bd.buys.length-1],'rgba(46,189,127,.10)');
+    if(bd.sells&&bd.sells.length) band(bd.sells[0],bd.sells[bd.sells.length-1],'rgba(244,101,95,.10)');
+    const line=(v,col,dash,lbl)=>{ if(v==null||v<pmin||v>pmax) return;
+      x.strokeStyle=col; x.lineWidth=2; x.setLineDash(dash);
+      x.beginPath(); x.moveTo(L,Y(v)); x.lineTo(W-R,Y(v)); x.stroke(); x.setLineDash([]);
+      x.fillStyle=col; x.font='bold 20px -apple-system'; x.textAlign='left'; x.fillText(lbl+' '+fmt(v),4,Y(v)+7); };
+    (bd.buys||[]).forEach((v,j)=>line(v,'#2ebd7f',[7,5],'B'+(j+1)));
+    (bd.sells||[]).forEach((v,j)=>line(v,'#f4655f',[7,5],'S'+(j+1)));
+    line(bd.preLo,'#8d97a6',[2,5],'下沿'); line(bd.preHi,'#8d97a6',[2,5],'上沿');
+    if(bd.cost>0) line(bd.cost,'#b7a4f7',[1,4],'成本');
+    const cw=Math.max(2,pw/rows.length*0.6);
+    rows.forEach((r,j)=>{ const up=r[4]>=r[1]; x.strokeStyle=x.fillStyle=up?'#f4655f':'#2ebd7f'; x.lineWidth=1.5;
+      x.beginPath(); x.moveTo(X(j),Y(r[2])); x.lineTo(X(j),Y(r[3])); x.stroke();
+      const y1=Y(Math.max(r[1],r[4])), y2=Y(Math.min(r[1],r[4]));
+      x.fillRect(X(j)-cw/2,y1,cw,Math.max(2,y2-y1)); });
+    x.fillStyle='#8d97a6'; x.font='18px -apple-system'; x.textAlign='left'; x.fillText(rows[0][0].slice(5,10),L+4,H-10);
+    for(let j=1;j<rows.length;j++) if(rows[j][0].slice(0,10)!==rows[j-1][0].slice(0,10)){
+      const xx=L+pw*j/rows.length;
+      x.strokeStyle='#2a323d'; x.setLineDash([3,5]); x.beginPath(); x.moveTo(xx,T); x.lineTo(xx,H-B); x.stroke(); x.setLineDash([]);
+      x.fillStyle='#8d97a6'; x.fillText(rows[j][0].slice(5,10),xx+4,H-10);
+    }
+    const lastC=rows[rows.length-1][4];
+    x.fillStyle='#e8edf4'; x.font='bold 22px -apple-system'; x.textAlign='right'; x.fillText(fmt(lastC),W-R-4,Y(lastC)-8);
+    x.strokeStyle='#e8edf4'; x.lineWidth=1; x.setLineDash([1,3]);
+    x.beginPath(); x.moveTo(L,Y(lastC)); x.lineTo(W-R,Y(lastC)); x.stroke(); x.setLineDash([]);
+  });
+}
 setInterval(()=>{ const d=new Date(),t=d.getHours()*60+d.getMinutes(),w=d.getDay();
   if(!document.hidden&&!editMode&&w>=1&&w<=5&&((t>=565&&t<=690)||(t>=780&&t<=900))) refresh(); }, 20000);
 // v4.95: "今日预判/明日预判"这类日期label只在render()真正跑时才重算,
