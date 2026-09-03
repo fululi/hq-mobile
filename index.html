@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#0b0e12">
-<title>我的持仓 · 行情 v5.62</title>
+<title>我的持仓 · 行情 v5.63</title>
 <style>
 /* v5.46 完整版换肤:暗色行情终端。只动皮肤——所有类名/布局/交互结构原样,计算逻辑零改动。
    调色板: 底#0b0e12 卡#14181e 描边#232a33 主文#dde3ec 次文#9ba5b4 涨#f4655f 跌#2ebd7f 强调#4c8dff */
@@ -236,7 +236,10 @@ details.fold:not([open]) > summary { margin-bottom:0; }
 .rvtabs button { flex:1; border:0; background:none; color:#9ba5b4; font-size:13px; font-weight:600; padding:8px 4px; border-radius:7px; letter-spacing:.04em; }
 .rvtabs button.on { background:#1d2634; color:#f2f5f9; }
 .ksf { width:100%; height:72vh; border:1px solid #232a33; border-radius:10px; background:#0b0e12; margin-top:6px; display:block; }
-.btp { display:flex; gap:6px; align-items:center; margin:6px 0 2px; }\n.btp span { font-size:12px; font-weight:700; color:#9ba5b4; background:#171c23; border:1px solid #2a323d; border-radius:7px; padding:4px 12px; cursor:pointer; }\n.btp span.on { color:#0b0e12; background:#7aa8ff; border-color:#7aa8ff; }\n.btc { width:100%; height:310px; display:block; border-radius:8px; margin-top:6px; background:#12161c; }
+.btp { display:flex; gap:6px; align-items:center; margin:6px 0 2px; flex-wrap:wrap; }
+.btp span { font-size:12px; font-weight:700; color:#9ba5b4; background:#171c23; border:1px solid #2a323d; border-radius:7px; padding:4px 12px; cursor:pointer; }
+.btp span.on { color:#0b0e12; background:#7aa8ff; border-color:#7aa8ff; }
+.btc { width:100%; height:310px; display:block; border-radius:8px; margin-top:6px; background:#12161c; touch-action:pan-y; }
 .foot { font-size:11.5px; color:#8d97a6; line-height:1.6; margin-top:8px; padding:0 2px; }
 </style>
 </head>
@@ -3639,7 +3642,7 @@ let BATTLE={}, MKC={}, BTROWS={}, BTP={}, BTN={};
 function zoomBt(i,dir){ const all=BTROWS[i]; if(!all) return;
   let n=BTN[i]||all.length;
   n=dir>0?Math.max(20,Math.round(n*0.6)):Math.min(all.length,Math.round(n*1.67));
-  BTN[i]=(n>=all.length)?null:n; paintBattle(i);
+  BTN[i]=(n>=all.length)?null:n; BTS[i]=0; paintBattle(i);
   const lb=document.getElementById('btn_'+i); if(lb) lb.textContent=BTN[i]?('近'+BTN[i]+'根'):'全部'; }
 function loadMK(code,scale,cb){
   const key=code+'_'+scale, c=MKC[key], n=Date.now();
@@ -3679,7 +3682,7 @@ function loadMK(code,scale,cb){
         if(rows&&rows.length){ fin(rows); } else tencent(); }catch(e){ tencent(); } })
     .catch(()=>{ clearTimeout(tm); tencent(); });
 }
-function setBtp(i,sc0){ BTP[i]=sc0; BTROWS[i]=null; BTN[i]=null; drawBattle(i);
+function setBtp(i,sc0){ BTP[i]=sc0; BTROWS[i]=null; BTN[i]=null; BTS[i]=0; BTX[i]=null; drawBattle(i);
   const bar=document.getElementById('btp_'+i);
   if(bar) bar.querySelectorAll('span[data-s]').forEach(el=>el.classList.toggle('on',+el.getAttribute('data-s')===sc0)); }
 function ksOpen(i){
@@ -3690,6 +3693,35 @@ function ksOpen(i){
   f0.setAttribute('src','https://fululi.github.io/k-station/?code='+bd.code+'&lines='+lines);
 }
 function battleOpen(i){ const d=document.querySelector('details[data-fk="bt-'+i+'"]'); if(d&&d.open) drawBattle(i); }
+// v5.63: 只留两种手势——横拖平移(BTS偏移)、轻点十字线。没有捏合,没有纵向手势,竖划就是滚页面。
+let BTS={}, BTX={};
+function bindBattle(cv,i){
+  const sc=()=>cv.width/Math.max(1,cv.clientWidth);
+  let dragging=false, sx=0, sy=0, s0=0, moved=false;
+  const px=e=>{ const rc=cv.getBoundingClientRect(); const t=(e.touches&&e.touches[0])||(e.changedTouches&&e.changedTouches[0])||e;
+    return {x:(t.clientX-rc.left)*sc(), y:(t.clientY-rc.top)*sc()}; };
+  const down=e=>{ const p=px(e); dragging=true; moved=false; sx=p.x; sy=p.y; s0=BTS[i]||0; };
+  const mv=e=>{ if(!dragging) return; const p=px(e), all=BTROWS[i]; if(!all||!cv._vn) return;
+    const dx=p.x-sx;
+    if(Math.abs(dx)>8) moved=true;
+    if(!moved) return;
+    if(e.cancelable) e.preventDefault();
+    BTS[i]=Math.round(s0+dx/Math.max(1,cv._pw)*cv._vn); // 拖多少格挪多少格
+    BTS[i]=Math.max(0,Math.min(all.length-cv._vn,BTS[i]));
+    if(!cv._raf){ cv._raf=requestAnimationFrame(()=>{ cv._raf=0; paintBattle(i); }); } };
+  const up=e=>{ if(!dragging) return; dragging=false;
+    if(!moved){ const p={x:sx,y:sy};
+      const old=BTX[i];
+      BTX[i]=(old&&Math.abs(old.x-p.x)<36)?null:p;
+      paintBattle(i); } };
+  cv.addEventListener('touchstart',down,{passive:true});
+  cv.addEventListener('touchmove',mv,{passive:false});
+  cv.addEventListener('touchend',up);
+  cv.addEventListener('mousedown',e=>{ e.preventDefault(); down(e); });
+  cv.addEventListener('mousemove',mv);
+  cv.addEventListener('mouseup',up);
+  cv.addEventListener('mouseleave',()=>{ dragging=false; });
+}
 function drawBattle(i){
   const bd=BATTLE[i]; if(!bd) return;
   if(!document.getElementById('btc_'+i)) return;
@@ -3698,17 +3730,28 @@ function drawBattle(i){
 function paintBattle(i){
   const bd=BATTLE[i]; if(!bd) return;
   const cv=document.getElementById('btc_'+i); if(!cv) return;
+  cv.style.width='100%'; cv.style.height='310px'; // 双保险:CSS坏了也不许画布自我膨胀
+  const _cssW=(cv.parentElement&&cv.parentElement.clientWidth)||cv.clientWidth||360;
   const _all=BTROWS[i];
-  const rows=(_all&&BTN[i]&&BTN[i]<_all.length)?_all.slice(_all.length-BTN[i]):_all;
-  const W=cv.width=cv.clientWidth*2, H=cv.height=620, x=cv.getContext('2d');
+  let rows=_all;
+  if(_all){
+    const vn=(BTN[i]&&BTN[i]<_all.length)?BTN[i]:_all.length;
+    let off=BTS[i]||0; off=Math.max(0,Math.min(_all.length-vn,off));
+    const end=_all.length-off;
+    rows=_all.slice(end-vn,end);
+    cv._vn=vn;
+  }
+  const W=cv.width=_cssW*2, H=cv.height=620, x=cv.getContext('2d');
   const dp=bd.p3?3:2, fmt=v=>v.toFixed(dp);
   x.fillStyle='#12161c'; x.fillRect(0,0,W,H);
   if(!rows||rows.length<30){ x.fillStyle='#aeb8c6'; x.font='24px -apple-system'; x.textAlign='center'; x.fillText('数据没拉到,收起再点开重试',W/2,H/2); return; }
+  if(!cv._bound){ bindBattle(cv,i); cv._bound=1; }
   // 量程只按K线(±8%),档位线在量程里才画,不在的图顶/图底给小字
   let pmin=Infinity,pmax=-Infinity;
   rows.forEach(r=>{ pmin=Math.min(pmin,r[3]); pmax=Math.max(pmax,r[2]); });
   const pad=(pmax-pmin)*0.08||0.01; pmin-=pad; pmax+=pad;
   const L=92,R=12,T=12, PB=396, MT=424, MB=H-42, pw=W-L-R;
+  cv._pw=pw;
   const Y=q=>T+(PB-T)*(1-(q-pmin)/(pmax-pmin)), X=j=>L+pw*(j+0.5)/rows.length;
   const band=(q1,q2,col)=>{ if(q1==null||q2==null) return;
     const y1=Math.max(T,Y(Math.min(Math.max(q1,q2),pmax))), y2=Math.min(PB,Y(Math.max(Math.min(q1,q2),pmin)));
@@ -3830,6 +3873,24 @@ function paintBattle(i){
     if(rows[p2][3]<rows[p1][3]&&dif[p2]>dif[p1]) mark(p2,'底背离','#5cc8d8',false); }
   if(highs.length>=2){ const p1=highs[highs.length-2], p2=highs[highs.length-1];
     if(rows[p2][2]>rows[p1][2]&&dif[p2]<dif[p1]) mark(p2,'顶背离','#ff8a80',true); }
+  // 十字线: 轻点出线对价,再点同处关
+  const cxo=BTX[i];
+  if(cxo&&cxo.x>=L&&cxo.x<=W-R){
+    const j=Math.max(0,Math.min(rows.length-1,Math.floor((cxo.x-L)/pw*rows.length)));
+    const r=rows[j], xx=X(j);
+    x.strokeStyle='#7aa8ff'; x.lineWidth=1.5; x.setLineDash([4,4]);
+    x.beginPath(); x.moveTo(xx,T); x.lineTo(xx,MB); x.stroke();
+    if(cxo.y>=T&&cxo.y<=PB){
+      x.beginPath(); x.moveTo(L,cxo.y); x.lineTo(W-R,cxo.y); x.stroke();
+      const pv=pmin+(1-(cxo.y-T)/(PB-T))*(pmax-pmin);
+      x.setLineDash([]); x.fillStyle='#7aa8ff'; x.fillRect(W-R-116,cxo.y-30,116,38);
+      x.fillStyle='#0b0e12'; x.font='bold 24px -apple-system'; x.textAlign='right'; x.fillText(fmt(pv),W-R-8,cxo.y-2);
+    }
+    x.setLineDash([]);
+    if(r){ x.fillStyle='rgba(20,26,35,.94)'; x.fillRect(L+6,T+4,430,38);
+      x.fillStyle='#e8edf4'; x.font='19px -apple-system'; x.textAlign='left';
+      x.fillText(r[0].slice(5,16)+' 开'+fmt(r[1])+' 高'+fmt(r[2])+' 低'+fmt(r[3])+' 收'+fmt(r[4]),L+14,T+31); }
+  }
 }
 setInterval(()=>{ const d=new Date(),t=d.getHours()*60+d.getMinutes(),w=d.getDay();
   if(!document.hidden&&!editMode&&w>=1&&w<=5&&((t>=565&&t<=690)||(t>=780&&t<=900))) refresh(); }, 20000);
