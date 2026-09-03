@@ -6,10 +6,10 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#0b0e12">
-<title>我的持仓 · 行情 v5.46</title>
+<title>我的持仓 · 行情 v5.47</title>
 <style>
 /* v5.46 完整版换肤:暗色行情终端。只动皮肤——所有类名/布局/交互结构原样,计算逻辑零改动。
-   调色板: 底#0b0e12 卡#14181e 描边#232a33 主文#dde3ec 次文#8b94a3 涨#f4655f 跌#2ebd7f 强调#4c8dff */
+   调色板: 底#0b0e12 卡#14181e 描边#232a33 主文#dde3ec 次文#9ba5b4 涨#f4655f 跌#2ebd7f 强调#4c8dff */
 :root { color-scheme: dark; }
 html { scroll-padding-top:118px; }
 * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
@@ -21,7 +21,7 @@ body { margin:0; padding:14px 12px 92px; background:#0b0e12; color:#dde3ec;
 .top .btns { display:flex; gap:8px; }
 .navSticky { position:sticky; top:50px; z-index:55; display:flex; gap:1px; overflow-x:auto; padding:0 2px; margin:0 -2px 10px; background:rgba(11,14,18,.94); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); border-bottom:1px solid #232a33; scrollbar-width:none; }
 .navSticky::-webkit-scrollbar { display:none; }
-.navSticky button { flex:0 0 auto; border:0; background:none; color:#8b94a3; padding:9px 13px 8px; font-size:13.5px; font-weight:600; white-space:nowrap; letter-spacing:.04em; border-bottom:2px solid transparent; margin-bottom:-1px; transition:color .15s,border-color .15s; }
+.navSticky button { flex:0 0 auto; border:0; background:none; color:#9ba5b4; padding:9px 13px 8px; font-size:13.5px; font-weight:600; white-space:nowrap; letter-spacing:.04em; border-bottom:2px solid transparent; margin-bottom:-1px; transition:color .15s,border-color .15s; }
 .navSticky button.active { color:#f2f5f9; font-weight:700; border-bottom-color:#4c8dff; }
 .navSticky button:active { color:#4c8dff; }
 .navStk { position:sticky; top:84px; z-index:54; display:flex; gap:6px; overflow-x:auto; padding:5px 2px 6px; margin:0 -2px 8px; background:rgba(11,14,18,.94); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); scrollbar-width:none; }
@@ -33,12 +33,12 @@ body { margin:0; padding:14px 12px 92px; background:#0b0e12; color:#dde3ec;
 .ed { color:#e0b64f; }
 .ed.on { color:#0b0e12; background:#e0a400; border-color:#e0a400; }
 .cp { color:#5cc8d8; }
-.time { font-size:12px; color:#788292; margin:2px 0 12px; font-variant-numeric:tabular-nums; }
+.time { font-size:12px; color:#8d97a6; margin:2px 0 12px; font-variant-numeric:tabular-nums; }
 .sum { background:#14181e; border:1px solid #232a33; border-radius:12px; padding:14px 16px; margin-bottom:14px; display:flex; justify-content:space-between; }
-.sum .b .k { font-size:11px; color:#8b94a3; letter-spacing:.08em; } .sum .b .v { font-size:24px; font-weight:760; font-variant-numeric:tabular-nums; margin-top:3px; letter-spacing:.01em; }
+.sum .b .k { font-size:11px; color:#9ba5b4; letter-spacing:.08em; } .sum .b .v { font-size:24px; font-weight:760; font-variant-numeric:tabular-nums; margin-top:3px; letter-spacing:.01em; }
 .idx { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:16px; }
 .idx .c { background:#14181e; border:1px solid #232a33; border-radius:10px; padding:10px 8px; text-align:center; }
-.idx .c .n { font-size:11px; color:#8b94a3; margin-bottom:3px; letter-spacing:.08em; }
+.idx .c .n { font-size:11px; color:#9ba5b4; margin-bottom:3px; letter-spacing:.08em; }
 .idx .c .v { font-size:17px; font-weight:720; font-variant-numeric:tabular-nums; }
 .idx .c .g { font-size:11.5px; font-weight:600; margin-top:1px; font-variant-numeric:tabular-nums; }
 .sec { font-size:13px; font-weight:700; color:#aab3c0; margin:0 2px 8px; display:flex; justify-content:space-between; align-items:center; letter-spacing:.06em; }
@@ -54,33 +54,33 @@ div.sec.collapsed::after { content:'▸'; }
 .toast { position:fixed; left:50%; bottom:60px; transform:translateX(-50%); background:rgba(235,240,248,.96); color:#111722; font-size:13px; padding:9px 16px; border-radius:9px; z-index:99; display:none; max-width:86%; text-align:center; font-weight:600; }
 .card { background:#14181e; border:1px solid #232a33; border-radius:12px; padding:14px; margin-bottom:12px; position:relative; }
 .row1 { display:flex; align-items:baseline; justify-content:space-between; }
-.nm { font-size:17px; font-weight:720; } .code { font-size:12px; color:#788292; margin-left:6px; font-weight:400; font-variant-numeric:tabular-nums; }
+.nm { font-size:17px; font-weight:720; } .code { font-size:12px; color:#8d97a6; margin-left:6px; font-weight:400; font-variant-numeric:tabular-nums; }
 .px { font-size:28px; font-weight:760; font-variant-numeric:tabular-nums; letter-spacing:.01em; }
 .pct { font-size:14.5px; font-weight:660; text-align:right; font-variant-numeric:tabular-nums; }
 .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:8px 10px; margin-top:12px; }
 .kv { background:#181d24; border-radius:8px; padding:9px 11px; }
-.kv .k { font-size:11px; color:#8b94a3; letter-spacing:.06em; } .kv .val { font-size:17px; font-weight:700; font-variant-numeric:tabular-nums; margin-top:2px; }
-.proj { margin-top:9px; padding-top:8px; border-top:1px solid #1d232c; font-size:13px; color:#a5aebc; font-variant-numeric:tabular-nums; display:flex; gap:16px; flex-wrap:wrap; }
+.kv .k { font-size:11px; color:#9ba5b4; letter-spacing:.06em; } .kv .val { font-size:17px; font-weight:700; font-variant-numeric:tabular-nums; margin-top:2px; }
+.proj { margin-top:9px; padding-top:8px; border-top:1px solid #1d232c; font-size:13px; color:#b6bfcc; font-variant-numeric:tabular-nums; display:flex; gap:16px; flex-wrap:wrap; }
 .proj b { font-weight:680; color:#dde3ec; }
 .proj.vrd { font-size:13.5px; }
 .badge { font-size:10.5px; font-weight:700; padding:1.5px 7px; border-radius:6px; margin-left:7px; vertical-align:2px; }
-.badge.up { background:rgba(244,101,95,.14); color:#ff8a80; } .badge.down { background:rgba(46,189,127,.14); color:#4fd79b; } .badge.flat { background:#1e242d; color:#9aa4b2; }
+.badge.up { background:rgba(244,101,95,.14); color:#ff8a80; } .badge.down { background:rgba(46,189,127,.14); color:#4fd79b; } .badge.flat { background:#1e242d; color:#aeb8c6; }
 .tier.ts.mute{background:#151920}
 .tier.ts.mute .tchip{opacity:.45}
 .tnote { margin-top:6px; font-size:12px; color:#d9b25a; background:rgba(217,178,90,.09); border-radius:6px; padding:5px 8px; }
-.atrnote { margin-top:6px; padding:5px 0 0; border-top:1px solid #1d232c; font-size:12.5px; color:#9aa4b2; line-height:1.55; }
-.ifb { margin-top:5px; font-size:11.5px; color:#8b94a3; font-variant-numeric:tabular-nums; }
+.atrnote { margin-top:6px; padding:5px 0 0; border-top:1px solid #1d232c; font-size:12.5px; color:#aeb8c6; line-height:1.55; }
+.ifb { margin-top:5px; font-size:11.5px; color:#9ba5b4; font-variant-numeric:tabular-nums; }
 .ifb b { font-size:13px; color:#e8edf4; margin:0 2px; }
 .ifb .r { color:#ff7a72; }
 .ifb .s { color:#4fd79b; }
 .ifb .r b { color:#ff7a72; }
 .ifb .s b { color:#4fd79b; }
-details.mini > summary { font-size:11.5px; color:#68727f; cursor:pointer; list-style:none; padding:4px 0; user-select:none; }
+details.mini > summary { font-size:11.5px; color:#8d97a6; cursor:pointer; list-style:none; padding:4px 0; user-select:none; }
 details.mini > summary::-webkit-details-marker { display:none; }
 details.mini > summary::after { content:' ▾'; }
 details.mini[open] > summary::after { content:' ▴'; }
 details.mini > div { padding-top:2px; }
-.mkt { font-size:12.5px; color:#9aa4b2; margin:-6px 2px 12px; }
+.mkt { font-size:12.5px; color:#aeb8c6; margin:-6px 2px 12px; }
 .mkt b { font-weight:700; }
 .tlog-row { display:grid; grid-template-columns:1.4fr 1fr 1fr 1fr auto; gap:6px; align-items:center; padding:8px 10px; border-top:1px solid #1d232c; font-size:13px; }
 .tlog-row .rm { font-size:11px; color:#ff9066; background:rgba(255,144,102,.12); border:none; padding:3px 7px; border-radius:6px; }
@@ -90,16 +90,16 @@ details.mini > div { padding-top:2px; }
 .tbox { background:#14181e; border:1px solid #232a33; border-radius:12px; padding:12px 14px; margin-bottom:12px; }
 .tbox .r { display:grid; grid-template-columns:1fr 1fr; gap:8px; align-items:end; }
 .tbox .r label:first-child { grid-column:1 / -1; }
-.tbox label { font-size:12px; color:#8b94a3; display:flex; flex-direction:column; gap:4px; }
+.tbox label { font-size:12px; color:#9ba5b4; display:flex; flex-direction:column; gap:4px; }
 .tbox select,.tbox input { padding:10px 8px; border:1px solid #333c48; border-radius:8px; font-size:16px; background:#0f1319; color:#dde3ec; }
 .tbox input { text-align:right; font-variant-numeric:tabular-nums; }
 .prow { display:flex; justify-content:space-between; align-items:center; padding:7px 12px; font-size:12.5px; border-bottom:1px solid #1d232c; }
 .prow:last-child { border-bottom:none; }
 .tbox .go { margin-top:10px; width:100%; border:none; background:#2563eb; color:#fff; font-size:14px; font-weight:600; padding:9px; border-radius:8px; }
-.fee { display:flex; gap:12px; margin-top:10px; font-size:11px; color:#8b94a3; align-items:center; flex-wrap:wrap; }
+.fee { display:flex; gap:12px; margin-top:10px; font-size:11px; color:#9ba5b4; align-items:center; flex-wrap:wrap; }
 .fee input { width:56px; padding:4px 5px; border:1px solid #333c48; border-radius:6px; font-size:16px; text-align:right; background:#0f1319; color:#dde3ec; }
 .qtys { display:flex; gap:6px; margin-top:8px; align-items:center; }
-.qtys span { font-size:11px; color:#8b94a3; }
+.qtys span { font-size:11px; color:#9ba5b4; }
 .qtys button { flex:1; border:1px solid #2a323d; background:#171c23; font-size:12px; padding:7px 2px; border-radius:7px; color:#c3cad6; }
 .qtys button:active { background:#1d2634; }
 .tcf { display:none; margin-top:10px; background:rgba(224,164,0,.1); border:1px solid rgba(224,164,0,.4); border-radius:9px; padding:10px 12px; font-size:13px; line-height:1.6; }
@@ -118,9 +118,9 @@ details.mini > div { padding-top:2px; }
 table { width:100%; border-collapse:collapse; font-variant-numeric:tabular-nums; }
 .card.tbl { padding:4px 0; }
 th,td { padding:11px 12px; text-align:right; font-size:14px; }
-th { font-size:11px; color:#8b94a3; font-weight:600; letter-spacing:.06em; } th.l,td.l { text-align:left; }
+th { font-size:11px; color:#9ba5b4; font-weight:600; letter-spacing:.06em; } th.l,td.l { text-align:left; }
 td { border-top:1px solid #1d232c; }
-.sub { font-size:12px; color:#8b94a3; }
+.sub { font-size:12px; color:#9ba5b4; }
 #wdelh:empty { display:none; }
 .wdel { font-size:11px; color:#ff9066; background:rgba(255,144,102,.12); border:none; padding:3px 8px; border-radius:6px; font-weight:600; }
 .up{color:#f4655f;} .down{color:#2ebd7f;} .flat{color:#aab3c0;}
@@ -138,21 +138,21 @@ td { border-top:1px solid #1d232c; }
 .qb { border:1px solid #232a33; border-radius:8px; padding:6px 8px; margin:7px 0; background:#12161c; }
 .qh { display:flex; justify-content:space-between; align-items:baseline; font-size:12.5px; font-variant-numeric:tabular-nums; gap:6px; }
 .qh b.px { font-size:17px; font-weight:800; }
-.qb .dim { color:#68727f; font-size:11px; font-weight:400; }
+.qb .dim { color:#8d97a6; font-size:11px; font-weight:400; }
 .qt2 { width:100%; border-collapse:collapse; font-size:12.5px; font-variant-numeric:tabular-nums; margin-top:3px; }
 .qt2 td { padding:1.5px 0; }
-.qt2 td.qk { color:#68727f; font-size:10.5px; width:20px; }
+.qt2 td.qk { color:#8d97a6; font-size:10.5px; width:20px; }
 .qt2 td.qv { width:58px; }
 .qt2 td.qg { text-align:right; width:50px; }
-.qt2 td.qs { text-align:right; color:#68727f; font-size:10.5px; }
+.qt2 td.qs { text-align:right; color:#8d97a6; font-size:10.5px; }
 .qt2 tr.now td { background:#e8edf4; color:#0b0e12; font-weight:700; }
 .qt2 tr.now td:first-child { border-radius:3px 0 0 3px; padding-left:3px; }
 .qt2 tr.now td:last-child { border-radius:0 3px 3px 0; padding-right:3px; }
 .qt2 tr.cst td, .qt2 tr.cst td.qk { color:#b7a4f7; }
 .qt2 tr.cst td.qk { font-weight:700; }
-.qt2 tr.mid td { border-top:1px dashed #333c48; color:#8b94a3; font-size:10.5px; padding-top:3px; }
+.qt2 tr.mid td { border-top:1px dashed #333c48; color:#9ba5b4; font-size:10.5px; padding-top:3px; }
 .warn2 { margin-top:6px; padding:4px 6px; background:rgba(245,158,11,.09); border-left:3px solid #f59e0b; font-size:12px; line-height:1.5; font-variant-numeric:tabular-nums; }
-.qt2 .pr { color:#68727f; font-size:10px; }
+.qt2 .pr { color:#8d97a6; font-size:10px; }
 .qt2 .pr.hi { color:#4fd79b; font-weight:700; }
 .qt2 .pr.lo { color:#e8a13c; }
 .qt2 td.qs { min-width:74px; }
@@ -163,12 +163,12 @@ td { border-top:1px solid #1d232c; }
   margin:12px 0 6px;padding:6px 10px;border-radius:7px;background:#161b28;
   border-left:3px solid #6366f1;font-size:12.5px;color:#aab6f5}
 .acch b{font-size:13.5px;font-weight:700}
-.acch span{font-size:11.5px;color:#9aa4b2;font-weight:600}
+.acch span{font-size:11.5px;color:#aeb8c6;font-weight:600}
 .acch i{font-style:normal;font-weight:700}
 .qm{display:inline-block;min-width:13px;height:13px;line-height:13px;text-align:center;
   border-radius:50%;background:#39424f;color:#c3cad6;font-size:10px;font-weight:700;
   margin-left:4px;padding:0 1px;cursor:pointer;vertical-align:middle}
-.tchip s.prb { color:#8b94a3; font-size:10.5px; font-weight:600; text-decoration:none; }
+.tchip s.prb { color:#9ba5b4; font-size:10.5px; font-weight:600; text-decoration:none; }
 .tchip s.prb.hi { color:#4fd79b; }
 .tchip s.prb.lo { color:#e8a13c; }
 .deadn { margin-top:6px; font-size:12px; color:#e5a468; background:rgba(229,164,104,.09); padding:4px 6px; border-radius:5px; line-height:1.5; }
@@ -179,32 +179,32 @@ td { border-top:1px solid #1d232c; }
 .sig1 b { margin-right:4px; }
 .vd { font-size:12.5px; }
 .wdt { margin-top:2px; }
-.wdt summary { font-size:10.5px; color:#68727f; cursor:pointer; }
+.wdt summary { font-size:10.5px; color:#8d97a6; cursor:pointer; }
 .wl1 { display:inline; }
 .wl1 > summary { display:inline; cursor:pointer; list-style:none; }
 .wl1 > summary::-webkit-details-marker { display:none; }
-.wl1 > summary::after { content:' ▸'; color:#68727f; font-size:10px; }
+.wl1 > summary::after { content:' ▸'; color:#8d97a6; font-size:10px; }
 .wl1[open] > summary::after { content:' ▾'; }
 .wl1 .wlx { display:block; margin-top:3px; }
-.prb2 { font-size:10px; color:#8b94a3; font-weight:700; }
+.prb2 { font-size:10px; color:#9ba5b4; font-weight:700; }
 .prb2.hi { color:#4fd79b; }
 .prb2.lo { color:#e8a13c; }
-.gp { font-size:10.5px; color:#68727f; margin-left:3px; }
-.dl { margin-top:4px; padding-top:3px; border-top:1px solid #1d232c; font-size:11.5px; color:#9aa4b2; line-height:1.5; font-variant-numeric:tabular-nums; }
+.gp { font-size:10.5px; color:#8d97a6; margin-left:3px; }
+.dl { margin-top:4px; padding-top:3px; border-top:1px solid #1d232c; font-size:11.5px; color:#aeb8c6; line-height:1.5; font-variant-numeric:tabular-nums; }
 .dl.hot { color:#e5a468; background:rgba(229,164,104,.09); padding:4px 5px; border-radius:5px; border-top:none; }
-.qf { font-size:12px; color:#a5aebc; margin-top:4px; padding-top:3px; border-top:1px solid #1d232c; font-variant-numeric:tabular-nums; }
+.qf { font-size:12px; color:#b6bfcc; margin-top:4px; padding-top:3px; border-top:1px solid #1d232c; font-variant-numeric:tabular-nums; }
 .ixrow { display:flex; gap:8px; flex-wrap:wrap; font-size:12px; font-variant-numeric:tabular-nums; margin-bottom:5px; }
-.ixrow span { color:#8b94a3; }
+.ixrow span { color:#9ba5b4; }
 .ixrow b { margin-left:3px; font-size:12.5px; }
 .ixrow .hot { background:rgba(244,101,95,.16); padding:0 5px; border-radius:4px; color:#ff8a80; font-weight:700; }
 .qt { width:100%; border-collapse:collapse; font-size:12.5px; font-variant-numeric:tabular-nums; }
-.qt th { font-weight:500; color:#68727f; font-size:10.5px; text-align:right; padding:2px 0; border-bottom:1px solid #1d232c; }
+.qt th { font-weight:500; color:#8d97a6; font-size:10.5px; text-align:right; padding:2px 0; border-bottom:1px solid #1d232c; }
 .qt th:first-child, .qt td:first-child { text-align:left; }
 .qt td { text-align:right; padding:2.5px 0; border-bottom:1px solid #171c23; }
 .qt td.nm { font-weight:600; font-size:12.5px; }
-.qt td.dim { color:#68727f; font-size:11px; }
+.qt td.dim { color:#8d97a6; font-size:11px; }
 .fold { margin-top:8px; border-top:1px dashed #2a323d; padding-top:6px; }
-.fold summary { cursor:pointer; font-size:12px; color:#68727f; list-style:none; }
+.fold summary { cursor:pointer; font-size:12px; color:#8d97a6; list-style:none; }
 .fold summary::-webkit-details-marker { display:none; }
 .fold summary::before { content:'▸ '; }
 .fold[open] summary::before { content:'▾ '; }
@@ -213,10 +213,10 @@ td { border-top:1px solid #1d232c; }
 .act .ad { font-size:12.5px; margin-top:2px; opacity:.96; line-height:1.45; }
 .tchip u { flex-basis:100%; text-decoration:none; font-size:11.5px; font-weight:700; margin-top:-1px; }
 .tchip:active { opacity:.6; }
-.tchip i { font-style:normal; font-size:11px; font-weight:700; color:#68727f; }
+.tchip i { font-style:normal; font-size:11px; font-weight:700; color:#8d97a6; }
 .tchip b { font-size:20px; font-weight:800; font-variant-numeric:tabular-nums; letter-spacing:.2px; }
 .tier.tb .tchip b { color:#4fd79b; } .tier.ts .tchip b { color:#ff8a80; }
-.tchip s { text-decoration:none; font-size:11px; color:#8b94a3; font-variant-numeric:tabular-nums; }
+.tchip s { text-decoration:none; font-size:11px; color:#9ba5b4; font-variant-numeric:tabular-nums; }
 .ffb { display:inline-block; width:8px; height:8px; border-radius:2px; margin:0 1px; vertical-align:-1px; }
 .qbox { display:flex; gap:6px; margin-top:9px; }
 .qbox input { flex:1; min-width:0; padding:8px 5px; border:1px solid #333c48; border-radius:7px; font-size:14px; text-align:right; font-variant-numeric:tabular-nums; background:#0f1319; color:#dde3ec; }
@@ -224,21 +224,21 @@ td { border-top:1px solid #1d232c; }
 .qpv { margin-top:3px; min-height:14px; }
 details.fold > summary { list-style:none; cursor:pointer; position:relative; padding-right:20px; }
 details.fold > summary::-webkit-details-marker { display:none; }
-details.fold > summary::after { content:'\25be'; position:absolute; right:2px; top:0; color:#68727f; display:inline-block; transition:transform .15s; }
+details.fold > summary::after { content:'\25be'; position:absolute; right:2px; top:0; color:#8d97a6; display:inline-block; transition:transform .15s; }
 details.fold[open] > summary::after { transform:rotate(180deg); }
 details.fold:not([open]) > summary { margin-bottom:0; }
-.ctog { border:none; background:transparent; font-size:13px; color:#68727f; padding:2px 4px; margin-left:4px; }
-.quickActions { position:fixed; left:50%; bottom:14px; transform:translateX(-50%); z-index:55; display:flex; gap:6px; padding:6px; background:rgba(20,24,30,.92); border:1px solid rgba(58,66,79,.9); border-radius:18px; box-shadow:0 8px 24px rgba(0,0,0,.5); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); }
-.quickActions button { width:38px; height:38px; border-radius:12px; border:1px solid #2a323d; background:#171c23; color:#7aa8ff; font-size:17px; line-height:1; cursor:pointer; }
+.ctog { border:none; background:transparent; font-size:13px; color:#8d97a6; padding:2px 4px; margin-left:4px; }
+.quickActions { position:fixed; left:50%; bottom:14px; transform:translateX(-50%); z-index:55; display:flex; gap:2px; padding:5px; background:rgba(20,24,30,.92); border:1px solid rgba(58,66,79,.9); border-radius:18px; box-shadow:0 8px 24px rgba(0,0,0,.5); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); }
+.quickActions button { height:34px; padding:0 14px; border-radius:11px; border:none; background:transparent; color:#c3cad6; font-size:13px; font-weight:600; letter-spacing:.04em; line-height:1; cursor:pointer; }
 .quickActions button:active { background:#1d2634; transform:translateY(1px); }
 @media (min-width:700px) { .quickActions { left:auto; right:20px; transform:none; } }
-.foot { font-size:11.5px; color:#68727f; line-height:1.6; margin-top:8px; padding:0 2px; }
+.foot { font-size:11.5px; color:#8d97a6; line-height:1.6; margin-top:8px; padding:0 2px; }
 </style>
 </head>
 <body>
 <div class="top">
   <h1>我的持仓 · 行情</h1>
-  <div class="btns"><button class="cp" onclick="copyPlan()">复制计划</button><button class="ed" id="edBtn" onclick="toggleEdit()">编辑</button><button class="rf" onclick="refresh(1)">刷新</button></div>
+  <div class="btns"><button class="ed" id="edBtn" onclick="toggleEdit()">编辑</button><button class="rf" onclick="refresh(1)">刷新</button></div>
 </div>
 <div class="navSticky" id="navSticky">
   <button onclick="document.getElementById('sum').scrollIntoView({behavior:'smooth',block:'start'})">总览</button>
@@ -389,10 +389,10 @@ details.fold:not([open]) > summary { margin-bottom:0; }
 <div class="foot"></div>
 
 <div class="quickActions" id="quickActions">
-  <button title="+记一笔" aria-label="+记一笔" onclick="document.getElementById('tboxMain').scrollIntoView({behavior:'smooth',block:'center'});setTimeout(()=>document.getElementById('tSell').focus(),250)">📝</button>
-  <button title="+观察" aria-label="+观察" onclick="addSec('watch');setTimeout(()=>document.getElementById('fWatch').scrollIntoView({behavior:'smooth',block:'center'}),100)">👁</button>
-  <button title="+挂单" aria-label="+挂单" onclick="document.getElementById('foldPlan').scrollIntoView({behavior:'smooth',block:'center'})">📋</button>
-  <button title="↓复盘" aria-label="↓复盘" onclick="document.getElementById('rvBox').scrollIntoView({behavior:'smooth',block:'center'})">📊</button>
+  <button onclick="document.getElementById('tboxMain').scrollIntoView({behavior:'smooth',block:'center'});setTimeout(()=>document.getElementById('tSell').focus(),250)">记一笔</button>
+  <button onclick="addSec('watch');setTimeout(()=>document.getElementById('fWatch').scrollIntoView({behavior:'smooth',block:'center'}),100)">观察</button>
+  <button onclick="document.getElementById('foldPlan').scrollIntoView({behavior:'smooth',block:'center'})">挂单</button>
+  <button onclick="document.getElementById('rvBox').scrollIntoView({behavior:'smooth',block:'center'})">复盘</button>
 </div>
 
 <script>
@@ -736,7 +736,7 @@ function renderRV(){
    +'<div style="margin-top:3px"><b style="color:#cfd6e0">下一步:</b> '
    +(off>withPlan*0.4 ? '①对标实时K线，调整档位区间宽度；②记录偏离的时间和原因，找规律'
       : '保持现状并做统计，连续3个交易日偏离<30%则档位稳定')+'</div>'
-   +'<div style="margin-top:3px;color:#98a2b3"><b>限制:</b> 偏离不等于错误 = 你可能比档位更敏锐；不偏离也不一定对 = 档位可能设的太保守</div>'
+   +'<div style="margin-top:3px;color:#a9b3c2"><b>限制:</b> 偏离不等于错误 = 你可能比档位更敏锐；不偏离也不一定对 = 档位可能设的太保守</div>'
    +'</div></div>';
 
   // ② 卖飞倾向 —— 问题-证据-原因-下一步-限制
@@ -746,7 +746,7 @@ function renderRV(){
     if(px==null||!(px>0)){ skip++; return; }
     vN++; const g=(px/r.sell-1)*100; gaps.push(g); if(g>0.3) flew++; });
   H+='<div style="border-top:1px solid #232a33;padding:7px 0"><b>② 卖飞倾向</b>';
-  if(vN<MIN){ H+='<div style="margin-top:5px;padding:5px;background:#1b212a;border-radius:4px;font-size:13px"><b style="color:#98a2b3">证据不足:</b> 卖出记录只有 <b>'+vN+'</b> 笔，不够 '+MIN+' 笔 = 样本太小的结论比没有结论更危险</div>'; }
+  if(vN<MIN){ H+='<div style="margin-top:5px;padding:5px;background:#1b212a;border-radius:4px;font-size:13px"><b style="color:#a9b3c2">证据不足:</b> 卖出记录只有 <b>'+vN+'</b> 笔，不够 '+MIN+' 笔 = 样本太小的结论比没有结论更危险</div>'; }
   else { const avg=gaps.reduce((a,b)=>a+b,0)/gaps.length;
     const rate=Math.round(flew/vN*100);
     H+='<div style="margin-top:5px;padding:5px;background:#1b212a;border-radius:4px;font-size:13px">'
@@ -759,9 +759,9 @@ function renderRV(){
      +'<div style="margin-top:3px"><b style="color:#cfd6e0">下一步:</b> '
      +(rate>=60 ? '① 对卖出单分类：是否都在第一波涨幅阶段；② 改成分批卖出，不一次性清空；③ 增加卖出条件：等待15分失效信号或日线失效'
         : '① 保持现有策略；② 统计卖后平均多少天价格回落，找最优持有周期')+'</div>'
-     +'<div style="margin-top:3px;color:#98a2b3"><b>限制:</b> 当前价高于卖价 ≠ 当时该拿着(你已在更低价接回的情况无法检测) | 当前价低于卖价 ≠ 卖对了(只是抄底成功，不代表卖出逻辑正确)</div>'
+     +'<div style="margin-top:3px;color:#a9b3c2"><b>限制:</b> 当前价高于卖价 ≠ 当时该拿着(你已在更低价接回的情况无法检测) | 当前价低于卖价 ≠ 卖对了(只是抄底成功，不代表卖出逻辑正确)</div>'
      +'</div>'; }
-  if(skip) H+='<div style="margin-top:3px;color:#98a2b3;padding:0 5px"><b>跳过:</b> '+skip+' 笔代码不在行情列表，已忽略</div>';
+  if(skip) H+='<div style="margin-top:3px;color:#a9b3c2;padding:0 5px"><b>跳过:</b> '+skip+' 笔代码不在行情列表，已忽略</div>';
   H+='</div>';
 
   // ③ 接回时机 —— 问题-证据-原因-下一步-限制
@@ -771,7 +771,7 @@ function renderRV(){
     if(px==null||!(px>0)){ bSkip++; return; }
     bN++; const bg=(px/r.buy-1)*100; buyGaps.push(bg); if(bg<-0.3) tooEarly++; });
   H+='<div style="border-top:1px solid #232a33;padding:7px 0"><b>③ 接回时机</b>';
-  if(bN<MIN){ H+='<div style="margin-top:5px;padding:5px;background:#1b212a;border-radius:4px;font-size:13px"><b style="color:#98a2b3">证据不足:</b> 买入记录只有 <b>'+bN+'</b> 笔，不够 '+MIN+' 笔 = 无法形成统计</div>'; }
+  if(bN<MIN){ H+='<div style="margin-top:5px;padding:5px;background:#1b212a;border-radius:4px;font-size:13px"><b style="color:#a9b3c2">证据不足:</b> 买入记录只有 <b>'+bN+'</b> 笔，不够 '+MIN+' 笔 = 无法形成统计</div>'; }
   else { const bAvg=buyGaps.reduce((a,b)=>a+b,0)/buyGaps.length;
     const bRate=Math.round(tooEarly/bN*100);
     H+='<div style="margin-top:5px;padding:5px;background:#1b212a;border-radius:4px;font-size:13px">'
@@ -784,9 +784,9 @@ function renderRV(){
      +'<div style="margin-top:3px"><b style="color:#cfd6e0">下一步:</b> '
      +(bRate>=60 ? '① 记录每次买入时距前低点的距离和幅度；② 设置最小回撤确认标准(如-2%以上才能接)；③ 先用1/3仓位试买'
         : '① 继续观察接回逻辑；② 统计接回后平均几天反弹，优化接回周期')+'</div>'
-     +'<div style="margin-top:3px;color:#98a2b3"><b>限制:</b> 接回后继续跌 ≠ 接回决策错 (可能后面成功反弹了，只是今天还没反) | 接回后涨了 ≠ 接对了 (可能是运气，而非底部判断准确)</div>'
+     +'<div style="margin-top:3px;color:#a9b3c2"><b>限制:</b> 接回后继续跌 ≠ 接回决策错 (可能后面成功反弹了，只是今天还没反) | 接回后涨了 ≠ 接对了 (可能是运气，而非底部判断准确)</div>'
      +'</div>'; }
-  if(bSkip) H+='<div style="margin-top:3px;color:#98a2b3;padding:0 5px"><b>跳过:</b> '+bSkip+' 笔代码不在行情列表，已忽略</div>';
+  if(bSkip) H+='<div style="margin-top:3px;color:#a9b3c2;padding:0 5px"><b>跳过:</b> '+bSkip+' 笔代码不在行情列表，已忽略</div>';
   H+='</div>';
 
   // ④ 手续费占比 —— 问题-证据-原因-下一步-限制
@@ -804,7 +804,7 @@ function renderRV(){
    +'<div style="margin-top:3px"><b style="color:#cfd6e0">下一步:</b> '
    +(Math.abs(net)>1&&fee/Math.abs(net)*100>30 ? '① 对比不同交易对的手续费率；② 减少不必要的平多转空；③ 考虑批量交易或主账户手续费优惠'
       : '保持现状，继续追踪月度手续费占比')+'</div>'
-   +'<div style="margin-top:3px;color:#98a2b3"><b>限制:</b> 高手续费不代表坏 (频繁交易说明活跃，不一定亏) | 低手续费不代表好 (可能是冬眠，手续费少只因为没交易)</div>'
+   +'<div style="margin-top:3px;color:#a9b3c2"><b>限制:</b> 高手续费不代表坏 (频繁交易说明活跃，不一定亏) | 低手续费不代表好 (可能是冬眠，手续费少只因为没交易)</div>'
    +'</div></div>';
 
   // ⑤ 日线/15分冲突 —— 快速警告
