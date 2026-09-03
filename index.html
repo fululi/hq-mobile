@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#0b0e12">
-<title>我的持仓 · 行情 v5.66</title>
+<title>我的持仓 · 行情 v5.67</title>
 <style>
 /* v5.46 完整版换肤:暗色行情终端。只动皮肤——所有类名/布局/交互结构原样,计算逻辑零改动。
    调色板: 底#0b0e12 卡#14181e 描边#232a33 主文#dde3ec 次文#b0bac7 涨#f4655f 跌#2ebd7f 强调#4c8dff */
@@ -37,6 +37,15 @@ body { margin:0; padding:14px 12px 92px; background:#0b0e12; color:#dde3ec;
 .ed.on { color:#0b0e12; background:#e0a400; border-color:#e0a400; }
 .cp { color:#5cc8d8; }
 .time { font-size:12px; color:#8d97a6; margin:2px 0 12px; font-variant-numeric:tabular-nums; }
+.ovbd { background:#14181e; border:1px solid #232a33; border-radius:14px; padding:12px; margin-bottom:14px; }
+.ovhd { display:flex; justify-content:space-between; align-items:baseline; padding:0 4px 10px; border-bottom:1px solid #1d232c; margin-bottom:10px; }
+.ovhd span { font-size:12px; font-weight:700; color:#b0bac7; letter-spacing:.1em; }
+.ovhd span::before { content:''; display:inline-block; width:8px; height:8px; background:#4c8dff; border-radius:2px; margin-right:7px; vertical-align:0; }
+.ovhd b { font-size:22px; font-weight:760; font-variant-numeric:tabular-nums; letter-spacing:.06em; color:#e8edf4; }
+.ovbd .sum { border:none; background:#12161c; margin-bottom:10px; }
+.ovbd .idx { margin-bottom:10px; }
+.ovbd .idx .c { background:#12161c; }
+.ovbd .mkt { margin:0 2px 10px; }
 .sum { background:#14181e; border:1px solid #232a33; border-radius:12px; padding:14px 16px; margin-bottom:14px; display:flex; justify-content:space-between; }
 .sum .b .k { font-size:11px; color:#b0bac7; letter-spacing:.08em; } .sum .b .v { font-size:24px; font-weight:760; font-variant-numeric:tabular-nums; margin-top:3px; letter-spacing:.01em; }
 .idx { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:16px; }
@@ -262,6 +271,8 @@ details.fold:not([open]) > summary { margin-bottom:0; }
 <div class="navStk" id="navStk" style="display:none"></div>
 <div class="time" id="time">加载中…</div>
 
+<div class="ovbd">
+<div class="ovhd"><span>■ 总览看板</span><b id="ovClock">--:--:--</b></div>
 <div class="sum" id="sum" style="display:none">
   <div class="b"><div class="k">持仓总市值</div><div class="v flat" id="sumMv">—</div></div>
   <div class="b" style="text-align:center"><div class="k">今日盈亏</div><div class="v" id="sumDay">—</div></div>
@@ -271,9 +282,10 @@ details.fold:not([open]) > summary { margin-bottom:0; }
 <div class="idx" id="idx"></div>
 <div class="mkt" id="mkt"></div>
 
-<div class="card" id="syncCard" style="display:none">
+<div class="card" id="syncCard" style="display:none;border:none;background:#12161c">
   <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px"><b style="font-size:14px">联动监控 · 指数带动谁</b><span class="sub" id="syncDate"></span></div>
   <div id="syncBody" style="font-size:13px;line-height:1.9"></div>
+</div>
 </div>
 
 <div class="sec"><span>持仓</span><button class="add" onclick="addSec('hold')">＋添加持仓</button></div>
@@ -3198,7 +3210,7 @@ function doRender(){
       </div>
       <div class="proj"><span>${planLbl()}${_td.slice(5)}预判 <b class="flat">${preStr}</b><span class="qm" onclick="preWhy('${h.code}','${h.name}')">?</span>${PREHIT[h.code]?`<span class="sub" style="font-size:10px"> 实测${PREHIT[h.code].inr}%不出界</span>`:''}</span><span class="sub">${posTxt}${ampNote} · ${anchorNote(h.code,prev,p)}</span></div>
       <div class="proj" style="margin-top:2px"><span>${actRow(h.code,p,prev,lo,hi,_aLo,_aHi,_qd)}</span></div>
-      ${(tr.buys[0]&&tr.sells[0])?`<div class="proj" style="margin-top:2px"><span>📌 ${planLbl()}计划一句话: <b class="down">${P(tr.buys[0])}接</b> → <b class="up">${P(tr.sells[0])}抛</b> · 差${(tr.sells[0]-tr.buys[0]).toFixed(2)}元/股 · 100股净≈<b>${(()=>{try{const _f=feeOf(tr.sells[0],tr.buys[0],100,100,h.code).fee;return sg(Math.round((tr.sells[0]-tr.buys[0])*100-_f));}catch(e){return '—';}})()}元</b></span></div>`:''}
+      ${(tr.buys[0]&&tr.sells[0])?`<div class="proj" style="margin-top:2px"><span>📌 ${planLbl()}计划一句话: <b class="down">${P(tr.buys[0])}接${(()=>{const rc0=refCloseOf(p,prev);return rc0?'(水下'+((1-tr.buys[0]/rc0)*100).toFixed(1)+'%)':'';})()}</b> → <b class="up">${P(tr.sells[0])}抛${(()=>{const rc0=refCloseOf(p,prev);return rc0?'(水上'+((tr.sells[0]/rc0-1)*100).toFixed(1)+'%)':'';})()}</b> = 全程<b>${((tr.sells[0]/tr.buys[0]-1)*100).toFixed(1)}点</b> · 100股净≈<b>${(()=>{try{const _f=feeOf(tr.sells[0],tr.buys[0],100,100,h.code).fee;return sg(Math.round((tr.sells[0]-tr.buys[0])*100-_f));}catch(e){return '—';}})()}元</b></span></div>`:''}
       <details class="fold" data-fk="cy-${h.code}"><summary>周期情报 · 日线Fib / 15分 / 三角（点开看细节）</summary>
       ${fibLine(lg,p)}
       ${m15FibLine(M15FIB[h.code], p, h.code)}
@@ -3638,6 +3650,10 @@ function notifyCheck(){
   if(dirty) try{ localStorage.setItem('hqm_ntfy_sent',JSON.stringify(sent)); }catch(e){}
 }
 try{ ntfyBtnUI(); }catch(e){}
+// v5.67 总览看板走秒时钟
+setInterval(()=>{ const el=document.getElementById('ovClock'); if(!el) return;
+  const d=new Date(), z=v=>String(v).padStart(2,'0');
+  el.textContent=z(d.getHours())+':'+z(d.getMinutes())+':'+z(d.getSeconds()); },1000);
 // v5.53 复盘中心页签
 function rvTab(t){
   const map={rv:'rvBox',fc:'fcBox',cl:'clWrap'};
@@ -3664,7 +3680,7 @@ function zoomBt(i,dir){ const all=BTROWS[i]; if(!all) return;
 function loadMK(code,scale,cb){
   const key=code+'_'+scale, c=MKC[key], n=Date.now();
   if(c&&n-c.t<60000){ cb(c.rows); return; }
-  const dl=scale===5?96:80;
+  const dl=320; // v5.67: 多拉历史(5分≈4天),默认只显示尾部,左拖才有东西看
   const mapT=arr=>{ if(!Array.isArray(arr)) return null;
     const out=arr.map(r=>Array.isArray(r)?[normM15Time(r[0]),+r[1],+r[3],+r[4],+r[2],+r[5]||0]:null)
       .filter(r=>r&&[1,2,3,4].every(j=>Number.isFinite(r[j]))); return out.length?out:null; }; // 腾讯序:时开收高低量→[t,开,高,低,收,量]
@@ -3730,10 +3746,10 @@ function bindBattle(cv,i){
     if(bd&&ALINE[bd.code]!=null&&cv._pmin!=null&&Math.abs(p.y-priceToY(ALINE[bd.code]))<26){ mode='aline'; return; }
     // 长按0.25秒 → 十字线跟手
     clearTimeout(timer);
-    timer=setTimeout(()=>{ if(!moved&&mode==null){ mode='cross'; BTX[i]={x:sx,y:sy}; throt(); } },250); };
+    timer=setTimeout(()=>{ if(!moved&&mode==null){ mode='cross'; BTX[i]={x:sx,y:sy}; throt(); } },350); };
   const mv=e=>{ const p=px(e), all=BTROWS[i]; if(!all||!cv._vn) return;
     const dx=p.x-sx, dy=p.y-sy;
-    if(!moved&&(Math.abs(dx)>4||Math.abs(dy)>4)) moved=true;
+    if(!moved&&(Math.abs(dx)>12||Math.abs(dy)>12)) moved=true;
     if(mode==='aline'){ const bd=BATTLE[i]; if(bd&&cv._pmin!=null){
         ALINE[bd.code]=+yToPrice(Math.max(cv._T,Math.min(cv._PB,p.y))).toFixed(bd.p3?3:2); throt(); } return; }
     if(mode==='yscale'){ const yr=BTYR[i]; if(yr){ const dyl=p.y-sy; sy=p.y;
@@ -3780,12 +3796,14 @@ function paintBattle(i){
   cv.style.width='100%'; cv.style.height='310px'; // 双保险:CSS坏了也不许画布自我膨胀
   const _cssW=(cv.parentElement&&cv.parentElement.clientWidth)||cv.clientWidth||360;
   const _all=BTROWS[i];
-  let rows=_all;
+  let rows=_all, _g0=0;
   if(_all){
+    if(BTN[i]==null&&_all.length>90) BTN[i]=72; // v5.67: 默认视野=最近72根,留出历史可拖
     const vn=(BTN[i]&&BTN[i]<_all.length)?BTN[i]:_all.length;
     let off=BTS[i]||0; off=Math.max(0,Math.min(_all.length-vn,off));
     const end=_all.length-off;
-    rows=_all.slice(end-vn,end);
+    _g0=end-vn;
+    rows=_all.slice(_g0,end);
     cv._vn=vn;
   }
   const _wantW=Math.max(200,_cssW*2);
@@ -3851,8 +3869,9 @@ function paintBattle(i){
     offs.push(['上沿',bd.preHi],['下沿',bd.preLo]);
     let upN=0, dnN=0; x.font='17px -apple-system';
     offs.forEach(o=>{ const q=o[1]; if(q==null) return;
-      if(q>pmax&&upN<3){ x.fillStyle='#8d97a6'; x.textAlign='left'; x.fillText('↑'+o[0]+' '+fmt(q),L+6+upN*150,T+18); upN++; }
-      else if(q<pmin&&dnN<3){ x.fillStyle='#8d97a6'; x.textAlign='left'; x.fillText('↓'+o[0]+' '+fmt(q),L+6+dnN*150,PB-6); dnN++; } });
+      if(q>pmax&&upN<3){ x.fillStyle='#8d97a6'; x.textAlign='right'; x.fillText('↑'+o[0]+' '+fmt(q),W-R-6-upN*130,T+16); upN++; }
+      else if(q<pmin&&dnN<3){ x.fillStyle='#8d97a6'; x.textAlign='left'; x.fillText('↓'+o[0]+' '+fmt(q),L+6+dnN*130,PB-22); dnN++; } });
+    x.textAlign='left';
   }
   // 回归通道(全窗)
   if(rows.length>=20){
@@ -3882,7 +3901,7 @@ function paintBattle(i){
       const yy=Y(cpv/cvv), xx=X(j);
       st?x.lineTo(xx,yy):x.moveTo(xx,yy); st=true; }
     x.stroke();
-    x.fillStyle='#e0b64f'; x.font='17px -apple-system'; x.textAlign='left'; x.fillText('— 当日均价',L+6,PB-8); }
+    x.fillStyle='#e0b64f'; x.font='15px -apple-system'; x.textAlign='right'; x.fillText('— 当日均价',W-R-6,PB-8); x.textAlign='left'; }
   // 摆动高低点
   const w2=5, lows=[], highs=[];
   for(let g=w2;g<rows.length-1;g++){
@@ -3916,11 +3935,13 @@ function paintBattle(i){
     x.fillStyle='#aeb8c6'; x.fillText(rows[j][0].slice(5,10),xx+4,H-12); }
   // 副图MACD
   const ema=(arr,nn2)=>{ const k=2/(nn2+1), out=[]; let e=arr[0]; for(const q of arr){ e=q*k+e*(1-k); out.push(e); } return out; };
-  const cls5=rows.map(r=>r[4]);
-  const e12=ema(cls5,12), e26=ema(cls5,26);
-  const dif=cls5.map((_,j)=>e12[j]-e26[j]), dea=ema(dif,9);
+  // v5.67: MACD必须全量数据算再按窗口取——按切片算的话拖一下数值就变,是假MACD
+  const clsA=_all.map(r=>r[4]);
+  const e12A=ema(clsA,12), e26A=ema(clsA,26);
+  const difA=clsA.map((_,j)=>e12A[j]-e26A[j]), deaA=ema(difA,9);
+  const dif=rows.map((_,j)=>difA[_g0+j]), dea=rows.map((_,j)=>deaA[_g0+j]);
   const hist=dif.map((q,j)=>q-dea[j]);
-  const WARM=12;
+  const WARM=Math.max(0,26-_g0); // 全量前26根是预热,窗口若已在其后则整窗可画
   let mm=0; for(let j=WARM;j<rows.length;j++) mm=Math.max(mm,Math.abs(dif[j]),Math.abs(dea[j]),Math.abs(hist[j]));
   if(mm===0) mm=1;
   const Ym=q=>{ const mid=(MT+MB)/2; return mid-(q/mm)*((MB-MT)/2-8); };
