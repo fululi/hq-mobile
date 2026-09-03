@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#0b0e12">
-<title>我的持仓 · 行情 v5.50</title>
+<title>我的持仓 · 行情 v5.51</title>
 <style>
 /* v5.46 完整版换肤:暗色行情终端。只动皮肤——所有类名/布局/交互结构原样,计算逻辑零改动。
    调色板: 底#0b0e12 卡#14181e 描边#232a33 主文#dde3ec 次文#9ba5b4 涨#f4655f 跌#2ebd7f 强调#4c8dff */
@@ -2846,6 +2846,7 @@ function render(){
 function doRender(){
   const _ae=document.activeElement, _aid=_ae&&_ae.id, _av=_ae&&_ae.value, _as=_ae&&_ae.selectionStart;
   const _fo={}; document.querySelectorAll('details[data-fk]').forEach(d=>{ if(d.open) _fo[d.getAttribute('data-fk')]=1; });
+  Object.keys(FKO).forEach(k=>{ if(FKO[k]) _fo[k]=1; }); // v5.51: 合并本机记住的开合状态
   let when='';
   document.getElementById('idx').innerHTML = IDX.map(([c,n])=>{
     const f=GET(c); if(!f) return ''; const p=F(f,3),pct=F(f,32),prev=F(f,4); if(f[30]&&f[30].length>=14) when=f[30];
@@ -3161,6 +3162,8 @@ function doRender(){
           return t; })()}</div></div>
       <div class="cbody" style="${(COLL[h.code]&&!editMode)?'display:none':''}">
       ${actBar}
+      ${(BATTLE[i]={code:h.code,buys:tr.buys,sells:tr.sells,preLo:preLo,preHi:preHi,cost:h.cost,p3:(p!=null&&p<10)},'')}
+      <details class="fold" data-fk="bt-${i}" ontoggle="battleOpen(${i})" style="margin-top:6px;border-top:none;padding-top:0"><summary>盘中作战图 · 5分K+档位色带 · 副图MACD+背离</summary><canvas id="btc_${i}" class="btc"></canvas></details>
       <div class="grid2">
         <div class="kv"><div class="k">回撤/盈亏率</div><div class="val ${dd!=null?cls(dd):'flat'}">${dd!=null?sg(dd.toFixed(2))+'%':'—'}</div></div>
         <div class="kv"><div class="k">浮动盈亏</div><div class="val ${pnl!=null?cls(pnl):'flat'}">${pnl!=null?sg(Math.round(pnl).toLocaleString()):'—'}</div><div class="k" style="margin-top:1px">今日 ${todayPnl!=null?sg(Math.round(todayPnl)):'—'}${_tdRealized?'<span class="sub" style="font-size:9px"> (含做T'+sg(Math.round(_tdRealized))+')</span>':''}</div></div>
@@ -3176,8 +3179,6 @@ function doRender(){
       </details>
       <div class="proj vrd"><span><span class="dim" style="font-weight:600">日线·周线</span> 📋 <b style="color:${vCls(vd)}">${vd}</b></span></div>
       ${tradeZone}
-      ${(BATTLE[i]={code:h.code,buys:tr.buys,sells:tr.sells,preLo:preLo,preHi:preHi,cost:h.cost,p3:(p!=null&&p<10)},'')}
-      <details class="fold" data-fk="bt-${i}" ontoggle="battleOpen(${i})"><summary>盘中作战图 · 5分K+档位色带 · 副图MACD+背离</summary><canvas id="btc_${i}" class="btc"></canvas></details>
       <a href="https://fululi.github.io/k-station/?code=${h.code}&lines=${tr.buys.map(x=>'b'+x.toFixed(2)).concat(tr.sells.map(x=>'s'+x.toFixed(2))).join(',')}" style="display:block;text-align:center;margin-top:8px;padding:8px;border-radius:8px;background:#2563eb;color:#fff;text-decoration:none;font-size:13px;font-weight:600">📈 看K线（做T价位已自动画好）</a>
       <details class="fold" data-fk="vd-${h.code}"><summary>波动数据 · 信号跟踪 · 分档理由（想深究再点）</summary>
       ${legTxt}
@@ -3563,6 +3564,12 @@ function renderPaper(){
   },{root:null,rootMargin:'-72px 0px -58% 0px',threshold:[0,0.1,0.5]});
   ids.map(id=>document.getElementById(id)).filter(Boolean).forEach(el=>io.observe(el));
 })();
+// v5.51: 折叠开合状态存本机——你点开过的面板(作战图/周期情报等)刷新和重开都保持展开
+let FKO={}; try{ FKO=JSON.parse(localStorage.getItem('hqm_fko_v1')||'{}'); }catch(e){}
+document.addEventListener('toggle',e=>{ const d=e.target; if(!d||!d.getAttribute) return;
+  const k=d.getAttribute('data-fk'); if(!k) return;
+  if(d.open) FKO[k]=1; else delete FKO[k];
+  try{ localStorage.setItem('hqm_fko_v1',JSON.stringify(FKO)); }catch(e2){} },true);
 refresh();
 // v5.49 盘中作战图: 5分钟K(近2天)+低吸/高抛色带+预判区间虚线+成本线,画进卡片。
 // 数据走新浪5分K(与15分同一接口),60秒缓存;纯canvas零依赖。
