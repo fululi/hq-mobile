@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#0b0e12">
-<title>我的持仓 · 行情 v5.52</title>
+<title>我的持仓 · 行情 v5.53</title>
 <style>
 /* v5.46 完整版换肤:暗色行情终端。只动皮肤——所有类名/布局/交互结构原样,计算逻辑零改动。
    调色板: 底#0b0e12 卡#14181e 描边#232a33 主文#dde3ec 次文#9ba5b4 涨#f4655f 跌#2ebd7f 强调#4c8dff */
@@ -232,6 +232,9 @@ details.fold:not([open]) > summary { margin-bottom:0; }
 .quickActions button { height:34px; padding:0 14px; border-radius:11px; border:none; background:transparent; color:#c3cad6; font-size:13px; font-weight:600; letter-spacing:.04em; line-height:1; cursor:pointer; }
 .quickActions button:active { background:#1d2634; transform:translateY(1px); }
 @media (min-width:700px) { .quickActions { left:auto; right:20px; transform:none; } }
+.rvtabs { display:flex; gap:3px; margin:0 0 8px; background:#14181e; border:1px solid #232a33; border-radius:10px; padding:4px; }
+.rvtabs button { flex:1; border:0; background:none; color:#9ba5b4; font-size:13px; font-weight:600; padding:8px 4px; border-radius:7px; letter-spacing:.04em; }
+.rvtabs button.on { background:#1d2634; color:#f2f5f9; }
 .btc { width:100%; height:280px; display:block; border-radius:8px; margin-top:6px; background:#12161c; }
 .foot { font-size:11.5px; color:#8d97a6; line-height:1.6; margin-top:8px; padding:0 2px; }
 </style>
@@ -308,10 +311,20 @@ details.fold:not([open]) > summary { margin-bottom:0; }
 </details>
 
 <!-- v5.45: "做T回测·样本外"板块按用户要求撤下(结论已吃进趋势过滤/档位逻辑,面板本身没人看) -->
-<div class="sec"><span>预判复盘 · 场次账</span><span class="sub">每场预判冻结存档,收盘后日K结算</span></div>
-<div id="fcBox" class="card"><div class="sub">积累中…</div></div>
-<div class="sec"><span>实盘复盘 · 你自己的成交</span><span class="sub" id="rvSum"></span></div>
+<!-- v5.53 复盘中心: 实盘复盘/预判场次/清仓档案 三块合一,页签切换,记住停在哪页;信息只合不删 -->
+<div class="sec"><span>复盘中心</span><span class="sub" id="rvSum"></span></div>
+<div class="rvtabs" id="rvTabs">
+  <button data-t="rv" class="on" onclick="rvTab('rv')">实盘复盘</button>
+  <button data-t="fc" onclick="rvTab('fc')">预判场次</button>
+  <button data-t="cl" onclick="rvTab('cl')">清仓档案</button>
+</div>
 <div id="rvBox" class="card"><div class="sub">读你自己的台账,不改任何数据</div></div>
+<div id="fcBox" class="card" style="display:none"><div class="sub">积累中…</div></div>
+<div id="clWrap" style="display:none">
+  <div class="sub" id="clSum" style="margin:0 2px 6px"></div>
+  <div class="card tbl" id="closedList" style="display:none"></div>
+  <div class="sub" id="clEmpty" style="padding:4px 2px 10px">还没有清仓记录 —— 哪只票全卖光了,这里自动沉淀一条</div>
+</div>
 
 <div class="sec"><span id="tTitle">做T计划</span><span class="sub" id="tSum"></span>
   <span class="sub">概率窗口
@@ -372,8 +385,6 @@ details.fold:not([open]) > summary { margin-bottom:0; }
 <div class="trec"><span>本周做T(周一起)</span><span class="v" id="tWeek">—</span></div>
 <div class="trec"><span>本月做T</span><span class="v" id="tMonth">—</span></div>
 <div class="trec"><span>行为样本 <span class="sub">(满30笔开模式分析)</span></span><span class="v" id="tSamp">—</span></div>
-<div class="sec"><span>清仓档案 · 数据沉淀</span><span class="sub" id="clSum"></span></div>
-<div class="card tbl" id="closedList" style="display:none"></div>
 <div class="sec"><span>历史记录</span><span class="sub" id="tCum"></span></div>
 <div class="qtys" style="margin:-4px 0 8px"><span>台账:</span>
   <button onclick="exportCSV()">📤 导出CSV(Excel)</button>
@@ -2744,6 +2755,7 @@ function renderClosed(){
     +'<span class="'+cls(r.profit)+'" style="font-weight:700">实现 '+sg(Math.round(r.profit))+'<br><span class="sub" style="font-weight:400">该票累计净'+sg(Math.round(cum[r.code]))+'</span></span>'
     +'<span></span></div>'; }).join('');
   el.style.display='block';
+  { const ce=document.getElementById('clEmpty'); if(ce) ce.style.display='none'; }
   if(sEl) sEl.textContent=list.length+'只已清仓 · 实现合计 '+sg(Math.round(list.reduce((a,r)=>a+r.profit,0)));
 }
 // v4.54: 今日仓位变动面板——今日每票 股数/成本怎么变、投入还是回笼多少、已实现合计,一眼看清
@@ -3570,6 +3582,14 @@ document.addEventListener('toggle',e=>{ const d=e.target; if(!d||!d.getAttribute
   const k=d.getAttribute('data-fk'); if(!k) return;
   if(d.open) FKO[k]=1; else delete FKO[k];
   try{ localStorage.setItem('hqm_fko_v1',JSON.stringify(FKO)); }catch(e2){} },true);
+// v5.53 复盘中心页签
+function rvTab(t){
+  const map={rv:'rvBox',fc:'fcBox',cl:'clWrap'};
+  Object.keys(map).forEach(k=>{ const e=document.getElementById(map[k]); if(e) e.style.display=(k===t?'':'none'); });
+  document.querySelectorAll('#rvTabs button').forEach(b=>b.classList.toggle('on',b.getAttribute('data-t')===t));
+  try{ localStorage.setItem('hqm_rvtab',t); }catch(e){}
+}
+try{ rvTab(localStorage.getItem('hqm_rvtab')||'rv'); }catch(e){}
 refresh();
 // v5.49 盘中作战图: 5分钟K(近2天)+低吸/高抛色带+预判区间虚线+成本线,画进卡片。
 // 数据走新浪5分K(与15分同一接口),60秒缓存;纯canvas零依赖。
