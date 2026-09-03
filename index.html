@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#0b0e12">
-<title>我的持仓 · 行情 v5.54</title>
+<title>我的持仓 · 行情 v5.55</title>
 <style>
 /* v5.46 完整版换肤:暗色行情终端。只动皮肤——所有类名/布局/交互结构原样,计算逻辑零改动。
    调色板: 底#0b0e12 卡#14181e 描边#232a33 主文#dde3ec 次文#9ba5b4 涨#f4655f 跌#2ebd7f 强调#4c8dff */
@@ -243,7 +243,7 @@ details.fold:not([open]) > summary { margin-bottom:0; }
 <body>
 <div class="top">
   <h1>我的持仓 · 行情</h1>
-  <div class="btns"><button class="ed" id="edBtn" onclick="toggleEdit()">编辑</button><button class="rf" onclick="refresh(1)">刷新</button></div>
+  <div class="btns"><button class="ed" id="ntfyBtn" onclick="toggleNtfy()">提醒</button><button class="ed" id="edBtn" onclick="toggleEdit()">编辑</button><button class="rf" onclick="refresh(1)">刷新</button></div>
 </div>
 <div class="navSticky" id="navSticky">
   <button onclick="document.getElementById('sum').scrollIntoView({behavior:'smooth',block:'start'})">总览</button>
@@ -2080,6 +2080,7 @@ function confirmAdd(type){
 }
 // 点两下删除(不依赖confirm弹窗)
 let _lastDeletedWatch=null, _deleteTimer=null;
+function togFav(i){ const w=PF.watch[i]; if(!w) return; w.fav=!w.fav; save(); toast(w.fav?('★ '+w.name+' 已置顶'):(w.name+' 取消置顶')); render(); }
 function delItem(btn,type,i){
   if(!btn.dataset.armed){ btn.dataset.armed='1'; const old=btn.textContent; btn.textContent='确认?';
     setTimeout(()=>{ btn.dataset.armed=''; btn.textContent=old; },2500); return; }
@@ -3219,7 +3220,8 @@ function doRender(){
         return `<span onclick="document.getElementById('hcard_${i}').scrollIntoView({behavior:'smooth',block:'start'})">${lb}<b class="${cls(pc)}">${pc!=null?sg(pc.toFixed(1))+'%':''}</b></span>`; }).join('');
       nvs.style.display=_ord.length?'flex':'none'; } }
 
-  document.getElementById('watch').innerHTML = PF.watch.map((w,i)=>{
+  const _wOrd=PF.watch.map((_,j)=>j).sort((a,b)=>((PF.watch[b].fav?1:0)-(PF.watch[a].fav?1:0))||a-b); // v5.55 ★置顶
+  document.getElementById('watch').innerHTML = _wOrd.map(i=>{ const w=PF.watch[i];
     const f=GET(w.code); const p=F(f,3),pct=F(f,32),hi=F(f,33),lo=F(f,34),prev=F(f,4);
     if(w.addedP==null&&p!=null){ w.addedP=p; if(!w.addedD) w.addedD=today(); save(); }
     const todayAmp=(hi!=null&&lo!=null)?hi-lo:null;
@@ -3267,7 +3269,7 @@ function doRender(){
     if(extW) _sg2.push('<b style="color:#e8a13c">⚠极端</b>');
     if(ffW) _sg2.push(`主力<b class="${cls(ffW.amt)}">${ffW.amt>=0?'+':''}${fmtAmt(ffW.amt)}</b>`);
     const _det=[sigTxt,wsgTxt,m15Txt,extWTxt,lnkWTxt,ffhW?' · '+ffhW:''].filter(Boolean).join('');
-    return `<tr><td class="l" style="cursor:pointer" onclick="openK('${w.code}')">${w.name}<span class="sub"> ${w.code.replace(/^(sh|sz)/,'')}</span>
+    return `<tr><td class="l" style="cursor:pointer" onclick="openK('${w.code}')"><span onclick="event.stopPropagation();togFav(${i})" style="cursor:pointer;font-weight:800;color:${w.fav?'#e8c568':'#39424f'}">★</span> ${w.name}<span class="sub"> ${w.code.replace(/^(sh|sz)/,'')}</span> <button class="wdel" style="padding:1px 6px" onclick="event.stopPropagation();delItem(this,'watch',${i})">−</button>
       <details class="wl1" data-fk="ws-${w.code}" onclick="event.stopPropagation()"><summary class="vd"><span class="dim" style="font-weight:600">日线·周线</span> 📋 <b style="color:${vCls(verdict(w.code))}">${verdict(w.code)}</b></summary>
       <span class="wlx sub">${w.theme||'未标题材'}</span>
       <span class="wlx sub sig1">${_sg2.join(' ')}</span>${addTxt}
@@ -3299,6 +3301,7 @@ function doRender(){
   document.querySelectorAll('details[data-fk]').forEach(d=>{ if(_fo[d.getAttribute('data-fk')]) d.open=true; });
   // v5.49: 盘中作战图——点开着的,每次重渲染后跟着重画(数据有60秒缓存,不会打爆接口)
   document.querySelectorAll('details[data-fk^="bt-"]').forEach(d=>{ if(d.open) drawBattle(+d.getAttribute('data-fk').slice(3)); });
+  try{ notifyCheck(); }catch(e){}
   if(_aid){ setTimeout(()=>{
     const el=document.getElementById(_aid);
     if(el&&el.tagName==="INPUT"){ el.value=_av||""; try{ el.setSelectionRange(_as,_as); }catch(e){} el.focus(); }
@@ -3586,6 +3589,37 @@ document.addEventListener('toggle',e=>{ const d=e.target; if(!d||!d.getAttribute
   const k=d.getAttribute('data-fk'); if(!k) return;
   if(d.open) FKO[k]=1; else delete FKO[k];
   try{ localStorage.setItem('hqm_fko_v1',JSON.stringify(FKO)); }catch(e2){} },true);
+// v5.55 到价/破位提醒: 页面开着才有(网页没后台,关了页浏览器不放行,这是零后端的边界)
+function toggleNtfy(){
+  if(localStorage.getItem('hqm_ntfy')==='1'){ try{localStorage.setItem('hqm_ntfy','0');}catch(e){} toast('到价提醒已关'); ntfyBtnUI(); return; }
+  if(!('Notification' in window)){ toast('这个浏览器不支持系统通知(iPhone要先"添加到主屏幕"再从桌面图标打开)'); return; }
+  Notification.requestPermission().then(pm=>{
+    if(pm==='granted'){ try{localStorage.setItem('hqm_ntfy','1');}catch(e){} toast('已开:页面开着时,到高抛①/低吸①/破预判下沿会弹系统通知,同档一天只提醒一次'); }
+    else toast('通知权限没给,去系统设置里放行浏览器通知再开');
+    ntfyBtnUI(); });
+}
+function ntfyBtnUI(){ const b=document.getElementById('ntfyBtn'); if(b){ const on=localStorage.getItem('hqm_ntfy')==='1'; b.textContent=on?'🔔提醒开':'提醒'; } }
+function notifyCheck(){
+  if(localStorage.getItem('hqm_ntfy')!=='1') return;
+  if(!('Notification' in window)||Notification.permission!=='granted') return;
+  const d=new Date(),t=d.getHours()*60+d.getMinutes(),w=d.getDay();
+  if(w<1||w>5||!((t>=570&&t<=690)||(t>=780&&t<=900))) return; // 只在盘中提醒
+  let sent={}; try{ sent=JSON.parse(localStorage.getItem('hqm_ntfy_sent')||'{}'); }catch(e){}
+  if(sent.d!==today()) sent={d:today()};
+  let dirty=false;
+  PF.holds.forEach((h,i)=>{
+    const bd=BATTLE[i]; if(!bd||bd.code!==h.code) return;
+    const f=GET(h.code), p=F(f,3); if(p==null||p<=0) return;
+    const fire=(key,msg)=>{ const k=h.code+'|'+key; if(sent[k]) return; sent[k]=1; dirty=true;
+      try{ new Notification(h.name,{body:msg,tag:k}); }catch(e){}
+      try{ navigator.vibrate&&navigator.vibrate([180,80,180]); }catch(e){} };
+    if(bd.sells&&bd.sells[0]!=null&&p>=bd.sells[0]) fire('s1','⬆ 到高抛① '+P(bd.sells[0])+' · 现价'+P(p));
+    if(bd.buys&&bd.buys[0]!=null&&p<=bd.buys[0]) fire('b1','⬇ 到低吸① '+P(bd.buys[0])+' · 现价'+P(p));
+    if(bd.preLo!=null&&p<=bd.preLo) fire('brk','⚠ 跌破预判下沿 '+P(bd.preLo)+' · 现价'+P(p)+' · 单边风险,按纪律来');
+  });
+  if(dirty) try{ localStorage.setItem('hqm_ntfy_sent',JSON.stringify(sent)); }catch(e){}
+}
+try{ ntfyBtnUI(); }catch(e){}
 // v5.53 复盘中心页签
 function rvTab(t){
   const map={rv:'rvBox',fc:'fcBox',cl:'clWrap'};
