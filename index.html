@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#0b0e12">
-<title>我的持仓 · 行情 v5.53</title>
+<title>我的持仓 · 行情 v5.54</title>
 <style>
 /* v5.46 完整版换肤:暗色行情终端。只动皮肤——所有类名/布局/交互结构原样,计算逻辑零改动。
    调色板: 底#0b0e12 卡#14181e 描边#232a33 主文#dde3ec 次文#9ba5b4 涨#f4655f 跌#2ebd7f 强调#4c8dff */
@@ -235,6 +235,7 @@ details.fold:not([open]) > summary { margin-bottom:0; }
 .rvtabs { display:flex; gap:3px; margin:0 0 8px; background:#14181e; border:1px solid #232a33; border-radius:10px; padding:4px; }
 .rvtabs button { flex:1; border:0; background:none; color:#9ba5b4; font-size:13px; font-weight:600; padding:8px 4px; border-radius:7px; letter-spacing:.04em; }
 .rvtabs button.on { background:#1d2634; color:#f2f5f9; }
+.ksf { width:100%; height:72vh; border:1px solid #232a33; border-radius:10px; background:#0b0e12; margin-top:6px; display:block; }
 .btc { width:100%; height:280px; display:block; border-radius:8px; margin-top:6px; background:#12161c; }
 .foot { font-size:11.5px; color:#8d97a6; line-height:1.6; margin-top:8px; padding:0 2px; }
 </style>
@@ -2858,6 +2859,7 @@ function render(){
 function doRender(){
   const _ae=document.activeElement, _aid=_ae&&_ae.id, _av=_ae&&_ae.value, _as=_ae&&_ae.selectionStart;
   const _fo={}; document.querySelectorAll('details[data-fk]').forEach(d=>{ if(d.open) _fo[d.getAttribute('data-fk')]=1; });
+  try{ if(!localStorage.getItem('hqm_fko_seed')){ PF.holds.forEach((h2,i2)=>{ FKO['bt-'+i2]=1; }); localStorage.setItem('hqm_fko_seed','1'); localStorage.setItem('hqm_fko_v1',JSON.stringify(FKO)); } }catch(e){} // v5.54: 首次进来作战图默认展开,之后开合全听你的
   Object.keys(FKO).forEach(k=>{ if(FKO[k]) _fo[k]=1; }); // v5.51: 合并本机记住的开合状态
   let when='';
   document.getElementById('idx').innerHTML = IDX.map(([c,n])=>{
@@ -3173,6 +3175,7 @@ function doRender(){
                 :(d<-0.05?'<i class="evo">已越过'+Math.abs(d).toFixed(1)+'%</i>':'<i class="evo">刚好保本</i>'); } }
           return t; })()}</div></div>
       <div class="cbody" style="${(COLL[h.code]&&!editMode)?'display:none':''}">
+      ${(tf.lv>=2||(pct!=null&&Math.abs(pct)>=5))?`<div style="margin:6px 0;padding:8px 12px;border-radius:9px;font-weight:800;font-size:14px;background:${(pct||0)>=0?'rgba(244,101,95,.15)':'rgba(46,189,127,.15)'};color:${(pct||0)>=0?'#ff8a80':'#4fd79b'}">⚡ 单边行情 ${pct!=null?sg(pct.toFixed(1))+'%':''} · ${tf.label||'极端波动'} · 档位已按极端日口径放宽,别按平常日的手感追</div>`:''}
       ${actBar}
       ${(BATTLE[i]={code:h.code,buys:tr.buys,sells:tr.sells,preLo:preLo,preHi:preHi,cost:h.cost,p3:(p!=null&&p<10)},'')}
       <details class="fold" data-fk="bt-${i}" ontoggle="battleOpen(${i})" style="margin-top:6px;border-top:none;padding-top:0"><summary>盘中作战图 · 5分K+档位色带 · 副图MACD+背离</summary><canvas id="btc_${i}" class="btc"></canvas></details>
@@ -3184,6 +3187,7 @@ function doRender(){
       </div>
       <div class="proj"><span>${planLbl()}${_td.slice(5)}预判 <b class="flat">${preStr}</b><span class="qm" onclick="preWhy('${h.code}','${h.name}')">?</span>${PREHIT[h.code]?`<span class="sub" style="font-size:10px"> 实测${PREHIT[h.code].inr}%不出界</span>`:''}</span><span class="sub">${posTxt}${ampNote} · ${anchorNote(h.code,prev,p)}</span></div>
       <div class="proj" style="margin-top:2px"><span>${actRow(h.code,p,prev,lo,hi,_aLo,_aHi,_qd)}</span></div>
+      ${(tr.buys[0]&&tr.sells[0])?`<div class="proj" style="margin-top:2px"><span>📌 ${planLbl()}计划一句话: <b class="down">${P(tr.buys[0])}接</b> → <b class="up">${P(tr.sells[0])}抛</b> · 差${(tr.sells[0]-tr.buys[0]).toFixed(2)}元/股 · 100股净≈<b>${(()=>{try{const _f=feeOf(tr.sells[0],tr.buys[0],100,100,h.code).fee;return sg(Math.round((tr.sells[0]-tr.buys[0])*100-_f));}catch(e){return '—';}})()}元</b></span></div>`:''}
       <details class="fold" data-fk="cy-${h.code}"><summary>周期情报 · 日线Fib / 15分 / 三角（点开看细节）</summary>
       ${fibLine(lg,p)}
       ${m15FibLine(M15FIB[h.code], p, h.code)}
@@ -3191,7 +3195,7 @@ function doRender(){
       </details>
       <div class="proj vrd"><span><span class="dim" style="font-weight:600">日线·周线</span> 📋 <b style="color:${vCls(vd)}">${vd}</b></span></div>
       ${tradeZone}
-      <a href="https://fululi.github.io/k-station/?code=${h.code}&lines=${tr.buys.map(x=>'b'+x.toFixed(2)).concat(tr.sells.map(x=>'s'+x.toFixed(2))).join(',')}" style="display:block;text-align:center;margin-top:8px;padding:8px;border-radius:8px;background:#2563eb;color:#fff;text-decoration:none;font-size:13px;font-weight:600">📈 看K线（做T价位已自动画好）</a>
+      <details class="fold" data-fk="ks-${i}" ontoggle="ksOpen(${i})"><summary>📈 K-STATION 对照图（拖拽/十字线/ICT · 做T价位已画好,不跳页）</summary><iframe id="ksf_${i}" class="ksf"></iframe><a href="https://fululi.github.io/k-station/?code=${h.code}&lines=${tr.buys.map(x=>'b'+x.toFixed(2)).concat(tr.sells.map(x=>'s'+x.toFixed(2))).join(',')}" class="sub" style="display:block;text-align:right;margin-top:4px;color:#7aa8ff;text-decoration:none">全屏打开 ↗</a></details>
       <details class="fold" data-fk="vd-${h.code}"><summary>波动数据 · 信号跟踪 · 分档理由（想深究再点）</summary>
       ${legTxt}
       <div class="atrnote">${atrTxt}</div>
@@ -3599,14 +3603,27 @@ function loadM5(code,cb){
   if(c&&n-c.t<60000){ cb(c.rows); return; }
   const fin=rows=>{ if(rows&&rows.length){ M5C[code]={t:n,rows:rows}; cb(rows); } else cb(null); };
   // v5.52: 新浪从部分网络时不时抽风(15分当年同款坑),失败自动切腾讯mkline兜底
+  // v5.54: 浏览器跨域会把新浪fetch直接拦掉(沙箱里测不出来),所以最后再补一条script标签JSONP路,15分同款三级兜底
+  const jsonp=()=>{
+    const v='hqm5_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,8);
+    const sc=document.createElement('script'); let ended=false;
+    const finish=rows=>{ if(ended) return; ended=true; clearTimeout(sc._tm); if(sc.parentNode) sc.parentNode.removeChild(sc); try{ delete window[v]; }catch(e){}
+      fin(rows?parseM15Rows(rows):null); };
+    sc.onload=()=>{ try{ const d=window[v]; finish(Array.isArray(d)?d:null); }catch(e){ finish(null); } };
+    sc.onerror=()=>finish(null);
+    sc._tm=setTimeout(()=>finish(null),7000);
+    sc.src='https://quotes.sina.cn/cn/api/jsonp_v2.php/var%20'+v+'=/CN_MarketDataService.getKLineData?symbol='+code+'&scale=5&ma=no&datalen=96';
+    document.head.appendChild(sc);
+  };
   const tencent=()=>{
     const ctrl2=new AbortController(); const tm2=setTimeout(()=>ctrl2.abort(),6000);
     fetch('https://ifzq.gtimg.cn/appstock/app/kline/mkline?param='+code+',m5,,96',{signal:ctrl2.signal})
       .then(r=>r.text()).then(t=>{ clearTimeout(tm2);
         try{ const a=t.indexOf('{'), b=t.lastIndexOf('}');
           const d=JSON.parse(t.slice(a,b+1)), node=d.data&&d.data[code];
-          fin(parseM15Rows(node&&(node.m5||node.m5_today||node.m5_data))); }catch(e){ fin(null); } })
-      .catch(()=>{ clearTimeout(tm2); fin(null); });
+          const rows=parseM15Rows(node&&(node.m5||node.m5_today||node.m5_data));
+          if(rows&&rows.length){ fin(rows); } else jsonp(); }catch(e){ jsonp(); } })
+      .catch(()=>{ clearTimeout(tm2); jsonp(); });
   };
   const ctrl=new AbortController(); const tm=setTimeout(()=>ctrl.abort(),6000);
   fetch('https://quotes.sina.cn/cn/api/jsonp_v2.php/var%20x=/CN_MarketDataService.getKLineData?symbol='+code+'&scale=5&ma=no&datalen=96',{signal:ctrl.signal})
@@ -3614,6 +3631,13 @@ function loadM5(code,cb){
       try{ const m=t.match(/\[.*\]/s); const rows=JSON.parse(m[0]).map(r=>[r.day,+r.open,+r.high,+r.low,+r.close]);
         if(rows&&rows.length){ M5C[code]={t:n,rows:rows}; cb(rows); } else tencent(); }catch(e){ tencent(); } })
     .catch(()=>{ clearTimeout(tm); tencent(); });
+}
+function ksOpen(i){
+  const d=document.querySelector('details[data-fk="ks-'+i+'"]'); if(!d||!d.open) return;
+  const bd=BATTLE[i]; if(!bd) return;
+  const f0=document.getElementById('ksf_'+i); if(!f0||f0.getAttribute('src')) return;
+  const lines=(bd.buys||[]).map(x=>'b'+x.toFixed(2)).concat((bd.sells||[]).map(x=>'s'+x.toFixed(2))).join(',');
+  f0.setAttribute('src','https://fululi.github.io/k-station/?code='+bd.code+'&lines='+lines);
 }
 function battleOpen(i){ const d=document.querySelector('details[data-fk="bt-'+i+'"]'); if(d&&d.open) drawBattle(i); }
 function drawBattle(i){
