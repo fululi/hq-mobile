@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#0b0e12">
-<title>我的持仓 · 行情 v5.60</title>
+<title>我的持仓 · 行情 v5.61</title>
 <style>
 /* v5.46 完整版换肤:暗色行情终端。只动皮肤——所有类名/布局/交互结构原样,计算逻辑零改动。
    调色板: 底#0b0e12 卡#14181e 描边#232a33 主文#dde3ec 次文#9ba5b4 涨#f4655f 跌#2ebd7f 强调#4c8dff */
@@ -3182,7 +3182,7 @@ function doRender(){
       ${(tf.lv>=2||(pct!=null&&Math.abs(pct)>=5))?`<div style="margin:6px 0;padding:8px 12px;border-radius:9px;font-weight:800;font-size:14px;background:${(pct||0)>=0?'rgba(244,101,95,.15)':'rgba(46,189,127,.15)'};color:${(pct||0)>=0?'#ff8a80':'#4fd79b'}">⚡ 单边行情 ${pct!=null?sg(pct.toFixed(1))+'%':''} · ${tf.label||'极端波动'} · 档位已按极端日口径放宽,别按平常日的手感追</div>`:''}
       ${actBar}
       ${(BATTLE[i]={code:h.code,buys:tr.buys,sells:tr.sells,preLo:preLo,preHi:preHi,cost:h.cost,p3:(p!=null&&p<10),lev:(lg&&lg.hi>0&&lg.lo>0)?{hi:lg.hi,lo:lg.lo}:null},'')}
-      <details class="fold" data-fk="bt-${i}" ontoggle="battleOpen(${i})" style="margin-top:6px;border-top:none;padding-top:0"><summary>盘中作战图 · K线+档位色带+均价黄线+撑压位 · 副图MACD</summary><div class="btp" id="btp_${i}">${[5,15,30,60].map(sc0=>`<span data-s="${sc0}" class="${(BTP[i]||5)===sc0?'on':''}" onclick="setBtp(${i},${sc0})">${sc0}分</span>`).join('')}<span onclick="rstBt(${i})" style="margin-left:auto">复位</span></div><canvas id="btc_${i}" class="btc"></canvas></details>
+      <details class="fold" data-fk="bt-${i}" ontoggle="battleOpen(${i})" style="margin-top:6px;border-top:none;padding-top:0"><summary>盘中作战图 · K线+档位色带+均价黄线+撑压位 · 副图MACD</summary><div class="btp" id="btp_${i}">${[5,15,30,60].map(sc0=>`<span data-s="${sc0}" class="${(BTP[i]||5)===sc0?'on':''}" onclick="setBtp(${i},${sc0})">${sc0}分</span>`).join('')}<span onclick="rstBt(${i})" style="margin-left:auto;background:#e0b64f;color:#0b0e12;font-weight:800;padding:4px 16px">复位</span><span class="sub" style="font-size:10px;border:none;background:none;padding:0">双击图=复位</span></div><canvas id="btc_${i}" class="btc"></canvas></details>
       <div class="grid2">
         <div class="kv"><div class="k">回撤/盈亏率</div><div class="val ${dd!=null?cls(dd):'flat'}">${dd!=null?sg(dd.toFixed(2))+'%':'—'}</div></div>
         <div class="kv"><div class="k">浮动盈亏</div><div class="val ${pnl!=null?cls(pnl):'flat'}">${pnl!=null?sg(Math.round(pnl).toLocaleString()):'—'}</div><div class="k" style="margin-top:1px">今日 ${todayPnl!=null?sg(Math.round(todayPnl)):'—'}${_tdRealized?'<span class="sub" style="font-size:9px"> (含做T'+sg(Math.round(_tdRealized))+')</span>':''}</div></div>
@@ -3701,7 +3701,7 @@ function paintBattle(i){
   if(!all||all.length<30){ x.fillStyle='#aeb8c6'; x.font='24px -apple-system'; x.textAlign='center'; x.fillText('数据没拉到,收起再点开重试',W/2,H/2); return; }
   if(!cv._bound){ bindBattle(cv,i); cv._bound=1; }
   let v=BTV[i]; if(!v||v.n>all.length){ const dn=Math.min(all.length,60); v=BTV[i]={s:Math.max(0,all.length-dn),n:dn,cx:null,cy:null,mpmin:null,mpmax:null}; }
-  v.n=Math.max(15,Math.min(all.length,Math.round(v.n)));
+  v.n=Math.max(25,Math.min(all.length,Math.round(v.n)));
   v.s=Math.max(0,Math.min(all.length-v.n,Math.round(v.s)));
   const rows=all.slice(v.s,v.s+v.n);
   let pmin,pmax;
@@ -3883,7 +3883,8 @@ function bindBattle(cv,i){
   const move=e=>{ const v=V(); if(!BTROWS[i]) return; const g=cv._geo; if(!g) return;
     if(e.touches&&e.touches.length===2&&mode!=='zoom'){ mode='zoom'; pinch0=dist(e); n0=v.n; v.cx=null; v.cy=null; return; }
     if(mode==='zoom'&&e.touches&&e.touches.length===2){ const d2=dist(e); if(!pinch0) return;
-      const mid=v.s+v.n/2; v.n=n0*pinch0/d2; v.s=mid-v.n/2; reqPaint(i); return; }
+      let ratio=Math.pow(pinch0/d2,0.6); ratio=Math.max(0.4,Math.min(2.5,ratio));
+      const mid=v.s+v.n/2; v.n=n0*ratio; v.s=mid-v.n/2; reqPaint(i); return; }
     const p=pos(e);
     if(mode==='yscale'){ seedY(v); const dy=p.y-ly; ly=p.y;
       const mid=(v.mpmin+v.mpmax)/2, half=(v.mpmax-v.mpmin)/2*(1+dy*0.004);
@@ -3895,8 +3896,12 @@ function bindBattle(cv,i){
       reqPaint(i); } };
   cv.addEventListener('touchstart',e=>{ e.preventDefault(); start(e); },{passive:false});
   cv.addEventListener('touchmove',e=>{ e.preventDefault(); move(e); },{passive:false});
+  let _lastTap=0;
   cv.addEventListener('touchend',()=>{ const v=V();
     if(mode==='pan'&&!moved){
+      const now=Date.now();
+      if(now-_lastTap<300){ BTV[i]=null; _lastTap=0; paintBattle(i); mode=null; pinch0=0; return; } // 双击复位
+      _lastTap=now;
       if(v.cx!=null&&Math.abs(v.cx-sx)<30){ v.cx=null; v.cy=null; } else { v.cx=sx; v.cy=sy; }
       paintBattle(i); }
     mode=null; pinch0=0; });
@@ -3906,6 +3911,7 @@ function bindBattle(cv,i){
     const p=pos(e); v.cx=p.x; v.cy=p.y; reqPaint(i); });
   cv.addEventListener('mouseup',()=>{ mode=null; });
   cv.addEventListener('mouseleave',()=>{ const v=V(); mode=null; v.cx=null; v.cy=null; paintBattle(i); });
+  cv.addEventListener('dblclick',e=>{ e.preventDefault(); BTV[i]=null; paintBattle(i); });
   cv.addEventListener('wheel',e=>{ e.preventDefault(); const v=V();
     const mid=v.s+v.n/2; v.n=v.n*(e.deltaY>0?1.15:0.87); v.s=mid-v.n/2; reqPaint(i); },{passive:false});
 }
