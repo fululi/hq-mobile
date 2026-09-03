@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#0b0e12">
-<title>我的持仓 · 行情 v5.64</title>
+<title>我的持仓 · 行情 v5.65</title>
 <style>
 /* v5.46 完整版换肤:暗色行情终端。只动皮肤——所有类名/布局/交互结构原样,计算逻辑零改动。
    调色板: 底#0b0e12 卡#14181e 描边#232a33 主文#dde3ec 次文#9ba5b4 涨#f4655f 跌#2ebd7f 强调#4c8dff */
@@ -3705,37 +3705,53 @@ function battleOpen(i){ const d=document.querySelector('details[data-fk="bt-'+i+
 let BTS={}, BTX={};
 function bindBattle(cv,i){
   const sc=()=>cv.width/Math.max(1,cv.clientWidth);
-  let dragging=false, sx=0, sy=0, s0=0, moved=false;
+  let mode=null, sx=0, sy=0, s0=0, moved=false, timer=null;
   const px=e=>{ const rc=cv.getBoundingClientRect(); const t=(e.touches&&e.touches[0])||(e.changedTouches&&e.changedTouches[0])||e;
     return {x:(t.clientX-rc.left)*sc(), y:(t.clientY-rc.top)*sc()}; };
-  const down=e=>{ const p=px(e); dragging=true; moved=false; sx=p.x; sy=p.y; s0=BTS[i]||0; };
-  const mv=e=>{ if(!dragging) return; const p=px(e), all=BTROWS[i]; if(!all||!cv._vn) return;
-    const dx=p.x-sx;
-    if(Math.abs(dx)>4||Math.abs(p.y-sy)>10) moved=true;
-    if(!moved) return;
-    BTS[i]=Math.round(s0+dx/Math.max(1,cv._pw)*cv._vn); // 拖多少格挪多少格
-    BTS[i]=Math.max(0,Math.min(all.length-cv._vn,BTS[i]));
-    if(!cv._raf){ cv._raf=requestAnimationFrame(()=>{ cv._raf=0; paintBattle(i); }); } };
-  const up=e=>{ if(!dragging) return; dragging=false;
-    if(!moved){ const p={x:sx,y:sy};
-      if(_alArm===i&&cv._pmin!=null){ // 画提醒线模式: 这一点定线
-        const bd=BATTLE[i];
-        const pv=cv._pmin+(1-(p.y-cv._T)/(cv._PB-cv._T))*(cv._pmax-cv._pmin);
-        ALINE[bd.code]=+pv.toFixed(bd.p3?3:2);
+  const throt=()=>{ if(!cv._raf){ cv._raf=requestAnimationFrame(()=>{ cv._raf=0; paintBattle(i); }); } };
+  const yToPrice=y=>cv._pmin+(1-(y-cv._T)/(cv._PB-cv._T))*(cv._pmax-cv._pmin);
+  const priceToY=q=>cv._T+(cv._PB-cv._T)*(1-(q-cv._pmin)/(cv._pmax-cv._pmin));
+  const down=e=>{ const p=px(e); sx=p.x; sy=p.y; s0=BTS[i]||0; moved=false; mode=null;
+    const bd=BATTLE[i];
+    // 手指按在提醒线附近 → 直接拖线
+    if(bd&&ALINE[bd.code]!=null&&cv._pmin!=null&&Math.abs(p.y-priceToY(ALINE[bd.code]))<26){ mode='aline'; return; }
+    // 长按0.25秒 → 十字线跟手
+    clearTimeout(timer);
+    timer=setTimeout(()=>{ if(!moved&&mode==null){ mode='cross'; BTX[i]={x:sx,y:sy}; throt(); } },250); };
+  const mv=e=>{ const p=px(e), all=BTROWS[i]; if(!all||!cv._vn) return;
+    const dx=p.x-sx, dy=p.y-sy;
+    if(!moved&&(Math.abs(dx)>4||Math.abs(dy)>4)) moved=true;
+    if(mode==='aline'){ const bd=BATTLE[i]; if(bd&&cv._pmin!=null){
+        ALINE[bd.code]=+yToPrice(Math.max(cv._T,Math.min(cv._PB,p.y))).toFixed(bd.p3?3:2); throt(); } return; }
+    if(mode==='cross'){ BTX[i]={x:p.x,y:p.y}; throt(); return; }
+    if(moved&&mode==null){ clearTimeout(timer); mode='pan'; }
+    if(mode==='pan'){
+      BTS[i]=Math.round(s0+dx/Math.max(1,cv._pw)*cv._vn);
+      BTS[i]=Math.max(0,Math.min(all.length-cv._vn,BTS[i]));
+      throt(); } };
+  const up=e=>{ clearTimeout(timer);
+    if(mode==='aline'){ try{ localStorage.setItem('hqm_aline_v1',JSON.stringify(ALINE)); }catch(e2){} toast('提醒线 '+ALINE[BATTLE[i].code]); mode=null; return; }
+    if(mode==='cross'){ mode=null; return; } // 十字线留在松手处
+    if(mode==null&&!moved){ const p={x:sx,y:sy};
+      // 图内±钮
+      if(cv._zb){ for(const z of cv._zb){ if(Math.hypot(p.x-z.x,p.y-z.y)<=z.r+8){ zoomBt(i,z.d); mode=null; return; } } }
+      if(_alArm===i&&cv._pmin!=null){ const bd=BATTLE[i];
+        ALINE[bd.code]=+yToPrice(p.y).toFixed(bd.p3?3:2);
         try{ localStorage.setItem('hqm_aline_v1',JSON.stringify(ALINE)); }catch(e2){}
-        _alArm=null; toast('提醒线 '+ALINE[bd.code]+' 已画上,到线弹通知'); paintBattle(i); return; }
-      const old=BTX[i];
-      BTX[i]=(old&&Math.abs(old.x-p.x)<36)?null:p;
-      paintBattle(i); } };
+        _alArm=null; toast('提醒线 '+ALINE[bd.code]+' 已画上,按住线可上下拖'); paintBattle(i); mode=null; return; }
+      BTX[i]=BTX[i]?null:{x:p.x,y:p.y}; // 轻点=放/收十字线
+      paintBattle(i); }
+    mode=null; };
   cv.addEventListener('touchstart',e=>{ e.preventDefault(); down(e); },{passive:false});
   cv.addEventListener('touchmove',e=>{ if(e.cancelable) e.preventDefault(); mv(e); },{passive:false});
   cv.addEventListener('touchend',up);
-  cv.addEventListener('touchcancel',()=>{ dragging=false; });
+  cv.addEventListener('touchcancel',()=>{ clearTimeout(timer); mode=null; });
   cv.addEventListener('contextmenu',e=>e.preventDefault());
   cv.addEventListener('mousedown',e=>{ e.preventDefault(); down(e); });
-  cv.addEventListener('mousemove',mv);
+  cv.addEventListener('mousemove',e=>{ if(e.buttons||mode) mv(e); else { BTX[i]={x:px(e).x,y:px(e).y}; throt(); } });
   cv.addEventListener('mouseup',up);
-  cv.addEventListener('mouseleave',()=>{ dragging=false; });
+  cv.addEventListener('mouseleave',()=>{ clearTimeout(timer); mode=null; BTX[i]=null; throt(); });
+  cv.addEventListener('wheel',e=>{ e.preventDefault(); zoomBt(i,e.deltaY>0?-1:1); },{passive:false});
 }
 function drawBattle(i){
   const bd=BATTLE[i]; if(!bd) return;
@@ -3765,7 +3781,7 @@ function paintBattle(i){
   let pmin=Infinity,pmax=-Infinity;
   rows.forEach(r=>{ pmin=Math.min(pmin,r[3]); pmax=Math.max(pmax,r[2]); });
   const pad=(pmax-pmin)*0.08||0.01; pmin-=pad; pmax+=pad;
-  const L=92,R=96,T=12, PB=396, MT=424, MB=H-42, pw=W-L-R;
+  const L=78,R=72,T=12, PB=396, MT=424, MB=H-42, pw=W-L-R;
   cv._pw=pw; cv._pmin=pmin; cv._pmax=pmax; cv._T=T; cv._PB=PB;
   const Y=q=>T+(PB-T)*(1-(q-pmin)/(pmax-pmin)), X=j=>L+pw*(j+0.5)/rows.length;
   const band=(q1,q2,col)=>{ if(q1==null||q2==null) return;
@@ -3776,7 +3792,7 @@ function paintBattle(i){
   const line=(q,col,dash,lbl)=>{ if(q==null||q<pmin||q>pmax) return;
     x.strokeStyle=col; x.lineWidth=2.5; x.setLineDash(dash);
     x.beginPath(); x.moveTo(L,Y(q)); x.lineTo(W-R,Y(q)); x.stroke(); x.setLineDash([]);
-    if(lbl){ x.fillStyle=col; x.font='bold 20px -apple-system'; x.textAlign='left'; x.fillText(lbl+' '+fmt(q),4,Y(q)+7); } };
+    if(lbl){ x.fillStyle=col; x.font='bold 17px -apple-system'; x.textAlign='left'; x.fillText(lbl+' '+fmt(q),4,Y(q)+7); } };
   if(bd.lev){
     const lp=[[bd.lev.hi,'段高'],[bd.lev.lo,'段低'],
       [bd.lev.hi-0.382*(bd.lev.hi-bd.lev.lo),'38.2'],[bd.lev.hi-0.5*(bd.lev.hi-bd.lev.lo),'50'],[bd.lev.hi-0.618*(bd.lev.hi-bd.lev.lo),'61.8']];
@@ -3791,11 +3807,11 @@ function paintBattle(i){
   // 右侧价格刻度轴(你说的"旁边的价格"): 5档整齐刻度+横向细网格
   { const rng=pmax-pmin, rawStep=rng/5, mag=Math.pow(10,Math.floor(Math.log10(rawStep)));
     let stp=mag; for(const m2 of [1,2,2.5,5,10]){ if(rawStep<=m2*mag){ stp=m2*mag; break; } }
-    x.font='19px -apple-system';
+    x.font='15px -apple-system';
     for(let q=Math.ceil(pmin/stp)*stp;q<=pmax;q+=stp){
       x.strokeStyle='rgba(42,50,61,.5)'; x.lineWidth=1;
       x.beginPath(); x.moveTo(L,Y(q)); x.lineTo(W-R,Y(q)); x.stroke();
-      x.fillStyle='#8d97a6'; x.textAlign='left'; x.fillText(fmt(q),W-R+8,Y(q)+7); } }
+      x.fillStyle='#8d97a6'; x.textAlign='left'; x.fillText(fmt(q),W-R+6,Y(q)+5); } }
   (bd.buys||[]).forEach((q,j)=>line(q,'#2ebd7f',[8,6],'B'+(j+1)));
   (bd.sells||[]).forEach((q,j)=>line(q,'#f4655f',[8,6],'S'+(j+1)));
   line(bd.preLo,'#aeb8c6',[2,6],'下沿'); line(bd.preHi,'#aeb8c6',[2,6],'上沿');
@@ -3860,13 +3876,13 @@ function paintBattle(i){
   highs.forEach(g=>tri(g,true)); lows.forEach(g=>tri(g,false));
   const lastC=rows[rows.length-1][4];
   if(lastC>=pmin&&lastC<=pmax){
-    x.fillStyle='#12161c'; x.fillRect(W-R+2,Y(lastC)-18,R-4,32);
-    x.fillStyle='#e8edf4'; x.font='bold 22px -apple-system'; x.textAlign='left'; x.fillText(fmt(lastC),W-R+8,Y(lastC)+7);
+    x.fillStyle='#12161c'; x.fillRect(W-R+2,Y(lastC)-14,R-4,26);
+    x.fillStyle='#e8edf4'; x.font='bold 17px -apple-system'; x.textAlign='left'; x.fillText(fmt(lastC),W-R+6,Y(lastC)+6);
     x.strokeStyle='#e8edf4'; x.lineWidth=1; x.setLineDash([1,4]);
     x.beginPath(); x.moveTo(L,Y(lastC)); x.lineTo(W-R,Y(lastC)); x.stroke(); x.setLineDash([]); }
   // 时间轴
-  x.fillStyle='#aeb8c6'; x.font='19px -apple-system'; x.textAlign='left'; x.fillText(rows[0][0].slice(5,16),L+4,H-12);
-  { const step=Math.max(1,Math.floor(rows.length/5));
+  x.fillStyle='#aeb8c6'; x.font='15px -apple-system'; x.textAlign='left'; x.fillText(rows[0][0].slice(5,16),L+4,H-12);
+  { const step=Math.max(1,Math.floor(rows.length/8));
     for(let j=step;j<rows.length-2;j+=step){ const xx=X(j);
       x.fillStyle='#8d97a6'; x.textAlign='center'; x.fillText(rows[j][0].slice(11,16),xx,H-12); }
     x.textAlign='left'; }
@@ -3902,6 +3918,13 @@ function paintBattle(i){
     if(rows[p2][3]<rows[p1][3]&&dif[p2]>dif[p1]) mark(p2,'底背离','#5cc8d8',false); }
   if(highs.length>=2){ const p1=highs[highs.length-2], p2=highs[highs.length-1];
     if(rows[p2][2]>rows[p1][2]&&dif[p2]<dif[p1]) mark(p2,'顶背离','#ff8a80',true); }
+  // 图内悬浮±钮(拇指位): 放大/缩小不离图
+  { const bx=W-R-40, r0=26;
+    cv._zb=[{x:bx,y:PB-150,r:r0,d:1},{x:bx,y:PB-86,r:r0,d:-1}];
+    cv._zb.forEach(z=>{ x.fillStyle='rgba(23,28,35,.85)'; x.beginPath(); x.arc(z.x,z.y,z.r,0,7); x.fill();
+      x.strokeStyle='#39424f'; x.lineWidth=1.5; x.stroke();
+      x.fillStyle='#c3cad6'; x.font='bold 26px -apple-system'; x.textAlign='center'; x.fillText(z.d>0?'＋':'－',z.x,z.y+9); });
+    x.textAlign='left'; }
   // 十字线: 轻点出线对价,再点同处关
   const cxo=BTX[i];
   if(cxo&&cxo.x>=L&&cxo.x<=W-R){
@@ -3916,9 +3939,9 @@ function paintBattle(i){
       x.fillStyle='#0b0e12'; x.font='bold 24px -apple-system'; x.textAlign='right'; x.fillText(fmt(pv),W-R-8,cxo.y-2);
     }
     x.setLineDash([]);
-    if(r){ x.fillStyle='rgba(20,26,35,.94)'; x.fillRect(L+6,T+4,430,38);
-      x.fillStyle='#e8edf4'; x.font='19px -apple-system'; x.textAlign='left';
-      x.fillText(r[0].slice(5,16)+' 开'+fmt(r[1])+' 高'+fmt(r[2])+' 低'+fmt(r[3])+' 收'+fmt(r[4]),L+14,T+31); }
+    if(r){ x.fillStyle='rgba(20,26,35,.94)'; x.fillRect(L+6,T+4,384,32);
+      x.fillStyle='#e8edf4'; x.font='16px -apple-system'; x.textAlign='left';
+      x.fillText(r[0].slice(5,16)+' 开'+fmt(r[1])+' 高'+fmt(r[2])+' 低'+fmt(r[3])+' 收'+fmt(r[4]),L+12,T+27); }
   }
 }
 setInterval(()=>{ const d=new Date(),t=d.getHours()*60+d.getMinutes(),w=d.getDay();
