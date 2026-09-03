@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#0b0e12">
-<title>我的持仓 · 行情 v5.59</title>
+<title>我的持仓 · 行情 v5.60</title>
 <style>
 /* v5.46 完整版换肤:暗色行情终端。只动皮肤——所有类名/布局/交互结构原样,计算逻辑零改动。
    调色板: 底#0b0e12 卡#14181e 描边#232a33 主文#dde3ec 次文#9ba5b4 涨#f4655f 跌#2ebd7f 强调#4c8dff */
@@ -3709,8 +3709,7 @@ function paintBattle(i){
   else{
     pmin=Infinity; pmax=-Infinity;
     rows.forEach(r=>{ pmin=Math.min(pmin,r[3]); pmax=Math.max(pmax,r[2]); });
-    [].concat(bd.buys||[],bd.sells||[],[bd.preLo,bd.preHi]).forEach(q=>{ if(q!=null){ pmin=Math.min(pmin,q); pmax=Math.max(pmax,q); } });
-    const pad=(pmax-pmin)*0.06||0.01; pmin-=pad; pmax+=pad;
+    const pad=(pmax-pmin)*0.08||0.01; pmin-=pad; pmax+=pad; // v5.60: 量程只认K线,档位线不许撑爆画面
   }
   if(!(pmax>pmin)){ pmax=pmin+0.01; }
   const L=92,R=12,T=12, PB=406, MT=434, MB=H-42, pw=W-L-R;
@@ -3741,6 +3740,17 @@ function paintBattle(i){
   (bd.sells||[]).forEach((q,j)=>line(q,'#f4655f',[8,6],'S'+(j+1)));
   line(bd.preLo,'#aeb8c6',[2,6],'下沿'); line(bd.preHi,'#aeb8c6',[2,6],'上沿');
   if(bd.cost>0) line(bd.cost,'#b7a4f7',[1,5],'成本');
+  { // 视野外的关键位: 顶/底边缘小字提示,免得以为线丢了
+    const offs=[];
+    (bd.sells||[]).forEach((q,j)=>offs.push(['S'+(j+1),q]));
+    (bd.buys||[]).forEach((q,j)=>offs.push(['B'+(j+1),q]));
+    offs.push(['上沿',bd.preHi],['下沿',bd.preLo]);
+    let upN=0, dnN=0;
+    x.font='17px -apple-system';
+    offs.forEach(o=>{ const q=o[1]; if(q==null) return;
+      if(q>pmax&&upN<3){ x.fillStyle='#8d97a6'; x.textAlign='left'; x.fillText('↑'+o[0]+' '+fmt(q),L+6+upN*150,T+18); upN++; }
+      else if(q<pmin&&dnN<3){ x.fillStyle='#8d97a6'; x.textAlign='left'; x.fillText('↓'+o[0]+' '+fmt(q),L+6+dnN*150,PB-6); dnN++; } });
+  }
   // 回归通道: 对当前可见窗做最小二乘,中轨+上下2σ(窗口移动通道跟着走)
   if(rows.length>=20){
     const nn=rows.length; let sx2=0,sy2=0,sxy=0,sxx=0;
