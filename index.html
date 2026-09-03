@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#0b0e12">
-<title>我的持仓 · 行情 v5.63</title>
+<title>我的持仓 · 行情 v5.64</title>
 <style>
 /* v5.46 完整版换肤:暗色行情终端。只动皮肤——所有类名/布局/交互结构原样,计算逻辑零改动。
    调色板: 底#0b0e12 卡#14181e 描边#232a33 主文#dde3ec 次文#9ba5b4 涨#f4655f 跌#2ebd7f 强调#4c8dff */
@@ -239,7 +239,7 @@ details.fold:not([open]) > summary { margin-bottom:0; }
 .btp { display:flex; gap:6px; align-items:center; margin:6px 0 2px; flex-wrap:wrap; }
 .btp span { font-size:12px; font-weight:700; color:#9ba5b4; background:#171c23; border:1px solid #2a323d; border-radius:7px; padding:4px 12px; cursor:pointer; }
 .btp span.on { color:#0b0e12; background:#7aa8ff; border-color:#7aa8ff; }
-.btc { width:100%; height:310px; display:block; border-radius:8px; margin-top:6px; background:#12161c; touch-action:pan-y; }
+.btc { width:100%; height:310px; display:block; border-radius:8px; margin-top:6px; background:#12161c; touch-action:none; -webkit-user-select:none; user-select:none; -webkit-touch-callout:none; }
 .foot { font-size:11.5px; color:#8d97a6; line-height:1.6; margin-top:8px; padding:0 2px; }
 </style>
 </head>
@@ -3185,7 +3185,7 @@ function doRender(){
       ${(tf.lv>=2||(pct!=null&&Math.abs(pct)>=5))?`<div style="margin:6px 0;padding:8px 12px;border-radius:9px;font-weight:800;font-size:14px;background:${(pct||0)>=0?'rgba(244,101,95,.15)':'rgba(46,189,127,.15)'};color:${(pct||0)>=0?'#ff8a80':'#4fd79b'}">⚡ 单边行情 ${pct!=null?sg(pct.toFixed(1))+'%':''} · ${tf.label||'极端波动'} · 档位已按极端日口径放宽,别按平常日的手感追</div>`:''}
       ${actBar}
       ${(BATTLE[i]={code:h.code,buys:tr.buys,sells:tr.sells,preLo:preLo,preHi:preHi,cost:h.cost,p3:(p!=null&&p<10),lev:(lg&&lg.hi>0&&lg.lo>0)?{hi:lg.hi,lo:lg.lo}:null},'')}
-      <details class="fold" data-fk="bt-${i}" ontoggle="battleOpen(${i})" style="margin-top:6px;border-top:none;padding-top:0"><summary>盘中作战图 · K线+档位色带+均价黄线+撑压位 · 副图MACD</summary><div class="btp" id="btp_${i}">${[5,15,30,60].map(sc0=>`<span data-s="${sc0}" class="${(BTP[i]||5)===sc0?'on':''}" onclick="setBtp(${i},${sc0})">${sc0}分</span>`).join('')}<span onclick="zoomBt(${i},1)" style="margin-left:auto;font-size:15px;padding:4px 16px">＋放大</span><span onclick="zoomBt(${i},-1)" style="font-size:15px;padding:4px 16px">－缩小</span><span id="btn_${i}" style="border:none;background:none;color:#8d97a6">${BTN[i]?('近'+BTN[i]+'根'):'全部'}</span></div><canvas id="btc_${i}" class="btc"></canvas></details>
+      <details class="fold" data-fk="bt-${i}" ontoggle="battleOpen(${i})" style="margin-top:6px;border-top:none;padding-top:0"><summary>盘中作战图 · K线+档位色带+均价黄线+撑压位 · 副图MACD</summary><div class="btp" id="btp_${i}">${[5,15,30,60].map(sc0=>`<span data-s="${sc0}" class="${(BTP[i]||5)===sc0?'on':''}" onclick="setBtp(${i},${sc0})">${sc0}分</span>`).join('')}<span onclick="armAline(${i})" style="margin-left:auto;color:#5cc8d8">提醒线</span><span onclick="zoomBt(${i},1)" style="font-size:15px;padding:4px 16px">＋放大</span><span onclick="zoomBt(${i},-1)" style="font-size:15px;padding:4px 16px">－缩小</span><span id="btn_${i}" style="border:none;background:none;color:#8d97a6">${BTN[i]?('近'+BTN[i]+'根'):'全部'}</span></div><canvas id="btc_${i}" class="btc"></canvas></details>
       <div class="grid2">
         <div class="kv"><div class="k">回撤/盈亏率</div><div class="val ${dd!=null?cls(dd):'flat'}">${dd!=null?sg(dd.toFixed(2))+'%':'—'}</div></div>
         <div class="kv"><div class="k">浮动盈亏</div><div class="val ${pnl!=null?cls(pnl):'flat'}">${pnl!=null?sg(Math.round(pnl).toLocaleString()):'—'}</div><div class="k" style="margin-top:1px">今日 ${todayPnl!=null?sg(Math.round(todayPnl)):'—'}${_tdRealized?'<span class="sub" style="font-size:9px"> (含做T'+sg(Math.round(_tdRealized))+')</span>':''}</div></div>
@@ -3623,6 +3623,8 @@ function notifyCheck(){
     if(bd.sells&&bd.sells[0]!=null&&p>=bd.sells[0]) fire('s1','⬆ 到高抛① '+P(bd.sells[0])+' · 现价'+P(p));
     if(bd.buys&&bd.buys[0]!=null&&p<=bd.buys[0]) fire('b1','⬇ 到低吸① '+P(bd.buys[0])+' · 现价'+P(p));
     if(bd.preLo!=null&&p<=bd.preLo) fire('brk','⚠ 跌破预判下沿 '+P(bd.preLo)+' · 现价'+P(p)+' · 单边风险,按纪律来');
+    const al=ALINE[h.code];
+    if(al!=null&&Math.abs(p/al-1)<=0.002) fire('al','🎯 到你画的提醒线 '+P(al)+' · 现价'+P(p));
   });
   if(dirty) try{ localStorage.setItem('hqm_ntfy_sent',JSON.stringify(sent)); }catch(e){}
 }
@@ -3639,6 +3641,12 @@ refresh();
 // v5.62 作战图回滚为纯展示版: 内容全保留(K线/档位色带/黄线/撑压/回归通道/高低点/MACD/周期切换),
 // 手势交互整套拆除——打开就是完整一屏,零状态零卡壳。深度交互去K-STATION。
 let BATTLE={}, MKC={}, BTROWS={}, BTP={}, BTN={};
+let ALINE={}; try{ ALINE=JSON.parse(localStorage.getItem('hqm_aline_v1')||'{}'); }catch(e){}
+let _alArm=null;
+function armAline(i){ const bd=BATTLE[i]; if(!bd) return;
+  if(ALINE[bd.code]!=null&&_alArm!==i){ delete ALINE[bd.code]; try{localStorage.setItem('hqm_aline_v1',JSON.stringify(ALINE));}catch(e){} _alArm=null; toast('提醒线已删,再点一次按钮可重画'); paintBattle(i); return; }
+  _alArm=(_alArm===i)?null:i;
+  toast(_alArm===i?'点图上一个位置,画提醒线(价格到线弹通知)':'已取消画线'); }
 function zoomBt(i,dir){ const all=BTROWS[i]; if(!all) return;
   let n=BTN[i]||all.length;
   n=dir>0?Math.max(20,Math.round(n*0.6)):Math.min(all.length,Math.round(n*1.67));
@@ -3703,20 +3711,27 @@ function bindBattle(cv,i){
   const down=e=>{ const p=px(e); dragging=true; moved=false; sx=p.x; sy=p.y; s0=BTS[i]||0; };
   const mv=e=>{ if(!dragging) return; const p=px(e), all=BTROWS[i]; if(!all||!cv._vn) return;
     const dx=p.x-sx;
-    if(Math.abs(dx)>8) moved=true;
+    if(Math.abs(dx)>4||Math.abs(p.y-sy)>10) moved=true;
     if(!moved) return;
-    if(e.cancelable) e.preventDefault();
     BTS[i]=Math.round(s0+dx/Math.max(1,cv._pw)*cv._vn); // 拖多少格挪多少格
     BTS[i]=Math.max(0,Math.min(all.length-cv._vn,BTS[i]));
     if(!cv._raf){ cv._raf=requestAnimationFrame(()=>{ cv._raf=0; paintBattle(i); }); } };
   const up=e=>{ if(!dragging) return; dragging=false;
     if(!moved){ const p={x:sx,y:sy};
+      if(_alArm===i&&cv._pmin!=null){ // 画提醒线模式: 这一点定线
+        const bd=BATTLE[i];
+        const pv=cv._pmin+(1-(p.y-cv._T)/(cv._PB-cv._T))*(cv._pmax-cv._pmin);
+        ALINE[bd.code]=+pv.toFixed(bd.p3?3:2);
+        try{ localStorage.setItem('hqm_aline_v1',JSON.stringify(ALINE)); }catch(e2){}
+        _alArm=null; toast('提醒线 '+ALINE[bd.code]+' 已画上,到线弹通知'); paintBattle(i); return; }
       const old=BTX[i];
       BTX[i]=(old&&Math.abs(old.x-p.x)<36)?null:p;
       paintBattle(i); } };
-  cv.addEventListener('touchstart',down,{passive:true});
-  cv.addEventListener('touchmove',mv,{passive:false});
+  cv.addEventListener('touchstart',e=>{ e.preventDefault(); down(e); },{passive:false});
+  cv.addEventListener('touchmove',e=>{ if(e.cancelable) e.preventDefault(); mv(e); },{passive:false});
   cv.addEventListener('touchend',up);
+  cv.addEventListener('touchcancel',()=>{ dragging=false; });
+  cv.addEventListener('contextmenu',e=>e.preventDefault());
   cv.addEventListener('mousedown',e=>{ e.preventDefault(); down(e); });
   cv.addEventListener('mousemove',mv);
   cv.addEventListener('mouseup',up);
@@ -3750,8 +3765,8 @@ function paintBattle(i){
   let pmin=Infinity,pmax=-Infinity;
   rows.forEach(r=>{ pmin=Math.min(pmin,r[3]); pmax=Math.max(pmax,r[2]); });
   const pad=(pmax-pmin)*0.08||0.01; pmin-=pad; pmax+=pad;
-  const L=92,R=12,T=12, PB=396, MT=424, MB=H-42, pw=W-L-R;
-  cv._pw=pw;
+  const L=92,R=96,T=12, PB=396, MT=424, MB=H-42, pw=W-L-R;
+  cv._pw=pw; cv._pmin=pmin; cv._pmax=pmax; cv._T=T; cv._PB=PB;
   const Y=q=>T+(PB-T)*(1-(q-pmin)/(pmax-pmin)), X=j=>L+pw*(j+0.5)/rows.length;
   const band=(q1,q2,col)=>{ if(q1==null||q2==null) return;
     const y1=Math.max(T,Y(Math.min(Math.max(q1,q2),pmax))), y2=Math.min(PB,Y(Math.max(Math.min(q1,q2),pmin)));
@@ -3773,9 +3788,22 @@ function paintBattle(i){
       x.fillStyle=up?'#ff8a80':'#4fd79b'; x.font='17px -apple-system'; x.textAlign='right';
       x.fillText((up?'压':'撑')+o[1]+' '+fmt(q),W-R-4,Y(q)-4); });
   }
+  // 右侧价格刻度轴(你说的"旁边的价格"): 5档整齐刻度+横向细网格
+  { const rng=pmax-pmin, rawStep=rng/5, mag=Math.pow(10,Math.floor(Math.log10(rawStep)));
+    let stp=mag; for(const m2 of [1,2,2.5,5,10]){ if(rawStep<=m2*mag){ stp=m2*mag; break; } }
+    x.font='19px -apple-system';
+    for(let q=Math.ceil(pmin/stp)*stp;q<=pmax;q+=stp){
+      x.strokeStyle='rgba(42,50,61,.5)'; x.lineWidth=1;
+      x.beginPath(); x.moveTo(L,Y(q)); x.lineTo(W-R,Y(q)); x.stroke();
+      x.fillStyle='#8d97a6'; x.textAlign='left'; x.fillText(fmt(q),W-R+8,Y(q)+7); } }
   (bd.buys||[]).forEach((q,j)=>line(q,'#2ebd7f',[8,6],'B'+(j+1)));
   (bd.sells||[]).forEach((q,j)=>line(q,'#f4655f',[8,6],'S'+(j+1)));
   line(bd.preLo,'#aeb8c6',[2,6],'下沿'); line(bd.preHi,'#aeb8c6',[2,6],'上沿');
+  // 你自己画的提醒线
+  if(ALINE[bd.code]!=null){ const q=ALINE[bd.code];
+    if(q>=pmin&&q<=pmax){ x.strokeStyle='#5cc8d8'; x.lineWidth=2.5; x.setLineDash([10,5,3,5]);
+      x.beginPath(); x.moveTo(L,Y(q)); x.lineTo(W-R,Y(q)); x.stroke(); x.setLineDash([]);
+      x.fillStyle='#5cc8d8'; x.font='bold 20px -apple-system'; x.textAlign='left'; x.fillText('提醒 '+fmt(q),4,Y(q)+7); } }
   if(bd.cost>0) line(bd.cost,'#b7a4f7',[1,5],'成本');
   { const offs=[];
     (bd.sells||[]).forEach((q,j)=>offs.push(['S'+(j+1),q]));
@@ -3832,7 +3860,8 @@ function paintBattle(i){
   highs.forEach(g=>tri(g,true)); lows.forEach(g=>tri(g,false));
   const lastC=rows[rows.length-1][4];
   if(lastC>=pmin&&lastC<=pmax){
-    x.fillStyle='#e8edf4'; x.font='bold 26px -apple-system'; x.textAlign='right'; x.fillText(fmt(lastC),W-R-4,Y(lastC)-10);
+    x.fillStyle='#12161c'; x.fillRect(W-R+2,Y(lastC)-18,R-4,32);
+    x.fillStyle='#e8edf4'; x.font='bold 22px -apple-system'; x.textAlign='left'; x.fillText(fmt(lastC),W-R+8,Y(lastC)+7);
     x.strokeStyle='#e8edf4'; x.lineWidth=1; x.setLineDash([1,4]);
     x.beginPath(); x.moveTo(L,Y(lastC)); x.lineTo(W-R,Y(lastC)); x.stroke(); x.setLineDash([]); }
   // 时间轴
