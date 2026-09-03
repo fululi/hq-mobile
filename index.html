@@ -6,10 +6,10 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#0b0e12">
-<title>我的持仓 · 行情 v5.65</title>
+<title>我的持仓 · 行情 v5.66</title>
 <style>
 /* v5.46 完整版换肤:暗色行情终端。只动皮肤——所有类名/布局/交互结构原样,计算逻辑零改动。
-   调色板: 底#0b0e12 卡#14181e 描边#232a33 主文#dde3ec 次文#9ba5b4 涨#f4655f 跌#2ebd7f 强调#4c8dff */
+   调色板: 底#0b0e12 卡#14181e 描边#232a33 主文#dde3ec 次文#b0bac7 涨#f4655f 跌#2ebd7f 强调#4c8dff */
 :root { color-scheme: dark; }
 html { scroll-padding-top:118px; }
 * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
@@ -21,13 +21,16 @@ body { margin:0; padding:14px 12px 92px; background:#0b0e12; color:#dde3ec;
 .top .btns { display:flex; gap:8px; }
 .navSticky { position:sticky; top:50px; z-index:55; display:flex; gap:1px; overflow-x:auto; padding:0 2px; margin:0 -2px 10px; background:rgba(11,14,18,.94); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); border-bottom:1px solid #232a33; scrollbar-width:none; }
 .navSticky::-webkit-scrollbar { display:none; }
-.navSticky button { flex:0 0 auto; border:0; background:none; color:#9ba5b4; padding:9px 13px 8px; font-size:13.5px; font-weight:600; white-space:nowrap; letter-spacing:.04em; border-bottom:2px solid transparent; margin-bottom:-1px; transition:color .15s,border-color .15s; }
+.navSticky button { flex:0 0 auto; border:0; background:none; color:#b0bac7; padding:9px 13px 8px; font-size:13.5px; font-weight:600; white-space:nowrap; letter-spacing:.04em; border-bottom:2px solid transparent; margin-bottom:-1px; transition:color .15s,border-color .15s; }
 .navSticky button.active { color:#f2f5f9; font-weight:700; border-bottom-color:#4c8dff; }
 .navSticky button:active { color:#4c8dff; }
 .navStk { position:sticky; top:84px; z-index:54; display:flex; gap:6px; overflow-x:auto; padding:5px 2px 6px; margin:0 -2px 8px; background:rgba(11,14,18,.94); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); scrollbar-width:none; }
 .navStk::-webkit-scrollbar { display:none; }
 .navStk span { flex:0 0 auto; font-size:11.5px; font-weight:600; color:#c3cad6; background:#171c23; border:1px solid #2a323d; border-radius:999px; padding:3px 10px; }
 .navStk span b { font-variant-numeric:tabular-nums; margin-left:3px; }
+@keyframes pxup { 0%{ background:rgba(244,101,95,.35); border-radius:6px; } 100%{ background:transparent; } }
+@keyframes pxdn { 0%{ background:rgba(46,189,127,.35); border-radius:6px; } 100%{ background:transparent; } }
+.px.fup { animation:pxup .9s ease-out; } .px.fdn { animation:pxdn .9s ease-out; }
 .top button { font-size:13px; border:1px solid #2a323d; padding:6px 12px; border-radius:8px; font-weight:600; background:#171c23; }
 .rf { color:#7aa8ff; }
 .ed { color:#e0b64f; }
@@ -35,10 +38,10 @@ body { margin:0; padding:14px 12px 92px; background:#0b0e12; color:#dde3ec;
 .cp { color:#5cc8d8; }
 .time { font-size:12px; color:#8d97a6; margin:2px 0 12px; font-variant-numeric:tabular-nums; }
 .sum { background:#14181e; border:1px solid #232a33; border-radius:12px; padding:14px 16px; margin-bottom:14px; display:flex; justify-content:space-between; }
-.sum .b .k { font-size:11px; color:#9ba5b4; letter-spacing:.08em; } .sum .b .v { font-size:24px; font-weight:760; font-variant-numeric:tabular-nums; margin-top:3px; letter-spacing:.01em; }
+.sum .b .k { font-size:11px; color:#b0bac7; letter-spacing:.08em; } .sum .b .v { font-size:24px; font-weight:760; font-variant-numeric:tabular-nums; margin-top:3px; letter-spacing:.01em; }
 .idx { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:16px; }
 .idx .c { background:#14181e; border:1px solid #232a33; border-radius:10px; padding:10px 8px; text-align:center; }
-.idx .c .n { font-size:11px; color:#9ba5b4; margin-bottom:3px; letter-spacing:.08em; }
+.idx .c .n { font-size:11px; color:#b0bac7; margin-bottom:3px; letter-spacing:.08em; }
 .idx .c .v { font-size:17px; font-weight:720; font-variant-numeric:tabular-nums; }
 .idx .c .g { font-size:11.5px; font-weight:600; margin-top:1px; font-variant-numeric:tabular-nums; }
 .sec { font-size:13px; font-weight:700; color:#aab3c0; margin:0 2px 8px; display:flex; justify-content:space-between; align-items:center; letter-spacing:.06em; }
@@ -59,7 +62,7 @@ div.sec.collapsed::after { content:'▸'; }
 .pct { font-size:14.5px; font-weight:660; text-align:right; font-variant-numeric:tabular-nums; }
 .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:8px 10px; margin-top:12px; }
 .kv { background:#181d24; border-radius:8px; padding:9px 11px; }
-.kv .k { font-size:11px; color:#9ba5b4; letter-spacing:.06em; } .kv .val { font-size:17px; font-weight:700; font-variant-numeric:tabular-nums; margin-top:2px; }
+.kv .k { font-size:11px; color:#b0bac7; letter-spacing:.06em; } .kv .val { font-size:17px; font-weight:700; font-variant-numeric:tabular-nums; margin-top:2px; }
 .proj { margin-top:9px; padding-top:8px; border-top:1px solid #1d232c; font-size:13px; color:#b6bfcc; font-variant-numeric:tabular-nums; display:flex; gap:16px; flex-wrap:wrap; }
 .proj b { font-weight:680; color:#dde3ec; }
 .proj.vrd { font-size:13.5px; }
@@ -69,7 +72,7 @@ div.sec.collapsed::after { content:'▸'; }
 .tier.ts.mute .tchip{opacity:.45}
 .tnote { margin-top:6px; font-size:12px; color:#d9b25a; background:rgba(217,178,90,.09); border-radius:6px; padding:5px 8px; }
 .atrnote { margin-top:6px; padding:5px 0 0; border-top:1px solid #1d232c; font-size:12.5px; color:#aeb8c6; line-height:1.55; }
-.ifb { margin-top:5px; font-size:11.5px; color:#9ba5b4; font-variant-numeric:tabular-nums; }
+.ifb { margin-top:5px; font-size:11.5px; color:#b0bac7; font-variant-numeric:tabular-nums; }
 .ifb b { font-size:13px; color:#e8edf4; margin:0 2px; }
 .ifb .r { color:#ff7a72; }
 .ifb .s { color:#4fd79b; }
@@ -90,16 +93,16 @@ details.mini > div { padding-top:2px; }
 .tbox { background:#14181e; border:1px solid #232a33; border-radius:12px; padding:12px 14px; margin-bottom:12px; }
 .tbox .r { display:grid; grid-template-columns:1fr 1fr; gap:8px; align-items:end; }
 .tbox .r label:first-child { grid-column:1 / -1; }
-.tbox label { font-size:12px; color:#9ba5b4; display:flex; flex-direction:column; gap:4px; }
+.tbox label { font-size:12px; color:#b0bac7; display:flex; flex-direction:column; gap:4px; }
 .tbox select,.tbox input { padding:10px 8px; border:1px solid #333c48; border-radius:8px; font-size:16px; background:#0f1319; color:#dde3ec; }
 .tbox input { text-align:right; font-variant-numeric:tabular-nums; }
 .prow { display:flex; justify-content:space-between; align-items:center; padding:7px 12px; font-size:12.5px; border-bottom:1px solid #1d232c; }
 .prow:last-child { border-bottom:none; }
 .tbox .go { margin-top:10px; width:100%; border:none; background:#2563eb; color:#fff; font-size:14px; font-weight:600; padding:9px; border-radius:8px; }
-.fee { display:flex; gap:12px; margin-top:10px; font-size:11px; color:#9ba5b4; align-items:center; flex-wrap:wrap; }
+.fee { display:flex; gap:12px; margin-top:10px; font-size:11px; color:#b0bac7; align-items:center; flex-wrap:wrap; }
 .fee input { width:56px; padding:4px 5px; border:1px solid #333c48; border-radius:6px; font-size:16px; text-align:right; background:#0f1319; color:#dde3ec; }
 .qtys { display:flex; gap:6px; margin-top:8px; align-items:center; }
-.qtys span { font-size:11px; color:#9ba5b4; }
+.qtys span { font-size:11px; color:#b0bac7; }
 .qtys button { flex:1; border:1px solid #2a323d; background:#171c23; font-size:12px; padding:7px 2px; border-radius:7px; color:#c3cad6; }
 .qtys button:active { background:#1d2634; }
 .tcf { display:none; margin-top:10px; background:rgba(224,164,0,.1); border:1px solid rgba(224,164,0,.4); border-radius:9px; padding:10px 12px; font-size:13px; line-height:1.6; }
@@ -118,9 +121,9 @@ details.mini > div { padding-top:2px; }
 table { width:100%; border-collapse:collapse; font-variant-numeric:tabular-nums; }
 .card.tbl { padding:4px 0; }
 th,td { padding:11px 12px; text-align:right; font-size:14px; }
-th { font-size:11px; color:#9ba5b4; font-weight:600; letter-spacing:.06em; } th.l,td.l { text-align:left; }
+th { font-size:11px; color:#b0bac7; font-weight:600; letter-spacing:.06em; } th.l,td.l { text-align:left; }
 td { border-top:1px solid #1d232c; }
-.sub { font-size:12px; color:#9ba5b4; }
+.sub { font-size:12px; color:#b0bac7; }
 #wdelh:empty { display:none; }
 .wdel { font-size:11px; color:#ff9066; background:rgba(255,144,102,.12); border:none; padding:3px 8px; border-radius:6px; font-weight:600; }
 .up{color:#f4655f;} .down{color:#2ebd7f;} .flat{color:#aab3c0;}
@@ -150,7 +153,7 @@ td { border-top:1px solid #1d232c; }
 .qt2 tr.now td:last-child { border-radius:0 3px 3px 0; padding-right:3px; }
 .qt2 tr.cst td, .qt2 tr.cst td.qk { color:#b7a4f7; }
 .qt2 tr.cst td.qk { font-weight:700; }
-.qt2 tr.mid td { border-top:1px dashed #333c48; color:#9ba5b4; font-size:10.5px; padding-top:3px; }
+.qt2 tr.mid td { border-top:1px dashed #333c48; color:#b0bac7; font-size:10.5px; padding-top:3px; }
 .warn2 { margin-top:6px; padding:4px 6px; background:rgba(245,158,11,.09); border-left:3px solid #f59e0b; font-size:12px; line-height:1.5; font-variant-numeric:tabular-nums; }
 .qt2 .pr { color:#8d97a6; font-size:10px; }
 .qt2 .pr.hi { color:#4fd79b; font-weight:700; }
@@ -168,7 +171,7 @@ td { border-top:1px solid #1d232c; }
 .qm{display:inline-block;min-width:13px;height:13px;line-height:13px;text-align:center;
   border-radius:50%;background:#39424f;color:#c3cad6;font-size:10px;font-weight:700;
   margin-left:4px;padding:0 1px;cursor:pointer;vertical-align:middle}
-.tchip s.prb { color:#9ba5b4; font-size:10.5px; font-weight:600; text-decoration:none; }
+.tchip s.prb { color:#b0bac7; font-size:10.5px; font-weight:600; text-decoration:none; }
 .tchip s.prb.hi { color:#4fd79b; }
 .tchip s.prb.lo { color:#e8a13c; }
 .deadn { margin-top:6px; font-size:12px; color:#e5a468; background:rgba(229,164,104,.09); padding:4px 6px; border-radius:5px; line-height:1.5; }
@@ -186,7 +189,7 @@ td { border-top:1px solid #1d232c; }
 .wl1 > summary::after { content:' ▸'; color:#8d97a6; font-size:10px; }
 .wl1[open] > summary::after { content:' ▾'; }
 .wl1 .wlx { display:block; margin-top:3px; }
-.prb2 { font-size:10px; color:#9ba5b4; font-weight:700; }
+.prb2 { font-size:10px; color:#b0bac7; font-weight:700; }
 .prb2.hi { color:#4fd79b; }
 .prb2.lo { color:#e8a13c; }
 .gp { font-size:10.5px; color:#8d97a6; margin-left:3px; }
@@ -194,7 +197,7 @@ td { border-top:1px solid #1d232c; }
 .dl.hot { color:#e5a468; background:rgba(229,164,104,.09); padding:4px 5px; border-radius:5px; border-top:none; }
 .qf { font-size:12px; color:#b6bfcc; margin-top:4px; padding-top:3px; border-top:1px solid #1d232c; font-variant-numeric:tabular-nums; }
 .ixrow { display:flex; gap:8px; flex-wrap:wrap; font-size:12px; font-variant-numeric:tabular-nums; margin-bottom:5px; }
-.ixrow span { color:#9ba5b4; }
+.ixrow span { color:#b0bac7; }
 .ixrow b { margin-left:3px; font-size:12.5px; }
 .ixrow .hot { background:rgba(244,101,95,.16); padding:0 5px; border-radius:4px; color:#ff8a80; font-weight:700; }
 .qt { width:100%; border-collapse:collapse; font-size:12.5px; font-variant-numeric:tabular-nums; }
@@ -216,7 +219,7 @@ td { border-top:1px solid #1d232c; }
 .tchip i { font-style:normal; font-size:11px; font-weight:700; color:#8d97a6; }
 .tchip b { font-size:20px; font-weight:800; font-variant-numeric:tabular-nums; letter-spacing:.2px; }
 .tier.tb .tchip b { color:#4fd79b; } .tier.ts .tchip b { color:#ff8a80; }
-.tchip s { text-decoration:none; font-size:11px; color:#9ba5b4; font-variant-numeric:tabular-nums; }
+.tchip s { text-decoration:none; font-size:11px; color:#b0bac7; font-variant-numeric:tabular-nums; }
 .ffb { display:inline-block; width:8px; height:8px; border-radius:2px; margin:0 1px; vertical-align:-1px; }
 .qbox { display:flex; gap:6px; margin-top:9px; }
 .qbox input { flex:1; min-width:0; padding:8px 5px; border:1px solid #333c48; border-radius:7px; font-size:14px; text-align:right; font-variant-numeric:tabular-nums; background:#0f1319; color:#dde3ec; }
@@ -233,11 +236,11 @@ details.fold:not([open]) > summary { margin-bottom:0; }
 .quickActions button:active { background:#1d2634; transform:translateY(1px); }
 @media (min-width:700px) { .quickActions { left:auto; right:20px; transform:none; } }
 .rvtabs { display:flex; gap:3px; margin:0 0 8px; background:#14181e; border:1px solid #232a33; border-radius:10px; padding:4px; }
-.rvtabs button { flex:1; border:0; background:none; color:#9ba5b4; font-size:13px; font-weight:600; padding:8px 4px; border-radius:7px; letter-spacing:.04em; }
+.rvtabs button { flex:1; border:0; background:none; color:#b0bac7; font-size:13px; font-weight:600; padding:8px 4px; border-radius:7px; letter-spacing:.04em; }
 .rvtabs button.on { background:#1d2634; color:#f2f5f9; }
 .ksf { width:100%; height:72vh; border:1px solid #232a33; border-radius:10px; background:#0b0e12; margin-top:6px; display:block; }
 .btp { display:flex; gap:6px; align-items:center; margin:6px 0 2px; flex-wrap:wrap; }
-.btp span { font-size:12px; font-weight:700; color:#9ba5b4; background:#171c23; border:1px solid #2a323d; border-radius:7px; padding:4px 12px; cursor:pointer; }
+.btp span { font-size:12px; font-weight:700; color:#b0bac7; background:#171c23; border:1px solid #2a323d; border-radius:7px; padding:4px 12px; cursor:pointer; }
 .btp span.on { color:#0b0e12; background:#7aa8ff; border-color:#7aa8ff; }
 .btc { width:100%; height:310px; display:block; border-radius:8px; margin-top:6px; background:#12161c; touch-action:none; -webkit-user-select:none; user-select:none; -webkit-touch-callout:none; }
 .foot { font-size:11.5px; color:#8d97a6; line-height:1.6; margin-top:8px; padding:0 2px; }
@@ -3186,6 +3189,7 @@ function doRender(){
       ${actBar}
       ${(BATTLE[i]={code:h.code,buys:tr.buys,sells:tr.sells,preLo:preLo,preHi:preHi,cost:h.cost,p3:(p!=null&&p<10),lev:(lg&&lg.hi>0&&lg.lo>0)?{hi:lg.hi,lo:lg.lo}:null},'')}
       <details class="fold" data-fk="bt-${i}" ontoggle="battleOpen(${i})" style="margin-top:6px;border-top:none;padding-top:0"><summary>盘中作战图 · K线+档位色带+均价黄线+撑压位 · 副图MACD</summary><div class="btp" id="btp_${i}">${[5,15,30,60].map(sc0=>`<span data-s="${sc0}" class="${(BTP[i]||5)===sc0?'on':''}" onclick="setBtp(${i},${sc0})">${sc0}分</span>`).join('')}<span onclick="armAline(${i})" style="margin-left:auto;color:#5cc8d8">提醒线</span><span onclick="zoomBt(${i},1)" style="font-size:15px;padding:4px 16px">＋放大</span><span onclick="zoomBt(${i},-1)" style="font-size:15px;padding:4px 16px">－缩小</span><span id="btn_${i}" style="border:none;background:none;color:#8d97a6">${BTN[i]?('近'+BTN[i]+'根'):'全部'}</span></div><canvas id="btc_${i}" class="btc"></canvas></details>
+      <details class="fold" data-fk="ks-${i}" ontoggle="ksOpen(${i})"><summary>📈 K-STATION 对照图（拖拽/十字线/ICT · 做T价位已画好,不跳页）</summary><iframe id="ksf_${i}" class="ksf"></iframe><a href="https://fululi.github.io/k-station/?code=${h.code}&lines=${tr.buys.map(x=>'b'+x.toFixed(2)).concat(tr.sells.map(x=>'s'+x.toFixed(2))).join(',')}" class="sub" style="display:block;text-align:right;margin-top:4px;color:#7aa8ff;text-decoration:none">全屏打开 ↗</a></details>
       <div class="grid2">
         <div class="kv"><div class="k">回撤/盈亏率</div><div class="val ${dd!=null?cls(dd):'flat'}">${dd!=null?sg(dd.toFixed(2))+'%':'—'}</div></div>
         <div class="kv"><div class="k">浮动盈亏</div><div class="val ${pnl!=null?cls(pnl):'flat'}">${pnl!=null?sg(Math.round(pnl).toLocaleString()):'—'}</div><div class="k" style="margin-top:1px">今日 ${todayPnl!=null?sg(Math.round(todayPnl)):'—'}${_tdRealized?'<span class="sub" style="font-size:9px"> (含做T'+sg(Math.round(_tdRealized))+')</span>':''}</div></div>
@@ -3202,7 +3206,6 @@ function doRender(){
       </details>
       <div class="proj vrd"><span><span class="dim" style="font-weight:600">日线·周线</span> 📋 <b style="color:${vCls(vd)}">${vd}</b></span></div>
       ${tradeZone}
-      <details class="fold" data-fk="ks-${i}" ontoggle="ksOpen(${i})"><summary>📈 K-STATION 对照图（拖拽/十字线/ICT · 做T价位已画好,不跳页）</summary><iframe id="ksf_${i}" class="ksf"></iframe><a href="https://fululi.github.io/k-station/?code=${h.code}&lines=${tr.buys.map(x=>'b'+x.toFixed(2)).concat(tr.sells.map(x=>'s'+x.toFixed(2))).join(',')}" class="sub" style="display:block;text-align:right;margin-top:4px;color:#7aa8ff;text-decoration:none">全屏打开 ↗</a></details>
       <details class="fold" data-fk="vd-${h.code}"><summary>波动数据 · 信号跟踪 · 分档理由（想深究再点）</summary>
       ${legTxt}
       <div class="atrnote">${atrTxt}</div>
@@ -3225,6 +3228,12 @@ function doRender(){
         const lb=h.name+((dupN[h.name]>1&&acctOf(h))?('·'+acctOf(h)):'');
         return `<span onclick="document.getElementById('hcard_${i}').scrollIntoView({behavior:'smooth',block:'start'})">${lb}<b class="${cls(pc)}">${pc!=null?sg(pc.toFixed(1))+'%':''}</b></span>`; }).join('');
       nvs.style.display=_ord.length?'flex':'none'; } }
+  // v5.66: 现价跳动闪色
+  try{ window._PXP=window._PXP||{};
+    PF.holds.forEach((h,i2)=>{ const f2=GET(h.code), p2=F(f2,3), pv2=window._PXP[h.code];
+      if(p2!=null&&pv2!=null&&p2!==pv2){ const cd=document.getElementById('hcard_'+i2); const el2=cd&&cd.querySelector('.px');
+        if(el2) el2.classList.add(p2>pv2?'fup':'fdn'); }
+      if(p2!=null) window._PXP[h.code]=p2; }); }catch(e){}
 
   const _wOrd=PF.watch.map((_,j)=>j).sort((a,b)=>((PF.watch[b].fav?1:0)-(PF.watch[a].fav?1:0))||a-b); // v5.55 ★置顶
   document.getElementById('watch').innerHTML = _wOrd.map(i=>{ const w=PF.watch[i];
@@ -3640,7 +3649,7 @@ try{ rvTab(localStorage.getItem('hqm_rvtab')||'rv'); }catch(e){}
 refresh();
 // v5.62 作战图回滚为纯展示版: 内容全保留(K线/档位色带/黄线/撑压/回归通道/高低点/MACD/周期切换),
 // 手势交互整套拆除——打开就是完整一屏,零状态零卡壳。深度交互去K-STATION。
-let BATTLE={}, MKC={}, BTROWS={}, BTP={}, BTN={};
+let BATTLE={}, MKC={}, BTROWS={}, BTP={}, BTN={}, BTYR={};
 let ALINE={}; try{ ALINE=JSON.parse(localStorage.getItem('hqm_aline_v1')||'{}'); }catch(e){}
 let _alArm=null;
 function armAline(i){ const bd=BATTLE[i]; if(!bd) return;
@@ -3650,7 +3659,7 @@ function armAline(i){ const bd=BATTLE[i]; if(!bd) return;
 function zoomBt(i,dir){ const all=BTROWS[i]; if(!all) return;
   let n=BTN[i]||all.length;
   n=dir>0?Math.max(20,Math.round(n*0.6)):Math.min(all.length,Math.round(n*1.67));
-  BTN[i]=(n>=all.length)?null:n; BTS[i]=0; paintBattle(i);
+  BTN[i]=(n>=all.length)?null:n; BTS[i]=0; BTYR[i]=null; paintBattle(i);
   const lb=document.getElementById('btn_'+i); if(lb) lb.textContent=BTN[i]?('近'+BTN[i]+'根'):'全部'; }
 function loadMK(code,scale,cb){
   const key=code+'_'+scale, c=MKC[key], n=Date.now();
@@ -3690,7 +3699,7 @@ function loadMK(code,scale,cb){
         if(rows&&rows.length){ fin(rows); } else tencent(); }catch(e){ tencent(); } })
     .catch(()=>{ clearTimeout(tm); tencent(); });
 }
-function setBtp(i,sc0){ BTP[i]=sc0; BTROWS[i]=null; BTN[i]=null; BTS[i]=0; BTX[i]=null; drawBattle(i);
+function setBtp(i,sc0){ BTP[i]=sc0; BTROWS[i]=null; BTN[i]=null; BTS[i]=0; BTX[i]=null; BTYR[i]=null; drawBattle(i);
   const bar=document.getElementById('btp_'+i);
   if(bar) bar.querySelectorAll('span[data-s]').forEach(el=>el.classList.toggle('on',+el.getAttribute('data-s')===sc0)); }
 function ksOpen(i){
@@ -3713,6 +3722,10 @@ function bindBattle(cv,i){
   const priceToY=q=>cv._T+(cv._PB-cv._T)*(1-(q-cv._pmin)/(cv._pmax-cv._pmin));
   const down=e=>{ const p=px(e); sx=p.x; sy=p.y; s0=BTS[i]||0; moved=false; mode=null;
     const bd=BATTLE[i];
+    // 按在右侧价格轴上 → 上下拖拉伸价格刻度
+    if(cv._axX!=null&&p.x>cv._axX){ mode='yscale';
+      if(!BTYR[i]&&cv._pmin!=null) BTYR[i]={min:cv._pmin,max:cv._pmax};
+      return; }
     // 手指按在提醒线附近 → 直接拖线
     if(bd&&ALINE[bd.code]!=null&&cv._pmin!=null&&Math.abs(p.y-priceToY(ALINE[bd.code]))<26){ mode='aline'; return; }
     // 长按0.25秒 → 十字线跟手
@@ -3723,6 +3736,9 @@ function bindBattle(cv,i){
     if(!moved&&(Math.abs(dx)>4||Math.abs(dy)>4)) moved=true;
     if(mode==='aline'){ const bd=BATTLE[i]; if(bd&&cv._pmin!=null){
         ALINE[bd.code]=+yToPrice(Math.max(cv._T,Math.min(cv._PB,p.y))).toFixed(bd.p3?3:2); throt(); } return; }
+    if(mode==='yscale'){ const yr=BTYR[i]; if(yr){ const dyl=p.y-sy; sy=p.y;
+        const mid=(yr.min+yr.max)/2, half=Math.max(0.0005,(yr.max-yr.min)/2*(1+dyl*0.004));
+        yr.min=mid-half; yr.max=mid+half; throt(); } return; }
     if(mode==='cross'){ BTX[i]={x:p.x,y:p.y}; throt(); return; }
     if(moved&&mode==null){ clearTimeout(timer); mode='pan'; }
     if(mode==='pan'){
@@ -3772,17 +3788,25 @@ function paintBattle(i){
     rows=_all.slice(end-vn,end);
     cv._vn=vn;
   }
-  const W=cv.width=_cssW*2, H=cv.height=620, x=cv.getContext('2d');
+  const _wantW=Math.max(200,_cssW*2);
+  if(cv.width!==_wantW) cv.width=_wantW;
+  if(cv.height!==620) cv.height=620;
+  const W=cv.width, H=620, x=cv.getContext('2d');
   const dp=bd.p3?3:2, fmt=v=>v.toFixed(dp);
   x.fillStyle='#12161c'; x.fillRect(0,0,W,H);
-  if(!rows||rows.length<30){ x.fillStyle='#aeb8c6'; x.font='24px -apple-system'; x.textAlign='center'; x.fillText('数据没拉到,收起再点开重试',W/2,H/2); return; }
+  if(!_all||_all.length<30){ x.fillStyle='#aeb8c6'; x.font='24px -apple-system'; x.textAlign='center'; x.fillText('数据没拉到,收起再点开重试',W/2,H/2); return; }
   if(!cv._bound){ bindBattle(cv,i); cv._bound=1; }
   // 量程只按K线(±8%),档位线在量程里才画,不在的图顶/图底给小字
-  let pmin=Infinity,pmax=-Infinity;
-  rows.forEach(r=>{ pmin=Math.min(pmin,r[3]); pmax=Math.max(pmax,r[2]); });
-  const pad=(pmax-pmin)*0.08||0.01; pmin-=pad; pmax+=pad;
+  let pmin,pmax;
+  if(BTYR[i]){ pmin=BTYR[i].min; pmax=BTYR[i].max; }
+  else{
+    pmin=Infinity; pmax=-Infinity;
+    rows.forEach(r=>{ pmin=Math.min(pmin,r[3]); pmax=Math.max(pmax,r[2]); });
+    const pad=(pmax-pmin)*0.08||0.01; pmin-=pad; pmax+=pad;
+  }
+  if(!(pmax>pmin)) pmax=pmin+0.01;
   const L=78,R=72,T=12, PB=396, MT=424, MB=H-42, pw=W-L-R;
-  cv._pw=pw; cv._pmin=pmin; cv._pmax=pmax; cv._T=T; cv._PB=PB;
+  cv._pw=pw; cv._pmin=pmin; cv._pmax=pmax; cv._T=T; cv._PB=PB; cv._axX=W-R;
   const Y=q=>T+(PB-T)*(1-(q-pmin)/(pmax-pmin)), X=j=>L+pw*(j+0.5)/rows.length;
   const band=(q1,q2,col)=>{ if(q1==null||q2==null) return;
     const y1=Math.max(T,Y(Math.min(Math.max(q1,q2),pmax))), y2=Math.min(PB,Y(Math.max(Math.min(q1,q2),pmin)));
@@ -3882,7 +3906,7 @@ function paintBattle(i){
     x.beginPath(); x.moveTo(L,Y(lastC)); x.lineTo(W-R,Y(lastC)); x.stroke(); x.setLineDash([]); }
   // 时间轴
   x.fillStyle='#aeb8c6'; x.font='15px -apple-system'; x.textAlign='left'; x.fillText(rows[0][0].slice(5,16),L+4,H-12);
-  { const step=Math.max(1,Math.floor(rows.length/8));
+  { const step=Math.max(1,Math.floor(rows.length/10));
     for(let j=step;j<rows.length-2;j+=step){ const xx=X(j);
       x.fillStyle='#8d97a6'; x.textAlign='center'; x.fillText(rows[j][0].slice(11,16),xx,H-12); }
     x.textAlign='left'; }
