@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#f5f6f8">
-<title>我的持仓 · 行情 v5.44</title>
+<title>我的持仓 · 行情 v5.45</title>
 <style>
 :root { color-scheme: light; }
 html { scroll-padding-top:118px; }
@@ -23,6 +23,11 @@ body { margin:0; padding:14px 12px 92px; background:#f5f6f8; color:#1a1d21;
 .navSticky button { flex:0 0 auto; border:0; background:none; color:#64748b; padding:9px 13px 8px; font-size:13px; font-weight:600; white-space:nowrap; letter-spacing:.01em; border-bottom:2px solid transparent; margin-bottom:-1px; transition:color .15s,border-color .15s; }
 .navSticky button.active { color:#0f172a; font-weight:700; border-bottom-color:#2563eb; }
 .navSticky button:active { color:#2563eb; }
+/* v5.45: 持仓票快捷chip行,贴在分区导航下面一起吸顶 */
+.navStk { position:sticky; top:84px; z-index:54; display:flex; gap:6px; overflow-x:auto; padding:5px 2px 6px; margin:0 -2px 8px; background:rgba(245,246,248,.96); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); scrollbar-width:none; }
+.navStk::-webkit-scrollbar { display:none; }
+.navStk span { flex:0 0 auto; font-size:11px; font-weight:600; color:#334155; background:#fff; border:1px solid #e2e8f0; border-radius:999px; padding:3px 10px; }
+.navStk span b { font-variant-numeric:tabular-nums; margin-left:3px; }
 .top button { font-size:13px; border:none; padding:7px 12px; border-radius:8px; font-weight:600; }
 .rf { color:#2563eb; background:#eaf0ff; }
 .ed { color:#7a5b00; background:#fdf1cf; }
@@ -244,6 +249,7 @@ details.fold:not([open]) > summary { margin-bottom:0; }
   <button onclick="document.getElementById('rvBox').scrollIntoView({behavior:'smooth',block:'start'})">复盘</button>
   <button onclick="document.getElementById('tlog').scrollIntoView({behavior:'smooth',block:'start'})">台账</button>
 </div>
+<div class="navStk" id="navStk" style="display:none"></div>
 <div class="time" id="time">加载中…</div>
 
 <div class="sum" id="sum" style="display:none">
@@ -301,8 +307,7 @@ details.fold:not([open]) > summary { margin-bottom:0; }
 <div class="card" id="paper" style="padding:4px 0"></div>
 </details>
 
-<div class="sec"><span>做T回测 · 样本外</span><span class="sub" id="btSum"></span></div>
-<div id="btBox" class="card"><div class="sub">首次加载后自动算(本机,约1秒)</div></div>
+<!-- v5.45: "做T回测·样本外"板块按用户要求撤下(结论已吃进趋势过滤/档位逻辑,面板本身没人看) -->
 <div class="sec"><span>预判复盘 · 场次账</span><span class="sub">每场预判冻结存档,收盘后日K结算</span></div>
 <div id="fcBox" class="card"><div class="sub">积累中…</div></div>
 <div class="sec"><span>实盘复盘 · 你自己的成交</span><span class="sub" id="rvSum"></span></div>
@@ -353,7 +358,7 @@ details.fold:not([open]) > summary { margin-bottom:0; }
   </div>
   <input id="tNote" placeholder="原因(可选,复盘用):如 冲高减/破位割/接早了" style="width:100%;margin-top:6px">
   <div class="tcf" id="tcf"></div>
-  <button class="go" onclick="addTrade()">＋ 记一笔（只卖不接=留空接回价按成本结算 · 持仓股数/成本自动联动）</button>
+  <button class="go" onclick="addTrade()">＋ 记一笔（只卖不接=自动配对之前的买单(跨日),配不满按成本 · 持仓股数/成本自动联动）</button>
   <button class="go" style="background:#475569;margin-top:6px" onclick="repeatLast()">↻ 再来一笔（沿用上笔的票/价/股数，改个数就记）</button>
   <div class="fee">费用估算:
     佣金率%<input id="feeComm" type="number" step="0.005" onchange="saveFee()">
@@ -894,7 +899,7 @@ function calcPos(rows){ // v4.73 日线位置:分位/MA20偏离/起涨/历史同
 let PRW=250; try{ const _w=+localStorage.getItem('hqm_prw_v1'); if(_w>=40) PRW=_w; }catch(e){}
 // v4.84: 预判区间不是"保证",是"常态波动范围"。直接量它历史上被击穿多少次,
 // 把公式换成一个能记住的数字,避免用久了盲目信任。
-let PREHIT={}, PHTRY={}; const PHK='hqm_ph_v1';
+let PREHIT={}, PHTRY={}; const PHK='hqm_ph_v2'; // v5.45: 带kUp/kDn系数,旧缓存作废
 try{ const _p=JSON.parse(localStorage.getItem(PHK)||'null'); if(_p&&_p.date===today()) PREHIT=_p.ph||{}; }catch(e){}
 let _phT=null;
 function phDirty(){ clearTimeout(_phT); _phT=setTimeout(()=>{ try{ render(); }catch(e){} },300); }
@@ -902,41 +907,55 @@ function preHitOf(rows){   // rows:[date,open,high,low,close]
   const n=rows.length; if(n<120) return null;
   const atrAt=i=>{ let t=0; for(let j=i-14;j<i;j++){ const h=rows[j][2],l=rows[j][3],pc=rows[j-1][4];
     t+=Math.max(h-l,Math.abs(h-pc),Math.abs(l-pc)); } return t/14; };
+  // v5.45: ±1×ATR是"哪只票都一样"的懒区间,画得宽覆盖率自然好看但没用。
+  // 改成按该票自己历史实测:前段(校准窗)取当日摸高/摸低相对ATR的75分位得到不对称系数kUp/kDn,
+  // 后60天(检验窗)用这套系数算区间再统计覆盖率 —— 系数和考卷分开,不自己考自己。
+  const st=Math.max(16,n-250), cut=n-60;
+  const us=[], ds=[];
+  for(let i=st;i<cut;i++){ const pv=rows[i-1][4], a=atrAt(i); if(!(a>0&&pv>0)) continue;
+    us.push((rows[i][2]-pv)/a); ds.push((pv-rows[i][3])/a); }
+  const q75=arr=>{ if(!arr.length) return 1; const s=arr.slice().sort((x,y)=>x-y); return s[Math.min(s.length-1,Math.floor(s.length*0.75))]; };
+  const clamp=v=>Math.min(1.5,Math.max(0.2,v));
+  const enough=us.length>=100;
+  const kUp=enough?clamp(q75(us)):1, kDn=enough?clamp(q75(ds)):1;
   let tot=0,inr=0,up=0,dn=0,inc=0;
-  for(let i=Math.max(16,n-250);i<n;i++){
+  for(let i=Math.max(16,cut);i<n;i++){
     const pv=rows[i-1][4], a=atrAt(i); if(!(a>0&&pv>0)) continue;
-    const hi=pv+a, lo=pv-a, H=rows[i][2], L=rows[i][3], C=rows[i][4];
+    const hi=pv+kUp*a, lo=pv-kDn*a, H=rows[i][2], L=rows[i][3], C=rows[i][4];
     tot++;
     if(H<=hi&&L>=lo) inr++;
     if(H>hi) up++;
     if(L<lo) dn++;
     if(C<=hi&&C>=lo) inc++;
   }
-  return tot<60?null:{n:tot,inr:Math.round(inr/tot*100),up:Math.round(up/tot*100),
-                      dn:Math.round(dn/tot*100),inc:Math.round(inc/tot*100)};
+  return tot<30?null:{n:tot,inr:Math.round(inr/tot*100),up:Math.round(up/tot*100),
+                      dn:Math.round(dn/tot*100),inc:Math.round(inc/tot*100),
+                      kUp:+kUp.toFixed(2),kDn:+kDn.toFixed(2)};
 }
 function preWhy(c,nm){
   const ph=PREHIT[c], a=atrOf(c), f=GET(c), prev=F(f,4), px=F(f,3), rc=refCloseOf(px,prev);
+  const ku=(ph&&ph.kUp)||1, kd=(ph&&ph.kDn)||1;
   let t='【'+(nm||c)+' 预判区间是怎么来的】\n\n';
   t+='★ 不是布林带,不是均线通道,没有正态分布假设。\n\n';
-  t+='公式: 基准价 ± 1.0 × ATR14\n';
+  t+='公式: 基准价 +'+ku.toFixed(2)+'×ATR14 / −'+kd.toFixed(2)+'×ATR14\n';
+  t+='这两个系数是这只票自己近一年"当天实际摸高/摸低相对ATR"的75分位——\n';
+  t+='上下不对称、每只票不一样,不是拍脑袋的±1。\n';
   t+='基准价 = 盘中用昨收 / 收盘后用今收(所以收盘后它自动变成"明天的区间")\n';
   t+='ATR14 = 最近14个交易日「真实波幅」的平均值\n';
-  t+='真实波幅 = max(当日高低差, |高−昨收|, |低−昨收|),把跳空缺口也算进去\n';
   t+='最后再被涨跌停板夹一次。\n\n';
   if(rc!=null&&a!=null){
     t+='当前: 基准 '+rc.toFixed(2)+'   ATR14 '+a.toFixed(2)+' ('+(a/rc*100).toFixed(2)+'%)\n';
-    t+='区间 '+(rc-a).toFixed(2)+' ~ '+(rc+a).toFixed(2)+'\n\n';
+    t+='区间 '+(rc-kd*a).toFixed(2)+' ~ '+(rc+ku*a).toFixed(2)+'\n\n';
   }
   if(ph){
-    t+='【实测·近'+ph.n+'个交易日,这个区间到底准不准】\n';
+    t+='【实测·系数用前段历史算,拿最近'+ph.n+'个交易日当考卷,不自己考自己】\n';
     t+='  全天没出过区间   '+ph.inr+'%\n';
     t+='  捅破上沿         '+ph.up+'%\n';
     t+='  跌破下沿         '+ph.dn+'%\n';
     t+='  收盘落在区间内   '+ph.inc+'%\n\n';
-    t+='→ 记住 '+ph.inr+'% 这个数就够了,别记公式。\n';
-    t+='剩下 '+(100-ph.inr)+'% 的日子它会被捅破,那是常事,不是异常。\n';
-    t+='它是「常态波动范围」,不是保证,更不是买卖信号。';
+    t+='→ 这个区间是「典型的一天走多远」,画得紧,所以会被捅破是常事。\n';
+    t+='捅破上沿'+ph.up+'%≈高抛挂上沿附近大约1/'+Math.max(1,Math.round(100/Math.max(1,ph.up)))+'的日子能成交,这才是做T该看的数。\n';
+    t+='它不是保证,更不是买卖信号。';
   } else t+='【实测】还在算 —— 要拉近300根日线才能统计,首次打开或刚换网络时会慢几秒。\n下拉刷新一次;如果刷新几次还是这句,多半是行情接口把这个代码的日线拒了。';
   alert(t);
 }
@@ -1834,21 +1853,22 @@ function toggleEdit(){ editMode=!editMode;
   render();
 }
 // 点档位价格 → 自动填进"记一笔"(低吸价→接回价, 高抛价→卖出价)
-function fillT(code, price, side){
-  const el=document.getElementById(side==='sell'?'qs_'+code:'qb_'+code);
+// v5.45: 参数从code改成持仓下标 —— 同代码多账户时按code取元素/findIndex只会命中第一个账户,填错户
+function fillT(hi0, price, side){
+  const h=PF.holds[hi0]; if(!h) return;
+  const el=document.getElementById(side==='sell'?'qs_'+hi0:'qb_'+hi0);
   if(el){ // v4.53: 点价直接填进这张卡片的快捷单,原地记账不跳底部
     el.value=price;
-    const q=document.getElementById('qq_'+code);
+    const q=document.getElementById('qq_'+hi0);
     if(q&&!q.value) q.value=localStorage.getItem('tlog_lastqty')||'100';
-    qPrev(code);
-    const other=document.getElementById(side==='sell'?'qb_'+code:'qs_'+code);
+    qPrev(hi0);
+    const other=document.getElementById(side==='sell'?'qb_'+hi0:'qs_'+hi0);
     toast((side==='sell'?'卖出价 ':'接回价 ')+price+' 已填到卡片'+(other&&other.value?'':' · 再点一个'+(side==='sell'?'低吸价':'高抛价')+'凑一轮'));
     return;
   }
-  const i=PF.holds.findIndex(h=>h.code===code); if(i<0) return;
   const sel=document.getElementById('tSel');
-  if(sel.options.length!==PF.holds.length) sel.innerHTML=PF.holds.map((h,j)=>`<option value="${j}">${h.name}</option>`).join('');
-  sel.value=i;
+  if(sel.options.length!==PF.holds.length) sel.innerHTML=tSelOpts();
+  sel.value=hi0;
   document.getElementById(side==='sell'?'tSell':'tBuy').value=price;
   const q2=document.getElementById('tQty');
   if(!q2.value){ q2.value=localStorage.getItem('tlog_lastqty')||'100'; }
@@ -1904,7 +1924,7 @@ function addPlan(){
 }
 function renderPlan(){
   const sel=document.getElementById('pSel');
-  if(sel && sel.options.length!==PF.holds.length) sel.innerHTML=PF.holds.map((h,i)=>`<option value="${i}">${h.name}</option>`).join('');
+  if(sel && sel.options.length!==PF.holds.length) sel.innerHTML=tSelOpts();
   const box=document.getElementById('plist'); if(!box) return;
   let hits=0, dirty=false;
   // v4.48: 未成交复盘置顶显示(近5条),让"犹豫了没下手"也留痕
@@ -1991,8 +2011,20 @@ function maybeConfirmT_(){
     box.innerHTML=`待确认(预览,点绿按钮才入账):<b>${h.name}</b> 卖 ${sell}×${qty}股 → 接 ${buy}×${bq}股<br>价差 <b>${diff.toFixed(2)} 元/股</b> · 差价率 ${rt} · 做T净收益 <b style="color:${net>=0?'#dc2626':'#16a34a'}">${sg(Math.round(net))} 元</b>${net<0?' <b style="color:#c2410c">⚠ 差价不够费</b>':''} <span class="sub">（按配对${mq}股算·费${Math.round(fee)}全扣${red>0?' · 另减仓'+red+'股回笼'+Math.round(sell*red):(red<0?' · 另加仓'+(-red)+'股投入'+Math.round(buy*(-red)):'')}）</span><button class="b" onclick="addTrade()">✓ 确认记账</button>`;
     return;
   }
-  if(hasS){ // 只卖不接: 按成本结算实现盈亏,股数自动扣减
+  if(hasS){ // 只卖不接: v5.45 先FIFO配对之前的单边买(跨日),配不满按成本
     const c=h.cost||0, per=c>0?sell-c:0, rc=per>=0?'#dc2626':'#16a34a';
+    if(!isNaN(qty)&&qty>0){
+      const fm0=fifoMatch(h.code,acctOf(h),qty,true);
+      if(fm0.lots.length){
+        if(fm0.rest>0&&c<=0){ box.innerHTML=`<b style="color:#c2410c">⚠ ${h.name} 配对后还差${fm0.rest}股要按成本算,但成本价是0,先去「编辑」填成本</b>`; return; }
+        const fee=feeSide(h.code,sell,qty,1); let net=-fee;
+        fm0.lots.forEach(l=>{ net+=(sell-l.p)*l.q; });
+        if(fm0.rest>0) net+=(sell-c)*fm0.rest;
+        const left=h.shares-qty;
+        box.innerHTML=`待确认(预览,点绿按钮才入账):<b>${h.name}</b> 卖出 ${sell}×${qty}股(不接回)<br>配对: ${fm0.lots.map(l=>l.d.slice(5)+'买'+P(l.p)+'×'+l.q).join(' + ')}${fm0.rest>0?' + 成本'+c+'×'+fm0.rest:''}<br>实现盈亏 <b style="color:${net>=0?'#dc2626':'#16a34a'}">${sg(Math.round(net))} 元</b>(已扣费${Math.round(fee)})<span class="sub"> · 记账后 ${h.shares}股 → <b>${Math.max(0,left)}股</b>${qty>h.shares?' · <b style="color:#c2410c">⚠ 超过持仓,先核对</b>':''}</span><button class="b" onclick="addTrade()">✓ 确认记账</button>`;
+        return;
+      }
+    }
     if(c<=0){ box.innerHTML=`<b style="color:#c2410c">⚠ ${h.name} 成本价是0,先去「编辑」填成本,否则实现盈亏没法算</b>`; return; }
     if(isNaN(qty)||qty<=0){ box.innerHTML=`只卖不接:较成本${c} <b style="color:${rc}">${per>=0?'+':''}${per.toFixed(2)} 元/股(${((sell/c-1)*100).toFixed(2)}%)</b> · 还差股数<button class="b" onclick="addTrade()">✓ 确认记账</button>`; return; }
     const fee=feeSide(h.code,sell,qty,1);
@@ -2059,6 +2091,8 @@ function editField(type,i,field,val){
 // acct 为空 = 未分组,老数据零改动照常显示(只有一个空账户时连分组头都不画)。
 let ACCS={};
 function acctOf(h){ return (h.acct||'').trim(); }
+// v5.45: 同一只票在招商/东财各有一行时,下拉里两个"永鼎股份"分不清 —— 选项带上账户名
+function tSelOpts(){ return PF.holds.map((h,i)=>`<option value="${i}">${h.name}${acctOf(h)?'·'+acctOf(h):''}</option>`).join(''); }
 // v5.43: 同一代码分在多个账户(招商/东财)时,卡面必须能分清是哪一笔 ——
 // 此前只有点开编辑才看得到账户,两笔600105在卡面上长得一模一样。
 // 只要该代码出现多笔就都标(含未填账户的,标"未标"提示你去补),
@@ -2203,7 +2237,7 @@ let CODE_FEE='';  // feeOf 的调用点没传code,记账界面选股时置位
 function renderT(){ try{ renderBT(); }catch(e){} try{ renderRV(); }catch(e){}
 
   // v4.78: 按"谁最快触发"排序,每档标历史触及概率
-  const _rt=PF.holds.map(h=>{
+  const _rt=PF.holds.map((h,_hi)=>{
     const f=GET(h.code); const p=F(f,3),pct=F(f,32),hi=F(f,33),lo=F(f,34),prev=F(f,4);
     const todayAmp=(hi!=null&&lo!=null)?hi-lo:null;
     const base=ampBase(h.code,todayAmp);
@@ -2239,7 +2273,7 @@ function renderT(){ try{ renderBT(); }catch(e){} try{ renderRV(); }catch(e){}
       const pr=prbV(x,side);
       const showPr=(pr!=null&&(pr>=50||pr<=20))?`<span class="prb2${pr>=50?' hi':' lo'}">${pr}%</span>`:'';
       const tip=[P(x), (pr!=null?'触及'+pr+'%':''), annT(x,dir,j)].filter(Boolean).join(' · ');
-      return `<span class="tk" title="${tip}" onclick="fillT('${h.code}',${x},'${side}')">${P(x)} ${gapS2(x)}${showPr}</span>`;
+      return `<span class="tk" title="${tip}" onclick="fillT(${_hi},${x},'${side}')">${P(x)} ${gapS2(x)}${showPr}</span>`;
     };
     const bs=tr.buys.length?tr.buys.map((x,j)=>cell(x,j,'buy')).join(' '):'—';
     const ss=tr.sells.length?tr.sells.map((x,j)=>cell(x,j,'sell')).join(' '):'—';
@@ -2261,17 +2295,17 @@ function renderT(){ try{ renderBT(); }catch(e){} try{ renderRV(); }catch(e){}
   document.getElementById('tSum').textContent = (mktLive()?nowHM()+' 盘中 · ':(_nxt?sessLbl()+' · 下方是'+planLbl()+'开盘可直接挂的档位 · ':''))+'按最快触发排序 · '+(MKT!=null?(Math.abs(MKT)>=1.2?'大行情:已加宽档位':'常规档位'):'')+' · 锚'+(_nxt?'上一收盘':'昨收');
   const sel=document.getElementById('tSel');
   if(sel && sel.options.length!==PF.holds.length){
-    sel.innerHTML=PF.holds.map((h,i)=>`<option value="${i}">${h.name}</option>`).join('');
+    sel.innerHTML=tSelOpts();
   }
   renderLog(); renderPlan(); planHint();
 }
 // v4.52: 卡片内快捷记账——每只持仓旁边直接填卖/接/股数,实时预览净赚,复用主表单全部逻辑(单边/联动/还原)
-function qPrev(code){
-  const el=document.getElementById('qp_'+code); if(!el) return;
-  const h=PF.holds.find(x=>x.code===code); if(!h){ el.textContent=''; return; }
-  const sell=parseFloat(document.getElementById('qs_'+code).value);
-  const buy=parseFloat(document.getElementById('qb_'+code).value);
-  const qty=parseInt(document.getElementById('qq_'+code).value);
+function qPrev(hi0){
+  const el=document.getElementById('qp_'+hi0); if(!el) return;
+  const h=PF.holds[hi0]; if(!h){ el.textContent=''; return; }
+  const sell=parseFloat(document.getElementById('qs_'+hi0).value);
+  const buy=parseFloat(document.getElementById('qb_'+hi0).value);
+  const qty=parseInt(document.getElementById('qq_'+hi0).value);
   const hasS=!isNaN(sell)&&sell>0, hasB=!isNaN(buy)&&buy>0;
   if(!hasS&&!hasB){ el.innerHTML=''; return; }
   const q=(isNaN(qty)||qty<=0)?Math.max(100,Math.round((h.shares||400)/4/100)*100):qty;
@@ -2279,25 +2313,46 @@ function qPrev(code){
   if(hasS&&hasB){ const fee=feeOf(sell,buy,q,q,code).fee, net=(sell-buy)*q-fee;
     t='差'+(sell-buy).toFixed(2)+'/股 · '+q+'股净 ≈ '+sg(Math.round(net))+'元('+(net>=0?'+':'')+(net/(buy*q)*100).toFixed(1)+'%)'+(net<0?' ⚠不够费':'')+((isNaN(qty)||qty<=0)?' · 按1/4仓估':''); }
   else if(hasS){ const c=h.cost||0;
-    if(c<=0) t='成本未填,先点「编辑」填成本';
+    // v5.45: 预览也走FIFO试算,跟真实入账同口径
+    const fm0=fifoMatch(h.code,acctOf(h),q,true);
+    if(fm0.lots.length){ const fee=feeSide(h.code,sell,q,1); let net=-fee;
+      fm0.lots.forEach(l=>{ net+=(sell-l.p)*l.q; });
+      if(fm0.rest>0&&c>0) net+=(sell-c)*fm0.rest;
+      t='只卖·配对'+fm0.lots.map(l=>l.d.slice(5)+'买'+P(l.p)+'×'+l.q).join('+')+(fm0.rest>0?'+成本×'+fm0.rest:'')+' · 实现 ≈ '+sg(Math.round(net))+'元 · 余'+(h.shares-q)+'股'; }
+    else if(c<=0) t='成本未填,先点「编辑」填成本';
     else { const fee=feeSide(h.code,sell,q,1), net=(sell-c)*q-fee;
       t='只卖结算:较成本'+sg((sell-c).toFixed(2))+'/股 · '+q+'股实现 ≈ '+sg(Math.round(net))+'元 · 余'+(h.shares-q)+'股'; } }
   else { const fee=feeSide(h.code,buy,q,0), ns=(h.shares||0)+q, nc=ns>0?(((h.cost||0)*(h.shares||0))+buy*q+fee)/ns:0;
     t='纯加仓:'+q+'股 · 成本 '+(h.cost||0)+'→'+nc.toFixed(3); }
   el.innerHTML=t;
 }
-function qTrade(code){
-  const i=PF.holds.findIndex(x=>x.code===code); if(i<0){ toast('持仓里没这只票'); return; }
+function qTrade(hi0){
+  const i=hi0; const h0=PF.holds[i]; if(!h0){ toast('持仓里没这只票'); return; }
   const sel=document.getElementById('tSel');
-  if(sel.options.length!==PF.holds.length) sel.innerHTML=PF.holds.map((h,j)=>`<option value="${j}">${h.name}</option>`).join('');
+  if(sel.options.length!==PF.holds.length) sel.innerHTML=tSelOpts();
   sel.value=i;
-  document.getElementById('tSell').value=document.getElementById('qs_'+code).value;
-  document.getElementById('tBuy').value=document.getElementById('qb_'+code).value;
-  let qv=document.getElementById('qq_'+code).value;
+  document.getElementById('tSell').value=document.getElementById('qs_'+hi0).value;
+  document.getElementById('tBuy').value=document.getElementById('qb_'+hi0).value;
+  let qv=document.getElementById('qq_'+hi0).value;
   if(!qv){ const h=PF.holds[i]; qv=Math.max(100,Math.round((h.shares||400)/4/100)*100); } // 股数空=按1/4仓默认
   document.getElementById('tQty').value=qv;
   document.getElementById('tQty2').value='';
   addTrade(); // 校验失败会toast且不入账;成功后render()自动重建卡片清空输入
+}
+// v5.45: 单边卖不再一律按持仓成本算 —— 先FIFO配对同票同账户之前"单边买"还没配掉的份额(跨日也配),
+// 配不满的余量才落回成本价。买37.8×200、38.3×200,过两天39.4一把卖400,算的就是对这两笔的真实差价。
+// dry=true只试算不消耗(给预览用)。
+function fifoMatch(code,acct,qty,dry){
+  const lots=[];
+  for(let j=TLOG.length-1;j>=0&&qty>0;j--){ const r=TLOG[j];
+    if(r.code!==code||(r.acct||'')!==acct||r.solo!=='buy'||!(r.buy>0)) continue;
+    const avail=(r.bq||0)-(r.usedQ||0); if(avail<=0) continue;
+    const take=Math.min(avail,qty);
+    if(!dry) r.usedQ=(r.usedQ||0)+take;
+    lots.push({d:r.d,p:r.buy,q:take});
+    qty-=take;
+  }
+  return {lots,rest:qty};
 }
 function addTrade(){
   const i=+document.getElementById('tSel').value;
@@ -2345,13 +2400,18 @@ function addTrade(){
     const ns=posBefore.shares-qty+bq;
     const nt=posBefore.cost*posBefore.shares + buy*bq + fee - sell*qty;
     h.shares=Math.max(0,ns); h.cost=ns>0?+(nt/ns).toFixed(3):0;
-  } else if(hasS){ // 只卖不接: 按成本算实现盈亏
+  } else if(hasS){ // 只卖不接: v5.45 先FIFO配对之前的单边买(跨日),配不满的余量按成本
     if(isNaN(qty)||qty<=0){ toast('卖出股数要填'); return; }
-    if(posBefore.cost<=0){ toast(h.name+' 成本价是0,先去「编辑」填成本再记'); return; }
-    const fee=feeSide(h.code,sell,qty,1);
-    const profit=(sell-posBefore.cost)*qty-fee;
-    rec={d:d0,code:h.code,name:h.name,sell,buy:null,qty,bq:0,gross:sell*qty,fee,red:qty,redCash:sell*qty,note,profit,exec:execScore('sell',sell),solo:'sell'};
     if(qty>posBefore.shares){ toast('卖出'+qty+'股超过持仓'+posBefore.shares+'股,先点「编辑」核对股数'); return; }
+    const dryFm=fifoMatch(h.code,acctOf(h),qty,true);
+    if(dryFm.rest>0&&posBefore.cost<=0){ toast(h.name+' 成本价是0,先去「编辑」填成本再记'); return; }
+    const fm=fifoMatch(h.code,acctOf(h),qty);
+    const fee=feeSide(h.code,sell,qty,1);
+    let profit=-fee;
+    fm.lots.forEach(l=>{ profit+=(sell-l.p)*l.q; });
+    if(fm.rest>0) profit+=(sell-posBefore.cost)*fm.rest;
+    rec={d:d0,code:h.code,name:h.name,sell,buy:null,qty,bq:0,gross:sell*qty,fee,red:qty,redCash:sell*qty,note,profit,exec:execScore('sell',sell),solo:'sell'};
+    if(fm.lots.length){ rec.pair=fm.lots; rec.pairRest=fm.rest; }
     const ns=posBefore.shares-qty;
     h.shares=Math.max(0,ns); if(ns<=0) h.cost=0; // 剩余股数成本不变,清仓归零
   } else { // 只买不卖: 纯加仓摊成本
@@ -2378,7 +2438,7 @@ function addTrade(){
 function repeatLast(){
   if(!TLOG.length){ toast('还没有台账,先记一笔'); return; }
   const r=TLOG[0];
-  const i=PF.holds.findIndex(h=>h.code===r.code);
+  let i=PF.holds.findIndex(h=>h.code===r.code&&acctOf(h)===(r.acct||'')); if(i<0) i=PF.holds.findIndex(h=>h.code===r.code); // v5.45: 优先对上原账户
   if(i>=0) document.getElementById('tSel').value=i;
   document.getElementById('tSell').value=r.sell; document.getElementById('tBuy').value=r.buy;
   document.getElementById('tQty').value=r.qty; document.getElementById('tQty2').value=r.bq||'';
@@ -2420,6 +2480,8 @@ function revertPos(r){ // 台账删/改时还原持仓(仅当该笔之后持仓�
 }
 function delTrade(idx){
   const r=TLOG[idx]; const rv=revertPos(r);
+  // v5.45: 删掉配对过的卖单,把占用的买单份额还回去
+  if(r&&r.pair) r.pair.forEach(l=>{ const b=TLOG.find(x=>x!==r&&x.code===r.code&&(x.acct||'')===(r.acct||'')&&x.solo==='buy'&&x.d===l.d&&x.buy===l.p&&(x.usedQ||0)>=l.q); if(b) b.usedQ-=l.q; });
   TLOG.splice(idx,1); saveLog(); renderLog(); render();
   if(rv==='ok') toast('已删台账,持仓已同步还原');
   else if(rv==='dirty') toast('已删台账 · 该笔之后持仓又有变动,请手动核对股数/成本');
@@ -2427,13 +2489,15 @@ function delTrade(idx){
 // v4.50: 记错了可改——回填表单+撤下旧条,核对后重新「记一笔」入档
 function editTrade(idx){
   const r=TLOG[idx]; if(!r) return;
-  const i=PF.holds.findIndex(h=>h.code===r.code);
+  let i=PF.holds.findIndex(h=>h.code===r.code&&acctOf(h)===(r.acct||'')); if(i<0) i=PF.holds.findIndex(h=>h.code===r.code); // v5.45: 优先对上原账户
   if(i>=0) document.getElementById('tSel').value=i;
   document.getElementById('tSell').value=r.sell; document.getElementById('tBuy').value=r.buy;
   document.getElementById('tQty').value=r.qty; document.getElementById('tQty2').value=r.bq||'';
   document.getElementById('tNote').value=r.note||'';
   const tde2=document.getElementById('tDate'); if(tde2&&r.d) tde2.value=r.d;
   const rv2=revertPos(r);
+  // v5.45: 撤下的卖单如果FIFO配对过历史买单,把那些买单被占用的份额也还回去
+  if(r.pair) r.pair.forEach(l=>{ const b=TLOG.find(x=>x!==r&&x.code===r.code&&(x.acct||'')===(r.acct||'')&&x.solo==='buy'&&x.d===l.d&&x.buy===l.p&&(x.usedQ||0)>=l.q); if(b) b.usedQ-=l.q; });
   TLOG.splice(idx,1); saveLog(); renderLog(); render();
   // v5.17: render()经requestAnimationFrame异步重绘#tbody(做T计划,在tboxMain上方),
   // 紧跟着同步scrollIntoView会按重绘前的旧高度定位,重绘后位置整体偏移,严重时冲到页面最底部——
@@ -2643,7 +2707,9 @@ function renderLog(){
       const aftS=(px!=null&&r.sell!=null&&r.d===td)?('<br><span class="sub">卖后<b class="'+cls(px-r.sell)+'">'+sg(((px/r.sell-1)*100).toFixed(1))+'%</b></span>'):'';
       const aftB=(px!=null&&r.buy!=null&&r.d===td)?('<br><span class="sub">接后<b class="'+cls(px-r.buy)+'">'+sg(((px/r.buy-1)*100).toFixed(1))+'%</b></span>'):'';
       const pxCell=r.sell!=null?('卖'+P(r.sell)+aftS):'<span class="sub">(纯买)</span>';
-      const bxCell=r.buy!=null?('接'+P(r.buy)+aftB):'<span class="sub">不接回</span>';
+      // v5.45: 配对过的单边卖,把"对上了哪几笔买"摆出来,别再让人以为是按今天算的
+      const pairCell=r.pair?('对'+r.pair.map(l=>l.d.slice(5)+'买'+P(l.p)+'×'+l.q).join('+')+(r.pairRest>0?('+成本×'+r.pairRest):'')):null;
+      const bxCell=r.buy!=null?('接'+P(r.buy)+aftB):(pairCell?('<span class="sub">'+pairCell+'</span>'):'<span class="sub">不接回</span>');
       const qCell=r.solo==='buy'?('买'+r.bq+'股'):(r.solo==='sell'?('卖'+r.qty+'股'):(r.bq&&r.bq!==r.qty?('卖'+r.qty+'/接'+r.bq):(r.qty+'股')));
       const pLbl=r.solo==='sell'?'实现 ':'';
       html+='<div class="tlog-row">'
@@ -2789,9 +2855,9 @@ function doRender(){
     // v4.84 修bug: 指数卡原来死锚昨收 —— 收盘后仍在显示"给今天用的"那份已过期区间。
     // 个股档位v4.82已改成收盘后滚到今收,指数卡当时漏了,这里补上,两边同一口径。
     const iref=refCloseOf(p,prev), inx=planNext();
-    const ipre=(iref!=null&&ia!=null)?(iref-ia).toFixed(0)+'~'+(iref+ia).toFixed(0):'—';
-    const ipos=(!inx&&p!=null&&iref!=null&&ia!=null)?(p>=iref+ia?' <b class="up">▲破上沿</b>':(p<=iref-ia?' <b class="down">▼破下沿</b>':'')):'';
-    const iph=PREHIT[c];
+    const iph=PREHIT[c], iku=(iph&&iph.kUp)||1, ikd=(iph&&iph.kDn)||1; // v5.45: 指数也用自己的实测系数
+    const ipre=(iref!=null&&ia!=null)?(iref-ikd*ia).toFixed(0)+'~'+(iref+iku*ia).toFixed(0):'—';
+    const ipos=(!inx&&p!=null&&iref!=null&&ia!=null)?(p>=iref+iku*ia?' <b class="up">▲破上沿</b>':(p<=iref-ikd*ia?' <b class="down">▼破下沿</b>':'')):'';
     return `<div class="c"><div class="n">${n}</div><div class="v ${cls(pct)}">${p!=null?p.toFixed(2):'—'}</div><div class="g ${cls(pct)}">${pct!=null?sg(pct.toFixed(2))+'%':''}</div><div class="g sub" style="font-weight:400">${inx?planLbl():'今日'}预判${ipre}${ipos}<span class="qm" onclick="event.stopPropagation();preWhy('${c}','${n}')">?</span>${iph?`<br><span style="font-size:9px;color:#94a3b8">实测${iph.inr}%不出界</span>`:''}</div>${ifib}</div>`;
   }).join('');
   const me=document.getElementById('mkt');
@@ -2829,7 +2895,7 @@ function doRender(){
       if(h.cost>0) o.pnl+=(px-h.cost)*h.shares; } });
   const _ord=[]; acctList().forEach(a=>{ PF.holds.forEach((h,i)=>{ if(acctOf(h)===a) _ord.push(i); }); });
   const qVals={};
-  PF.holds.forEach(h=>{ ['qs_','qb_','qq_'].forEach(pf=>{ const e=document.getElementById(pf+h.code); if(e&&e.value) qVals[pf+h.code]=e.value; }); });
+  PF.holds.forEach((h,i)=>{ ['qs_','qb_','qq_'].forEach(pf=>{ const e=document.getElementById(pf+i); if(e&&e.value) qVals[pf+i]=e.value; }); });
   document.getElementById('holds').innerHTML = _ord.map(i=>{ const h=PF.holds[i];
     const f=GET(h.code); const p=F(f,3),pct=F(f,32),hi=F(f,33),lo=F(f,34),prev=F(f,4);
     const todayAmp=(hi!=null&&lo!=null)?hi-lo:null;
@@ -2889,7 +2955,7 @@ function doRender(){
           +(uw!=null?`(昨收${sg(uw.toFixed(1))}%)`:'')
           +` → 卖这档这笔净${tr2>=0?'赚':'亏'}${Math.abs(tr2).toFixed(1)}%</u>`;
       }
-      return `<div class="tchip" onclick="fillT('${h.code}',${x},'${side}')"><i>${ord}</i><b>${P(x)}</b>${gapS}<s>${_nxh?'今收':'昨收'}${pctS}</s>${costS}${prS}${(hit&&!_nxh)?(' <s style="color:#d97706;font-weight:700">✓到过'+((p!=null&&Math.abs(x/p-1)*100>3)?'·已错过':'')+'</s>'):''}${tS}</div>`; }).join('');
+      return `<div class="tchip" onclick="fillT(${i},${x},'${side}')"><i>${ord}</i><b>${P(x)}</b>${gapS}<s>${_nxh?'今收':'昨收'}${pctS}</s>${costS}${prS}${(hit&&!_nxh)?(' <s style="color:#d97706;font-weight:700">✓到过'+((p!=null&&Math.abs(x/p-1)*100>3)?'·已错过':'')+'</s>'):''}${tS}</div>`; }).join('');
     const sellStr = tr.sells.length?fmtTier(tr.sells,'sell'):`<div class="tchip"><b>${P(projHi)}</b></div>`;
     const buyStr = tr.buys.length?fmtTier(tr.buys,'buy'):`<div class="tchip"><b>${P(projLo)}</b></div>`;
     const cleared=(h.shares===0);
@@ -2920,7 +2986,8 @@ function doRender(){
     // v4.96: 预判基准统一走 refCloseOf(与做T档位、preWhy说明一致)
     //        收盘后/盘前它就是"下一场"的区间,不能再拿上上一个收盘去算
     const _nxP=planNext();
-    const _mkP=(b)=>(b!=null&&a2!=null)?{hi:Math.min(b*(1+lp2),b+ampF*a2), lo:Math.max(b*(1-lp2),b-ampF*a2)}:null;
+    const _phc=PREHIT[h.code], _ku=(_phc&&_phc.kUp)||1, _kd=(_phc&&_phc.kDn)||1; // v5.45: 该票实测不对称系数
+    const _mkP=(b)=>(b!=null&&a2!=null)?{hi:Math.min(b*(1+lp2),b+_ku*ampF*a2), lo:Math.max(b*(1-lp2),b-_kd*ampF*a2)}:null;
     const _preP=_mkP(refCloseOf(p,prev));   // 第一行: 给下一场用的预判
     const _actP=_nxP?_mkP(prev):_preP;      // 第二行: 与"实际"同一场次的预判,跨日不能相减
     const preHi=_preP?_preP.hi:null, preLo=_preP?_preP.lo:null;
@@ -2968,8 +3035,8 @@ function doRender(){
     const tradeZone=cleared?'<div class="atrnote" style="color:#c2410c;font-weight:700">✓ 已清仓 · 实现盈亏见下方台账 · 分档与快捷单已收起(接回后点编辑重填股数/成本)</div>'
       :(_dead?`<div class="deadn">${deadSum}</div>`:'')
       +`<div class="tierbox"><div class="tier tb"><div class="tl">低吸区 · 点价直接填单<span class="qm" onclick="tierWhy()">?</span></div>${buyStr}</div><div class="tier ts${_up20?' mute':''}"><div class="tl">${_up20?`高抛区 · <b style="color:#b91c1c">回测说此刻别卖</b>`:'高抛区 · 点价直接填单'}<span class="qm" onclick="${_up20?`trendWhy('${h.code}','${h.name}')`:'tierWhy()'}">?</span></div>${sellStr}</div></div>
-      <div class="qbox"><input id="qs_${h.code}" type="number" step="0.001" placeholder="卖出价" oninput="qPrev('${h.code}')"><input id="qb_${h.code}" type="number" step="0.001" placeholder="接回(空=只卖)" oninput="qPrev('${h.code}')"><input id="qq_${h.code}" type="number" step="100" placeholder="股数(不填=1/4仓)" oninput="qPrev('${h.code}')"><button onclick="qTrade('${h.code}')">记</button></div>
-      <div class="sub qpv" id="qp_${h.code}"></div>
+      <div class="qbox"><input id="qs_${i}" type="number" step="0.001" placeholder="卖出价" oninput="qPrev(${i})"><input id="qb_${i}" type="number" step="0.001" placeholder="接回(空=只卖)" oninput="qPrev(${i})"><input id="qq_${i}" type="number" step="100" placeholder="股数(不填=1/4仓)" oninput="qPrev(${i})"><button onclick="qTrade(${i})">记</button></div>
+      <div class="sub qpv" id="qp_${i}"></div>
       ${roundTxt}`;
     const editRow = editMode ? `<div class="editbox">
         <label>成本<input type="number" step="0.001" value="${h.cost}" onchange="editField('hold',${i},'cost',this.value)"></label>
@@ -3080,7 +3147,7 @@ function doRender(){
         +'<span class="dim">H'+(hi!=null?P(hi):'—')+' L'+(lo!=null?P(lo):'—')+' σ'+(_atrp?_atrp.toFixed(1):'—')+'%'+' '+sessLbl()+'</span></div>'
         +'<table class="qt2">'+rows+'</table><div class="qf">'+roundS+doneS+'</div>'+'<div class="qf">'+foot+'<span class="dim"> · %=历史同幅度触及频率(无条件,非今日概率)</span></div>'+dline+'</div>';
     })();
-    return `<div class="card">${delBtn}
+    return `<div class="card" id="hcard_${i}">${delBtn}
       <div class="row1"><div><span class="nm">${h.name}</span><span class="code">${h.code.replace(/^(sh|sz)/,'')}</span>${acctTag(h)}${badge}${wtBadge}${dtBadgeH}${wsgTxtH}${m15Badge}${gzH}${extBadge}</div>
         <div class="pct ${cls(pct)}">${pct!=null?sg(pct.toFixed(2))+'%':''}<button class="ctog" onclick="togCard('${h.code}')">${COLL[h.code]?'▸':'▾'}</button></div></div>
       <div class="row1" style="margin-top:4px"><div class="px ${cls(pct)}">${P(p)}</div>
@@ -3123,6 +3190,13 @@ function doRender(){
       return ((_k===0||acctOf(PF.holds[_ord[_k-1]])!==_a)?acctHdr(_a):'')+_html; })
     .join('') || '<div class="card sub">暂无持仓,点右上编辑或＋添加</div>';
   Object.keys(qVals).forEach(id=>{ const e=document.getElementById(id); if(e) e.value=qVals[id]; });
+  // v5.45: 导航下加一排持仓票chip,点了直接跳到那张卡(同名多账户带账户名区分)
+  { const nvs=document.getElementById('navStk');
+    if(nvs){ const dupN={}; PF.holds.forEach(h=>{ dupN[h.name]=(dupN[h.name]||0)+1; });
+      nvs.innerHTML=_ord.map(i=>{ const h=PF.holds[i], f=GET(h.code), pc=F(f,32);
+        const lb=h.name+((dupN[h.name]>1&&acctOf(h))?('·'+acctOf(h)):'');
+        return `<span onclick="document.getElementById('hcard_${i}').scrollIntoView({behavior:'smooth',block:'start'})">${lb}<b class="${cls(pc)}">${pc!=null?sg(pc.toFixed(1))+'%':''}</b></span>`; }).join('');
+      nvs.style.display=_ord.length?'flex':'none'; } }
 
   document.getElementById('watch').innerHTML = PF.watch.map((w,i)=>{
     const f=GET(w.code); const p=F(f,3),pct=F(f,32),hi=F(f,33),lo=F(f,34),prev=F(f,4);
