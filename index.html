@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#0b0e12">
-<title>我的持仓 · 行情 v5.47</title>
+<title>我的持仓 · 行情 v5.48</title>
 <style>
 /* v5.46 完整版换肤:暗色行情终端。只动皮肤——所有类名/布局/交互结构原样,计算逻辑零改动。
    调色板: 底#0b0e12 卡#14181e 描边#232a33 主文#dde3ec 次文#9ba5b4 涨#f4655f 跌#2ebd7f 强调#4c8dff */
@@ -3168,9 +3168,11 @@ function doRender(){
       </div>
       <div class="proj"><span>${planLbl()}${_td.slice(5)}预判 <b class="flat">${preStr}</b><span class="qm" onclick="preWhy('${h.code}','${h.name}')">?</span>${PREHIT[h.code]?`<span class="sub" style="font-size:10px"> 实测${PREHIT[h.code].inr}%不出界</span>`:''}</span><span class="sub">${posTxt}${ampNote} · ${anchorNote(h.code,prev,p)}</span></div>
       <div class="proj" style="margin-top:2px"><span>${actRow(h.code,p,prev,lo,hi,_aLo,_aHi,_qd)}</span></div>
+      <details class="fold" data-fk="cy-${h.code}"><summary>周期情报 · 日线Fib / 15分 / 三角（点开看细节）</summary>
       ${fibLine(lg,p)}
       ${m15FibLine(M15FIB[h.code], p, h.code)}
       ${triLine(h.code, p)}
+      </details>
       <div class="proj vrd"><span><span class="dim" style="font-weight:600">日线·周线</span> 📋 <b style="color:${vCls(vd)}">${vd}</b></span></div>
       ${tradeZone}
       <a href="https://fululi.github.io/k-station/?code=${h.code}&lines=${tr.buys.map(x=>'b'+x.toFixed(2)).concat(tr.sells.map(x=>'s'+x.toFixed(2))).join(',')}" style="display:block;text-align:center;margin-top:8px;padding:8px;border-radius:8px;background:#2563eb;color:#fff;text-decoration:none;font-size:13px;font-weight:600">📈 看K线（做T价位已自动画好）</a>
