@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#0b0e12">
-<title>我的持仓 · 行情 v5.51</title>
+<title>我的持仓 · 行情 v5.52</title>
 <style>
 /* v5.46 完整版换肤:暗色行情终端。只动皮肤——所有类名/布局/交互结构原样,计算逻辑零改动。
    调色板: 底#0b0e12 卡#14181e 描边#232a33 主文#dde3ec 次文#9ba5b4 涨#f4655f 跌#2ebd7f 强调#4c8dff */
@@ -3577,12 +3577,23 @@ let BATTLE={}, M5C={};
 function loadM5(code,cb){
   const c=M5C[code], n=Date.now();
   if(c&&n-c.t<60000){ cb(c.rows); return; }
+  const fin=rows=>{ if(rows&&rows.length){ M5C[code]={t:n,rows:rows}; cb(rows); } else cb(null); };
+  // v5.52: 新浪从部分网络时不时抽风(15分当年同款坑),失败自动切腾讯mkline兜底
+  const tencent=()=>{
+    const ctrl2=new AbortController(); const tm2=setTimeout(()=>ctrl2.abort(),6000);
+    fetch('https://ifzq.gtimg.cn/appstock/app/kline/mkline?param='+code+',m5,,96',{signal:ctrl2.signal})
+      .then(r=>r.text()).then(t=>{ clearTimeout(tm2);
+        try{ const a=t.indexOf('{'), b=t.lastIndexOf('}');
+          const d=JSON.parse(t.slice(a,b+1)), node=d.data&&d.data[code];
+          fin(parseM15Rows(node&&(node.m5||node.m5_today||node.m5_data))); }catch(e){ fin(null); } })
+      .catch(()=>{ clearTimeout(tm2); fin(null); });
+  };
   const ctrl=new AbortController(); const tm=setTimeout(()=>ctrl.abort(),6000);
   fetch('https://quotes.sina.cn/cn/api/jsonp_v2.php/var%20x=/CN_MarketDataService.getKLineData?symbol='+code+'&scale=5&ma=no&datalen=96',{signal:ctrl.signal})
     .then(r=>r.text()).then(t=>{ clearTimeout(tm);
       try{ const m=t.match(/\[.*\]/s); const rows=JSON.parse(m[0]).map(r=>[r.day,+r.open,+r.high,+r.low,+r.close]);
-        M5C[code]={t:n,rows:rows}; cb(rows); }catch(e){ cb(null); } })
-    .catch(()=>{ clearTimeout(tm); cb(null); });
+        if(rows&&rows.length){ M5C[code]={t:n,rows:rows}; cb(rows); } else tencent(); }catch(e){ tencent(); } })
+    .catch(()=>{ clearTimeout(tm); tencent(); });
 }
 function battleOpen(i){ const d=document.querySelector('details[data-fk="bt-'+i+'"]'); if(d&&d.open) drawBattle(i); }
 function drawBattle(i){
