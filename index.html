@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#0b0e12">
-<title>我的持仓 · 行情 v5.67</title>
+<title>我的持仓 · 行情 v5.68</title>
 <style>
 /* v5.46 完整版换肤:暗色行情终端。只动皮肤——所有类名/布局/交互结构原样,计算逻辑零改动。
    调色板: 底#0b0e12 卡#14181e 描边#232a33 主文#dde3ec 次文#b0bac7 涨#f4655f 跌#2ebd7f 强调#4c8dff */
@@ -272,7 +272,9 @@ details.fold:not([open]) > summary { margin-bottom:0; }
 <div class="time" id="time">加载中…</div>
 
 <div class="ovbd">
-<div class="ovhd"><span>■ 总览看板</span><b id="ovClock">--:--:--</b></div>
+<div class="ovhd" onclick="ovTog()" style="cursor:pointer"><span>■ 总览看板 <i id="ovArr" style="font-style:normal;color:#4a5361;font-size:11px">▾</i></span><b id="ovClock">--:--:--</b></div>
+<div class="sub" id="ovMini" style="display:none;padding:2px 4px 6px"></div>
+<div id="ovBody">
 <div class="sum" id="sum" style="display:none">
   <div class="b"><div class="k">持仓总市值</div><div class="v flat" id="sumMv">—</div></div>
   <div class="b" style="text-align:center"><div class="k">今日盈亏</div><div class="v" id="sumDay">—</div></div>
@@ -285,6 +287,7 @@ details.fold:not([open]) > summary { margin-bottom:0; }
 <div class="card" id="syncCard" style="display:none;border:none;background:#12161c">
   <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px"><b style="font-size:14px">联动监控 · 指数带动谁</b><span class="sub" id="syncDate"></span></div>
   <div id="syncBody" style="font-size:13px;line-height:1.9"></div>
+</div>
 </div>
 </div>
 
@@ -3240,6 +3243,7 @@ function doRender(){
         const lb=h.name+((dupN[h.name]>1&&acctOf(h))?('·'+acctOf(h)):'');
         return `<span onclick="document.getElementById('hcard_${i}').scrollIntoView({behavior:'smooth',block:'start'})">${lb}<b class="${cls(pc)}">${pc!=null?sg(pc.toFixed(1))+'%':''}</b></span>`; }).join('');
       nvs.style.display=_ord.length?'flex':'none'; } }
+  try{ ovApply(); }catch(e){}
   // v5.66: 现价跳动闪色
   try{ window._PXP=window._PXP||{};
     PF.holds.forEach((h,i2)=>{ const f2=GET(h.code), p2=F(f2,3), pv2=window._PXP[h.code];
@@ -3650,6 +3654,25 @@ function notifyCheck(){
   if(dirty) try{ localStorage.setItem('hqm_ntfy_sent',JSON.stringify(sent)); }catch(e){}
 }
 try{ ntfyBtnUI(); }catch(e){}
+// v5.68 总览看板收展(记本机);收起时给一行摘要
+function ovTog(){
+  const off=localStorage.getItem('hqm_ov_off')==='1'?'0':'1';
+  try{ localStorage.setItem('hqm_ov_off',off); }catch(e){}
+  ovApply();
+}
+function ovApply(){
+  const off=localStorage.getItem('hqm_ov_off')==='1';
+  const b=document.getElementById('ovBody'), m=document.getElementById('ovMini'), a=document.getElementById('ovArr');
+  if(b) b.style.display=off?'none':'';
+  if(a) a.textContent=off?'▸':'▾';
+  if(m){ m.style.display=off?'':'none';
+    if(off){ try{
+      const mv=document.getElementById('sumMv'), dy=document.getElementById('sumDay');
+      const f=GET('sh000001'), pc=f?F(f,32):null;
+      m.innerHTML='总值 <b style="color:#e8edf4">'+(mv?mv.textContent:'—')+'</b> · 今日 '+(dy?('<b class="'+dy.className.replace('v ','')+'">'+dy.textContent+'</b>'):'—')+' · 上证 '+(pc!=null?('<b class="'+cls(pc)+'">'+sg(pc.toFixed(2))+'%</b>'):'—');
+    }catch(e){} } }
+}
+try{ ovApply(); }catch(e){}
 // v5.67 总览看板走秒时钟
 setInterval(()=>{ const el=document.getElementById('ovClock'); if(!el) return;
   const d=new Date(), z=v=>String(v).padStart(2,'0');
