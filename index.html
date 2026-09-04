@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#0b0e12">
-<title>我的持仓 · 行情 v5.80</title>
+<title>我的持仓 · 行情 v5.81</title>
 <style>
 /* v5.46 完整版换肤:暗色行情终端。只动皮肤——所有类名/布局/交互结构原样,计算逻辑零改动。
    调色板: 底#0b0e12 卡#14181e 描边#232a33 主文#dde3ec 次文#b0bac7 涨#f4655f 跌#2ebd7f 强调#4c8dff */
@@ -3076,12 +3076,13 @@ function doRender(){
     const _tb=TLOG.filter(r=>r.code===h.code&&r.d===today()&&r.buy>0&&r.bq>0&&(r.acct||'')===acctOf(h));
     const _bq=_tb.reduce((s,r)=>s+r.bq,0);
     const avgBuy=_bq?_tb.reduce((s,r)=>s+r.buy*r.bq,0)/_bq:null;
+    const _soldT=TLOG.some(r=>r.code===h.code&&r.d===today()&&r.sell>0&&(r.acct||'')===acctOf(h)); // v5.81 今天记过卖出=先卖后买达成,接回解锁
     const _rch=refCloseOf(p,prev), _nxh=planNext();   // v4.81: 收盘后档位是明日的,基准要用今收
-    const _panicB=(pct!=null&&pct<=-3); // v5.80 恐慌日①档低吸作废
+    const _panicB=(pct!=null&&pct<=-3)&&!_soldT; // v5.81 恐慌日且没先卖:①档作废;卖过即恢复
     const fmtTier=(arr,side)=>arr.map((x,j)=>{
       const pctS=_rch?sg(((x/_rch-1)*100).toFixed(1))+'%':'';
       const ord=arr.length>1?'①②③'[j]:'•';
-      if(side==='buy'&&j===0&&arr.length>1&&_panicB) return `<div class="tchip" style="opacity:.45"><i>①</i><b style="text-decoration:line-through">${P(x)}</b><s style="color:#e8a13c;font-weight:700">恐慌日作废 · 只看②③ · 只许先卖后买</s></div>`; // v5.80
+      if(side==='buy'&&j===0&&arr.length>1&&_panicB) return `<div class="tchip" style="opacity:.45"><i>①</i><b style="text-decoration:line-through">${P(x)}</b><s style="color:#e8a13c;font-weight:700">恐慌日作废 · 先抛过才解锁接回</s></div>`; // v5.81
       const hit=side==='buy'?(lo!=null&&lo<=x):(hi!=null&&hi>=x);
       // v4.76: 该档历史触及概率(250日,相对昨收口径)
       const _dq=DPOS[h.code];
@@ -3259,8 +3260,8 @@ function doRender(){
         const _ev=(_touchok&&(o.k==='s'||o.k==='b'))?touchCross(dst,o.t,p,o.x,o.k==='s'?'sell':'buy'):null;
         if(_ev){
         // v5.69: 单边下跌日静音"可接"提醒(均价阴跌带档位下移,反复催接飞刀);卖提醒保留(反弹正是减仓点)
-        if(o.k==='b'&&(dst.oneDn||(pct!=null&&pct<=-3))){ /* mute */ } // v5.80 跌≥3%当天"可接"提醒全静音,破位后反弹也不复活
-        else alertHit(h.code+o.t+today()+_ev.level, h.name+' 到'+o.t+' '+P(_ev.level)+(o.k==='s'?' 可卖':' 可接'));
+        if(o.k==='b'&&(dst.oneDn||(pct!=null&&pct<=-3))&&!_soldT){ /* mute */ } // v5.81 没先卖才静音;记过卖出接回提醒照常,破位反弹也不对没卖的复活
+        else alertHit(h.code+o.t+today()+_ev.level, h.name+' 到'+o.t+' '+P(_ev.level)+(o.k==='s'?(mktMin()<=60?' ⚡早盘先抛窗口·果断卖':' 可卖'):' 可接')); // v5.81 早盘冲高=第一动作先抛
       }
         // v5.13: "到过"改用点时事件(dst.touch),不再拿今日高低点去比当前(会随ratchet移动的)档位值——
         // 档位盘中变宽后旧的hi>=o.x比较在数学上就是错的,会漏判/误判
@@ -3331,10 +3332,10 @@ function doRender(){
       ${(()=>{
         if(cleared) return '';
         const ds=dayState(h.code);
-        const _pd=(pct!=null&&pct<=-3)||!!ds.oneDn; // v5.80 恐慌下跌日(跌≥3%或单边≥1ATR):①档低吸作废,只用深档
-        const b0=_pd?(tr.buys[1]||null):tr.buys[0], s0=tr.sells[0];
+        const _pd=((pct!=null&&pct<=-3)||!!ds.oneDn)&&!_soldT; // v5.81 恐慌/单边日:没先卖→买侧全隐藏;记过卖出即解锁
+        const b0=_pd?null:tr.buys[0], s0=tr.sells[0];
         if(b0==null&&s0==null) return '';
-        const warn=ds.oneDn?'单边下跌·别接飞刀':(ds.oneUp?'单边上涨·冲高记得卖':(_pd?'恐慌日·①档作废':''));
+        const warn=ds.oneDn?(_soldT?'单边下跌·已先卖·只接回':'单边下跌·先抛才解锁接回'):(ds.oneUp?'单边上涨·冲高记得卖':(_pd?'恐慌日·先抛才解锁接回':''));
         if(p!=null&&s0!=null&&p>=s0*0.998){
           const gp=((s0/p-1)*100).toFixed(1);
           return `<div class="actnow sell" onclick="fillT(${i},${s0},'sell')">现在抛 <b>${P(s0)}</b><small>${gp>=0?'+':''}${gp}% · ${warn||'到价了'}</small></div>`;
@@ -3354,7 +3355,7 @@ function doRender(){
         return `<div class="actnow wait">等 · ${bTxt} → ${sTxt}${roundS2}<small>${warn||'未到价·点价格直接填单'}</small></div>`;
       })()}
       ${(tf.lv>=2||(pct!=null&&Math.abs(pct)>=5))?`<div style="margin:6px 0;padding:8px 12px;border-radius:9px;font-weight:800;font-size:14px;background:${(pct||0)>=0?'rgba(244,101,95,.15)':'rgba(46,189,127,.15)'};color:${(pct||0)>=0?'#ff8a80':'#4fd79b'}">⚡ 单边行情 ${pct!=null?sg(pct.toFixed(1))+'%':''} · ${tf.label||'极端波动'} · 档位已按极端日口径放宽,别按平常日的手感追</div>`:''}
-      ${(pct!=null&&pct<=-3)?`<div style="margin:6px 0;padding:8px 12px;border-radius:9px;font-weight:800;font-size:13.5px;background:rgba(46,189,127,.15);color:#4fd79b">🚫 恐慌下跌日 · ①档低吸已作废 · 只许先卖后买——今天没先卖出的份额,别新接</div>`:''}
+      ${(pct!=null&&pct<=-3)?(_soldT?`<div style="margin:6px 0;padding:8px 12px;border-radius:9px;font-weight:800;font-size:13.5px;background:rgba(76,141,255,.15);color:#7aa8ff">✓ 恐慌日·今天已先卖 · 接回档位/提醒已解锁,跌到位照常提示</div>`:`<div style="margin:6px 0;padding:8px 12px;border-radius:9px;font-weight:800;font-size:13.5px;background:rgba(46,189,127,.15);color:#4fd79b">🚫 恐慌下跌日 · 先卖后买——先记一笔卖出,接回才解锁;没抛的别新接</div>`):''}
       <details class="fold" data-fk="wb-${h.code}"><summary style="font-size:12px;color:#8d97a6;padding:4px 0;cursor:pointer">水位·档位明细(实时)</summary>${actBar}</details>
       ${(BATTLE[i]={code:h.code,buys:tr.buys,sells:tr.sells,preLo:preLo,preHi:preHi,cost:h.cost,p3:(p!=null&&p<10),lev:(lg&&lg.hi>0&&lg.lo>0)?{hi:lg.hi,lo:lg.lo}:null},'')}
       <details class="fold" data-fk="ks-${i}" ontoggle="ksOpen(${i})" style="margin-top:6px;border-top:none;padding-top:0"><summary>盘中作战图 · K线+档位线+今日买卖点（拖拽/双指缩放/十字线 · 1分K可切）</summary><iframe id="ksf_${i}" class="ksf"></iframe></details>
@@ -3410,13 +3411,14 @@ function doRender(){
         const tf2=trendFlag(F(f,32),(todayAmp2!=null&&prev)?todayAmp2/prev*100:null,mktOf(h));
         const nb2=narrowBase(h.code,base2,todayAmp2);
         const tr2=tiers(anchorOf(h.code,p,prev),nb2.base,prev,tf2.lv,h.code,h.name);
-        const _pd2=(pc!=null&&pc<=-3); // v5.80 恐慌日速览条改用②档
-        const b0=_pd2?(tr2.buys[1]||null):tr2.buys[0], s0=tr2.sells[0];
+        const _sold2=TLOG.some(r=>r.code===h.code&&r.d===today()&&r.sell>0&&(r.acct||'')===acctOf(h));
+        const _pd2=(pc!=null&&pc<=-3)&&!_sold2; // v5.81 没先卖→速览条不报买价;卖过恢复
+        const b0=_pd2?null:tr2.buys[0], s0=tr2.sells[0];
         const lb=h.name+((dupN2[h.name]>1&&acctOf(h))?('·'+acctOf(h)):'');
         let cls2='', actTxt='';
         if(p!=null&&s0!=null&&p>=s0*0.998){ cls2=' now-s'; actTxt=`抛${P(s0)}`; }
-        else if(p!=null&&b0!=null&&p<=b0*1.002){ cls2=' now-b'; actTxt=`${_pd2?'②':''}接${P(b0)}`; }
-        else { const bG=b0?`${_pd2?'②':''}接${P(b0)}`:''; const sG=s0?`抛${P(s0)}`:''; actTxt=[bG,sG].filter(Boolean).join('/'); }
+        else if(p!=null&&b0!=null&&p<=b0*1.002){ cls2=' now-b'; actTxt=`接${P(b0)}`; }
+        else { const bG=b0?`接${P(b0)}`:''; const sG=s0?`抛${P(s0)}`:''; actTxt=[bG,sG].filter(Boolean).join('/'); }
         return `<span class="qs${cls2}" onclick="scrollToEl('hcard_${i}')">${lb}<b class="${cls(pc)}">${pc!=null?sg(pc.toFixed(1))+'%':''}</b> ${actTxt}</span>`; // v5.78: 名称+涨跌+接抛 一条装下
       }).join('');
       qs.innerHTML=_qsH;
