@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#0b0e12">
-<title>我的持仓 · 行情 v5.81</title>
+<title>我的持仓 · 行情 v5.82</title>
 <style>
 /* v5.46 完整版换肤:暗色行情终端。只动皮肤——所有类名/布局/交互结构原样,计算逻辑零改动。
    调色板: 底#0b0e12 卡#14181e 描边#232a33 主文#dde3ec 次文#b0bac7 涨#f4655f 跌#2ebd7f 强调#4c8dff */
@@ -655,6 +655,11 @@ function trendFlag(pct,ampPct,mkt){
   return {lv:0,label:'',cls:'flat'};
 }
 // 分批高抛/低吸目标: 大行情自动加宽档位; 涨跌停按板块约束
+// v5.82 当日锁档: 同一(目标日,票)第一次算出的档位全天锁定,卡片/速览条/挂单表/导出全部同源。
+// 治两个病: ①越跌档位跟着往下挪,线追着价格跑永远够不着; ②各视图输入不同显示对不上。
+// 升档只允许尾部"补深档"(已示人的价位永不改)。回测传refFix不走锁,不污染回测。
+var TLK={}; try{ TLK=JSON.parse(localStorage.getItem('hqm_tlk_v1')||'{}'); Object.keys(TLK).forEach(k=>{ if(k.slice(0,10)<today()) delete TLK[k]; }); }catch(e){ TLK={}; }
+function tlkSave(){ try{ localStorage.setItem('hqm_tlk_v1',JSON.stringify(TLK)); }catch(e){} }
 function tiers(p,base,prev,lv,code,name,refFix){
   if(p==null||base==null) return {sells:[],buys:[]};
   const lp=limitPct(code,name)/100;
@@ -667,6 +672,18 @@ function tiers(p,base,prev,lv,code,name,refFix){
   else { su=[0.3]; sd=[0.5]; }
   const sells=su.map(k=>Math.min(cap,p+k*base));
   const buys=sd.map(k=>Math.max(floor,p-k*base));
+  // v5.82 当日锁档(实盘调用才锁)
+  if(code&&refFix==null){ try{
+    const _k=targetDay()+'|'+code, _L=TLK[_k];
+    if(!_L){ if(sells.length||buys.length){ TLK[_k]={s:sells.slice(),b:buys.slice()}; tlkSave(); } return {sells,buys}; }
+    let _ch=false;
+    if(!_L.b.length&&buys.length){ _L.b=buys.slice(); _ch=true; }
+    else for(let _i=_L.b.length;_i<buys.length;_i++){ if(buys[_i]<_L.b[_L.b.length-1]){ _L.b.push(buys[_i]); _ch=true; } }
+    if(!_L.s.length&&sells.length){ _L.s=sells.slice(); _ch=true; }
+    else for(let _i=_L.s.length;_i<sells.length;_i++){ if(sells[_i]>_L.s[_L.s.length-1]){ _L.s.push(sells[_i]); _ch=true; } }
+    if(_ch) tlkSave();
+    return {sells:_L.s.slice(),buys:_L.b.slice()};
+  }catch(e){} }
   return {sells,buys};
 }
 // 后半场窄档: ATR用量≥80% → 按剩余波幅收窄档位(约1.15×ATR为全天软上限),提高成交率
