@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#0b0e12">
-<title>我的持仓 · 行情 v5.92 · 0905-2010构建</title>
+<title>我的持仓 · 行情 v5.93 · 0905-2020构建</title>
 <style>
 /* v5.46 完整版换肤:暗色行情终端。只动皮肤——所有类名/布局/交互结构原样,计算逻辑零改动。
    调色板: 底#0b0e12 卡#14181e 描边#232a33 主文#dde3ec 次文#b0bac7 涨#f4655f 跌#2ebd7f 强调#4c8dff */
@@ -284,7 +284,7 @@ details.fold:not([open]) > summary { margin-bottom:0; }
 </head>
 <body>
 <div class="top">
-  <h1>我的持仓 · 行情 <span style="font-size:10px;color:#8d97a6;font-weight:400">v5.92·0905-2010</span></h1>
+  <h1>我的持仓 · 行情 <span style="font-size:10px;color:#8d97a6;font-weight:400">v5.93·0905-2020</span></h1>
   <div class="btns"><button class="ed" id="ntfyBtn" onclick="toggleNtfy()">提醒</button><button class="ed" id="edBtn" onclick="toggleEdit()">编辑</button><button class="rf" onclick="refresh(1)">刷新</button></div>
 </div>
 <div class="navSticky" id="navSticky">
@@ -3368,9 +3368,12 @@ function doRender(){
         let actC='';
         if(p!=null&&s0c!=null&&p>=s0c*0.998) actC='<b style="color:#ff8a80">↑到卖 '+P(s0c)+'</b>';
         else if(p!=null&&b0c!=null&&p<=b0c*1.002) actC='<b style="color:#4fd79b">↓到接 '+P(b0c)+'</b>';
+        const _fck=(()=>{ for(let i2=FCAST.length-1;i2>=0;i2--){ const f2=FCAST[i2]; if(f2.code===h.code&&f2.act) return f2; } return null; })();
         return '<div class="cline"><b class="'+cls(pct)+'">'+P(p)+'</b>'
           +(todayPnl!=null?'<span class="'+cls(todayPnl)+'">今日'+sg(Math.round(todayPnl))+'</span>':'')
-          +(vd?'<span style="color:'+vCls(vd)+'">'+vd+'</span>':'')+actC+'</div>';
+          +(vd?'<span style="color:'+vCls(vd)+'">'+vd+'</span>':'')
+          +(_fck?'<span class="dim">回验'+_fck.targetDate.slice(5)+'</span><span style="color:'+(_fck.act.out?'#ff8a80':'#4fd79b')+'">'+(_fck.act.out?'✗出界':'✓未出界')+'</span>':'')
+          +actC+'</div>';
       })():''}
       <div class="row1" style="margin-top:4px;${((COLL[h.code]!=='open')&&!editMode)?'display:none':''}"><div class="px ${cls(pct)}">${P(p)}</div>
         <div class="sub">${cleared?'<b style="color:#ff8f5e">已清仓</b> · 0股':(()=>{
@@ -3814,7 +3817,31 @@ function renderFcast(){
     +'<div class="sub">进行中 '+pend.length+' 场 · 盘中高低不计,日K确认才结算'+(excluded?' · 盘中补建'+excluded+'场已排除':'')+'</div>'
     // v5.69: 周度复盘收成一行摘要+弹层按钮
     +'<div style="border-top:1px solid #e6e8ec;margin-top:6px;padding-top:6px;display:flex;justify-content:space-between;align-items:center"><b>周度复盘</b><button onclick="openWk()" style="border:1px solid #2a323d;background:#171c23;color:#7aa8ff;padding:4px 12px;border-radius:7px;font-size:12px;font-weight:600">打开 →</button></div>'
-    +'<div style="border-top:1px solid #e6e8ec;margin-top:6px;padding-top:6px"><b>最近场次</b>'+recent+'</div>';
+    +'<div style="border-top:1px solid #e6e8ec;margin-top:6px;padding-top:6px"><b>最近场次</b>'+recent+'</div>'
+    +(()=>{ // v5.93: 归总"哪里老错"——按票×出界方向拆解,直接指出区间哪侧偏窄
+      const byC={};
+      done.forEach(f=>{ const o=byC[f.code]||(byC[f.code]={name:f.name,n:0,out:0,up:0,dn:0,um:0,dm:0});
+        o.n++; if(!f.act.out) return; o.out++;
+        if(f.act.hitUpper){ o.up++; o.um+=Math.max(0,-(f.act.upMargin||0))/f.hi*100; }
+        if(f.act.hitLower){ o.dn++; o.dm+=Math.max(0,-(f.act.dnMargin||0))/f.lo*100; } });
+      const rows2=Object.keys(byC).map(c2=>{ const o=byC[c2]; if(o.n<3) return '';
+        const rate=Math.round(o.out/o.n*100);
+        const dirT=(o.up||o.dn)?(' · 破上沿'+o.up+'次'+(o.up?'(均超'+(o.um/o.up).toFixed(1)+'%)':'')+' 破下沿'+o.dn+'次'+(o.dn?'(均破'+(o.dm/o.dn).toFixed(1)+'%)':'')):'';
+        let tip='';
+        if(o.dn>=3&&o.dn>o.up*2) tip=' → <b style="color:#ff8a80">下沿偏窄·单边跌日拦不住</b>';
+        else if(o.up>=3&&o.up>o.dn*2) tip=' → <b style="color:#e8a13c">上沿偏窄·单边涨日易卖早</b>';
+        return '<div class="prow"><span class="sub">'+o.name+' '+o.n+'场·出界率'+rate+'%'+dirT+tip+'</span></div>';
+      }).join('');
+      const tfDone=TFC.filter(f=>f.act&&f.statEligible!==false);
+      let tfT='';
+      if(tfDone.length>=3){
+        const sN=tfDone.filter(f=>f.sells.length), bN=tfDone.filter(f=>f.buys.length);
+        const s1=sN.filter(f=>f.act.hitSell[0]).length, b1=bN.filter(f=>f.act.hitBuy[0]).length;
+        tfT='<div class="sub" style="margin-top:4px">做T一档触及: 卖档 '+s1+'/'+sN.length+' · 买档 '+b1+'/'+bN.length+'(日K结算)</div>';
+      }
+      if(!rows2&&!tfT) return '';
+      return '<div style="border-top:1px solid #e6e8ec;margin-top:6px;padding-top:6px"><b>哪里老错 · 按票归总</b>'+rows2+tfT+'</div>';
+    })();
 }
 function renderPaper(){
   const el=document.getElementById('paper'); if(!el) return;
