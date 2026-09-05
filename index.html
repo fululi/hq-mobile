@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#0b0e12">
-<title>我的持仓 · 行情 v5.107 · 0906-0155构建</title>
+<title>我的持仓 · 行情 v5.108 · 0906-0215构建</title>
 <style>
 /* v5.46 完整版换肤:暗色行情终端。只动皮肤——所有类名/布局/交互结构原样,计算逻辑零改动。
    调色板: 底#0b0e12 卡#14181e 描边#232a33 主文#dde3ec 次文#b0bac7 涨#f4655f 跌#2ebd7f 强调#4c8dff */
@@ -292,7 +292,7 @@ details.fold:not([open]) > summary { margin-bottom:0; }
 </head>
 <body>
 <div class="top">
-  <h1>我的持仓 · 行情 <span style="font-size:10px;color:#8d97a6;font-weight:400">v5.107·0906-0155</span></h1>
+  <h1>我的持仓 · 行情 <span style="font-size:10px;color:#8d97a6;font-weight:400">v5.108·0906-0215</span></h1>
   <div class="btns"><button class="ed" id="ntfyBtn" onclick="toggleNtfy()">提醒</button><button class="ed" id="edBtn" onclick="setView('holds');document.getElementById('holds').style.display='';toggleEdit()">编辑</button><button class="rf" onclick="refresh(1)">刷新</button></div>
 </div>
 <div class="navSticky" id="navSticky">
@@ -3106,6 +3106,12 @@ function drawSparks(){
     if(den){ const sl=(nn*sxy-sx*sy)/den, ic=(sy-sl*sx)/nn;
       x.strokeStyle='rgba(255,210,63,0.65)'; x.lineWidth=1; x.setLineDash([3,2]);
       x.beginPath(); x.moveTo(X(0),Y(ic)); x.lineTo(X(nn-1),Y(ic+sl*(nn-1))); x.stroke(); x.setLineDash([]); }
+    // 撑压横线: 近30根最高=压(红细虚线)/最低=撑(绿细虚线), K站摆动点口径的轻量版
+    const win=a.slice(-30), rHi=Math.max.apply(null,win), rLo=Math.min.apply(null,win);
+    x.lineWidth=1; x.setLineDash([2,2]);
+    if(rHi<mx-1e-9){ x.strokeStyle='rgba(244,101,95,.4)'; x.beginPath(); x.moveTo(2,Y(rHi)); x.lineTo(W-2,Y(rHi)); x.stroke(); }
+    if(rLo>mn+1e-9){ x.strokeStyle='rgba(46,189,127,.4)'; x.beginPath(); x.moveTo(2,Y(rLo)); x.lineTo(W-2,Y(rLo)); x.stroke(); }
+    x.setLineDash([]);
   });
 }
 let _rPend=false;
