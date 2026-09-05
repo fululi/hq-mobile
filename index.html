@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#0b0e12">
-<title>我的持仓 · 行情 v5.89 · 0905-0430构建</title>
+<title>我的持仓 · 行情 v5.90 · 0905-1905构建</title>
 <style>
 /* v5.46 完整版换肤:暗色行情终端。只动皮肤——所有类名/布局/交互结构原样,计算逻辑零改动。
    调色板: 底#0b0e12 卡#14181e 描边#232a33 主文#dde3ec 次文#b0bac7 涨#f4655f 跌#2ebd7f 强调#4c8dff */
@@ -282,7 +282,7 @@ details.fold:not([open]) > summary { margin-bottom:0; }
 </head>
 <body>
 <div class="top">
-  <h1>我的持仓 · 行情 <span style="font-size:10px;color:#8d97a6;font-weight:400">v5.89·0905-0430</span></h1>
+  <h1>我的持仓 · 行情 <span style="font-size:10px;color:#8d97a6;font-weight:400">v5.90·0905-1905</span></h1>
   <div class="btns"><button class="ed" id="ntfyBtn" onclick="toggleNtfy()">提醒</button><button class="ed" id="edBtn" onclick="toggleEdit()">编辑</button><button class="rf" onclick="refresh(1)">刷新</button></div>
 </div>
 <div class="navSticky" id="navSticky">
@@ -1794,29 +1794,28 @@ function loadFF(){
 let FFH={}, FFH_DATE='';
 try{ const x=JSON.parse(localStorage.getItem('ffh_v1')); if(x&&x.date===today()){ FFH=x.data||{}; FFH_DATE=x.date; } }catch(e){}
 function maybeFFH(){ if(FFH_DATE!==today()) loadFFH(); }
-function loadFFH(){
+function loadFFH(){ // v5.90: 串行改并行——每只票独立JSONP回调名,最坏5s封顶(旧版串行最坏6×5s=30s)
   const codes=[...new Set([...PF.holds.map(h=>h.code),...PF.watch.map(w=>w.code)])];
   if(!codes.length) return;
-  let i=0; const out={};
-  const next=()=>{
-    if(i>=codes.length){
-      if(Object.keys(out).length){ FFH=out; FFH_DATE=today(); lsSet('ffh_v1', JSON.stringify({date:FFH_DATE, data:FFH})); }
-      render(); return;
-    }
-    const c=codes[i++]; let got=false;
-    const tm=setTimeout(()=>{ if(!got){ got=true; next(); } }, 5000);
-    window.ffhCb=(d)=>{ if(got) return; got=true; clearTimeout(tm); try{
+  const out={}; let left=codes.length, all=false;
+  const fin=()=>{ if(all||--left>0) return; all=true;
+    if(Object.keys(out).length){ FFH=out; FFH_DATE=today(); lsSet('ffh_v1', JSON.stringify({date:FFH_DATE, data:FFH})); }
+    render(); };
+  codes.forEach((c,ci)=>{
+    let got=false;
+    const cbN='ffhCb'+ci;
+    const tm=setTimeout(()=>{ if(!got){ got=true; fin(); } }, 5000);
+    window[cbN]=(d)=>{ if(got) return; got=true; clearTimeout(tm); try{
       const kl=d&&d.data&&d.data.klines||[];
       const arr=kl.map(s2=>+String(s2).split(',')[1]).filter(v=>!isNaN(v));
       if(arr.length) out[c]=arr.slice(-5);
-    }catch(e){} next(); };
+    }catch(e){} try{ delete window[cbN]; }catch(e2){} fin(); };
     const s=document.createElement('script');
-    s.src='https://push2his.eastmoney.com/api/qt/stock/fflow/daykline/get?cb=ffhCb&lmt=5&klt=101&fields1=f1,f2,f3,f7&fields2=f51,f52&secid='+(c.indexOf('sh')===0?'1.':'0.')+c.slice(2)+'&_='+Date.now();
+    s.src='https://push2his.eastmoney.com/api/qt/stock/fflow/daykline/get?cb='+cbN+'&lmt=5&klt=101&fields1=f1,f2,f3,f7&fields2=f51,f52&secid='+(c.indexOf('sh')===0?'1.':'0.')+c.slice(2)+'&_='+Date.now();
     s.onload=()=>{ s.remove(); };
-    s.onerror=()=>{ s.remove(); if(!got){ got=true; clearTimeout(tm); next(); } };
+    s.onerror=()=>{ s.remove(); if(!got){ got=true; clearTimeout(tm); try{ delete window[cbN]; }catch(e2){} fin(); } };
     document.body.appendChild(s);
-  };
-  next();
+  });
 }
 function ffhTxt(code){
   const a=FFH[code]; if(!a||!a.length) return '';
@@ -1874,6 +1873,9 @@ function loadSync(){
   html+='<div class="sub" style="margin-top:5px"><span class="qm" onclick="alert(\'β=该票在指数±2%日的历史放大倍数(250日)\\n该=指数今日×β\\nα=实际-理论\\nα≤-1.5 ⚠杀个股非杀大盘\\nα≥+1.5 ✦资金托\')">?</span> 指标说明点这</div>';
   bd.innerHTML=html;
 }
+// v5.90: 加载完成回调合并重绘——WT/ATR/M15同一帧内先后回来只render一次,手机端不掉帧
+let _rderT=0;
+function scheduleRender(){ if(_rderT) return; _rderT=setTimeout(()=>{ _rderT=0; render(); },120); }
 function refresh(manual){
   const btn=document.querySelector('.rf');
   if(manual&&btn){ btn.textContent='刷新中…'; btn.disabled=true; }
@@ -1882,7 +1884,7 @@ function refresh(manual){
   const s=document.createElement('script');
   s.src='https://qt.gtimg.cn/q='+allCodes().join(',')+'&_='+Date.now();
   s.charset='GBK';
-  s.onload=()=>{ render(); sweepPlans(); loadATR(render); loadIdxHit(); loadWTrend(render); loadM15(render); maybeSync(); maybeFF(); maybeFFH(); s.remove(); done(); if(manual) toast('已刷新 · '+document.getElementById('time').textContent); };
+  s.onload=()=>{ render(); sweepPlans(); loadATR(scheduleRender); loadIdxHit(); loadWTrend(scheduleRender); loadM15(scheduleRender); maybeSync(); maybeFF(); maybeFFH(); s.remove(); done(); if(manual) toast('已刷新 · '+document.getElementById('time').textContent); };
   s.onerror=()=>{ document.getElementById('time').textContent='网络拉取失败,请检查网络后点刷新'; s.remove(); done(); if(manual) toast('刷新失败,请检查网络'); };
   document.body.appendChild(s);
 }
@@ -3903,6 +3905,7 @@ function rvTab(t){
   try{ localStorage.setItem('hqm_rvtab',t); }catch(e){}
 }
 try{ rvTab(localStorage.getItem('hqm_rvtab')||'rv'); }catch(e){}
+render(); // v5.90: 首屏先画缓存(趋势/ATR/资金流都是本地缓存),报价栏先显'—',行情回来自动补——不再白屏等接口
 refresh();
 // v5.62 作战图回滚为纯展示版: 内容全保留(K线/档位色带/黄线/撑压/回归通道/高低点/MACD/周期切换),
 // 手势交互整套拆除——打开就是完整一屏,零状态零卡壳。深度交互去K-STATION。
