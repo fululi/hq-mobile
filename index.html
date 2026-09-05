@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#0b0e12">
-<title>我的持仓 · 行情 v5.90 · 0905-1905构建</title>
+<title>我的持仓 · 行情 v5.91 · 0905-1945构建</title>
 <style>
 /* v5.46 完整版换肤:暗色行情终端。只动皮肤——所有类名/布局/交互结构原样,计算逻辑零改动。
    调色板: 底#0b0e12 卡#14181e 描边#232a33 主文#dde3ec 次文#b0bac7 涨#f4655f 跌#2ebd7f 强调#4c8dff */
@@ -231,6 +231,7 @@ td { border-top:1px solid #1d232c; }
 .dl.hot { color:#e5a468; background:rgba(229,164,104,.09); padding:4px 5px; border-radius:5px; border-top:none; }
 .qf { font-size:12px; color:#b6bfcc; margin-top:4px; padding-top:3px; border-top:1px solid #1d232c; font-variant-numeric:tabular-nums; }
 .ixrow { display:flex; gap:8px; flex-wrap:wrap; font-size:12px; font-variant-numeric:tabular-nums; margin-bottom:5px; }
+.ispk { display:block; width:100%; height:34px; margin:3px 0 1px; }
 .ixrow span { color:#b0bac7; }
 .ixrow b { margin-left:3px; font-size:12.5px; }
 .ixrow .hot { background:rgba(244,101,95,.16); padding:0 5px; border-radius:4px; color:#ff8a80; font-weight:700; }
@@ -282,7 +283,7 @@ details.fold:not([open]) > summary { margin-bottom:0; }
 </head>
 <body>
 <div class="top">
-  <h1>我的持仓 · 行情 <span style="font-size:10px;color:#8d97a6;font-weight:400">v5.90·0905-1905</span></h1>
+  <h1>我的持仓 · 行情 <span style="font-size:10px;color:#8d97a6;font-weight:400">v5.91·0905-1945</span></h1>
   <div class="btns"><button class="ed" id="ntfyBtn" onclick="toggleNtfy()">提醒</button><button class="ed" id="edBtn" onclick="toggleEdit()">编辑</button><button class="rf" onclick="refresh(1)">刷新</button></div>
 </div>
 <div class="navSticky" id="navSticky">
@@ -1763,7 +1764,8 @@ function loadIdxHit(done){
       .then(r=>r.json()).then(d=>{ clearTimeout(tm);
         const node=d.data&&d.data[c], rows=node&&(node.qfqday||node.day);
         if(rows&&rows.length){ const _ph=preHitOf(settledRows(rows.map(r=>[r[0],+r[1],+r[3],+r[4],+r[2]])));
-          if(_ph){ PREHIT[c]=_ph; try{ localStorage.setItem(PHK,JSON.stringify({date:today(),ph:PREHIT})); }catch(e){} } }
+          if(_ph){ PREHIT[c]=_ph; try{ localStorage.setItem(PHK,JSON.stringify({date:today(),ph:PREHIT})); }catch(e){} }
+          try{ IDXSP[c]=settledRows(rows).slice(-90).map(r=>+r[2]); localStorage.setItem('idxsp_v1',JSON.stringify({date:today(),data:IDXSP})); }catch(e){} }
         fin(); })
       .catch(()=>{ clearTimeout(tm); delete PHTRY[c]; fin(); }); // 只有网络失败才允许重试,数据不够不重试
   });
@@ -1793,6 +1795,7 @@ function loadFF(){
 // ---- 近5日主力资金流(东财历史日资金流JSONP): 每日一条,缓存到当天,红块=净流入/绿块=净流出 ----
 let FFH={}, FFH_DATE='';
 try{ const x=JSON.parse(localStorage.getItem('ffh_v1')); if(x&&x.date===today()){ FFH=x.data||{}; FFH_DATE=x.date; } }catch(e){}
+let IDXSP={}; try{ const xs=JSON.parse(localStorage.getItem('idxsp_v1')); if(xs&&xs.data) IDXSP=xs.data; }catch(e){}
 function maybeFFH(){ if(FFH_DATE!==today()) loadFFH(); }
 function loadFFH(){ // v5.90: 串行改并行——每只票独立JSONP回调名,最坏5s封顶(旧版串行最坏6×5s=30s)
   const codes=[...new Set([...PF.holds.map(h=>h.code),...PF.watch.map(w=>w.code)])];
@@ -3015,6 +3018,23 @@ function fallbackCopy(txt,cb){
   catch(e){ toast('复制失败,请长按框内文字手动复制'); setTimeout(()=>ta.remove(),8000); }
 }
 
+// v5.91: 指数卡迷你走势(近90日收盘线,东财小组件同款)——数据来自loadIdxHit已拉的300根日K,零额外请求
+function drawSparks(){
+  document.querySelectorAll('canvas[data-ispk]').forEach(cv=>{
+    const a=IDXSP[cv.getAttribute('data-ispk')]; if(!a||a.length<10) return;
+    const x=cv.getContext('2d'), W=cv.width, H=cv.height; x.clearRect(0,0,W,H);
+    let mn=1e18,mx=-1e18; a.forEach(v2=>{ if(v2<mn)mn=v2; if(v2>mx)mx=v2; });
+    if(!(mx>mn)) return;
+    const X=i=>i/(a.length-1)*(W-4)+2, Y=v2=>4+(mx-v2)/(mx-mn)*(H-10);
+    const up=a[a.length-1]>=a[0], col=up?'#f4655f':'#2ebd7f';
+    x.beginPath(); x.moveTo(X(0),Y(a[0])); for(let i=1;i<a.length;i++) x.lineTo(X(i),Y(a[i]));
+    x.lineTo(X(a.length-1),H-2); x.lineTo(X(0),H-2); x.closePath();
+    x.fillStyle=up?'rgba(244,101,95,.10)':'rgba(46,189,127,.10)'; x.fill();
+    x.beginPath(); x.moveTo(X(0),Y(a[0])); for(let i=1;i<a.length;i++) x.lineTo(X(i),Y(a[i]));
+    x.strokeStyle=col; x.lineWidth=1.4; x.stroke();
+    x.fillStyle=col; x.beginPath(); x.arc(X(a.length-1),Y(a[a.length-1]),2.4,0,7); x.fill();
+  });
+}
 let _rPend=false;
 function render(){
   if(_rPend) return;
@@ -3038,8 +3058,9 @@ function doRender(){
     const iph=PREHIT[c], iku=(iph&&iph.kUp)||1, ikd=(iph&&iph.kDn)||1; // v5.45: 指数也用自己的实测系数
     const ipre=(iref!=null&&ia!=null)?(iref-ikd*ia).toFixed(0)+'~'+(iref+iku*ia).toFixed(0):'—';
     const ipos=(!inx&&p!=null&&iref!=null&&ia!=null)?(p>=iref+iku*ia?' <b class="up">▲破上沿</b>':(p<=iref-ikd*ia?' <b class="down">▼破下沿</b>':'')):'';
-    return `<div class="c"><div class="n">${n}</div><div class="v ${cls(pct)}">${p!=null?p.toFixed(2):'—'}</div><div class="g ${cls(pct)}">${pct!=null?sg(pct.toFixed(2))+'%':''}</div><div class="g sub" style="font-weight:400">${inx?planLbl():'今日'}预判${ipre}${ipos}<span class="qm" onclick="event.stopPropagation();preWhy('${c}','${n}')">?</span>${iph?`<br><span style="font-size:9px;color:#7e8798">实测${iph.inr}%不出界</span>`:''}</div>${ifib}</div>`;
+    return `<div class="c"><div class="n">${n}</div><div class="v ${cls(pct)}">${p!=null?p.toFixed(2):'—'}</div><div class="g ${cls(pct)}">${pct!=null?sg(pct.toFixed(2))+'%':''}</div><canvas class="ispk" data-ispk="${c}" width="260" height="68"></canvas><div class="g sub" style="font-weight:400">${inx?planLbl():'今日'}预判${ipre}${ipos}<span class="qm" onclick="event.stopPropagation();preWhy('${c}','${n}')">?</span>${iph?`<br><span style="font-size:9px;color:#7e8798">实测${iph.inr}%不出界</span>`:''}</div>${ifib}</div>`;
   }).join('');
+  drawSparks();
   const me=document.getElementById('mkt');
   if(me){
     const _ip=IDX.map(([c,n])=>({n,v:(GET(c)?F(GET(c),32):null)})).filter(x=>x.v!=null);
