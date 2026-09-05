@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#0b0e12">
-<title>我的持仓 · 行情 v5.94 · 0905-2040构建</title>
+<title>我的持仓 · 行情 v5.95 · 0905-2050构建</title>
 <style>
 /* v5.46 完整版换肤:暗色行情终端。只动皮肤——所有类名/布局/交互结构原样,计算逻辑零改动。
    调色板: 底#0b0e12 卡#14181e 描边#232a33 主文#dde3ec 次文#b0bac7 涨#f4655f 跌#2ebd7f 强调#4c8dff */
@@ -284,7 +284,7 @@ details.fold:not([open]) > summary { margin-bottom:0; }
 </head>
 <body>
 <div class="top">
-  <h1>我的持仓 · 行情 <span style="font-size:10px;color:#8d97a6;font-weight:400">v5.94·0905-2040</span></h1>
+  <h1>我的持仓 · 行情 <span style="font-size:10px;color:#8d97a6;font-weight:400">v5.95·0905-2050</span></h1>
   <div class="btns"><button class="ed" id="ntfyBtn" onclick="toggleNtfy()">提醒</button><button class="ed" id="edBtn" onclick="toggleEdit()">编辑</button><button class="rf" onclick="refresh(1)">刷新</button></div>
 </div>
 <div class="navSticky" id="navSticky">
@@ -2877,12 +2877,12 @@ function renderLog(){
     stkOrd.forEach(code=>{
       const s=byStock[code];
       const dp=s.dpQ>0?(s.dpW/s.dpQ):null;
-      html+='<div class="tlog-row" style="background:#12161d;border-left:3px solid #4c8dff">'
+      html+='<div class="tlog-row" style="background:#12161d;border-left:3px solid #4c8dff;cursor:pointer" onclick="openK(\''+code+'\')">'
         +'<span class="l" style="font-weight:700">'+s.name+' <span class="sub">'+code.replace(/^(sh|sz)/,'')+'</span></span>'
         +'<span class="sub">T差价<br><b>'+(dp!=null?sg(+dp.toFixed(3)):'—')+'</b></span>'
         +'<span class="sub">T数量<br><b>'+s.mq+'</b></span>'
         +'<span class="'+cls(s.sum)+'" style="font-weight:700">T收益 '+sg(Math.round(s.sum).toLocaleString())+'</span>'
-        +'<span></span></div>';
+        +'<span class="sub" style="text-align:right">K线 ›</span></div>';
       s.rows.forEach(function(o){
       const r=o.r, idx=o.idx;
       const f=GET(r.code), px=f?F(f,3):null;
@@ -3812,7 +3812,7 @@ function renderFcast(){
     return '<div class="prow"><span class="sub">'+k+'</span><span>'+o2.n+'场 · 未出界 <b>'+Math.round(o2.inn/o2.n*100)+'%</b></span></div>'; }).join('');
   const wrows=Object.keys(wk).sort().reverse().slice(0,3).map(k=>{ const o2=wk[k];
     return '<div class="prow"><span class="sub">'+k+'</span><span>'+o2.n+'场 · 未出界 <b>'+Math.round(o2.inn/o2.n*100)+'%</b></span></div>'; }).join('');
-  const recent=done.slice(-8).reverse().map(f=>'<div class="prow"><span class="sub">'+f.targetDate.slice(5)+' '+f.name+' 预判'+P(f.lo)+'~'+P(f.hi)+' → 实际'+P(f.act.low)+'~'+P(f.act.high)+'</span><b class="'+(f.act.out?'down':'up')+'">'+(f.act.out?'出界':'未出界')+'</b></div>').join('');
+  const recent=done.slice(-8).reverse().map(f=>'<div class="prow" style="cursor:pointer" onclick="openK(\''+f.code+'\')"><span class="sub">'+f.targetDate.slice(5)+' '+f.name+' 预判'+P(f.lo)+'~'+P(f.hi)+' → 实际'+P(f.act.low)+'~'+P(f.act.high)+'</span><b class="'+(f.act.out?'down':'up')+'">'+(f.act.out?'出界':'未出界')+'</b></div>').join('');
   el.innerHTML='<div style="display:flex;justify-content:space-between;align-items:baseline"><b style="font-size:14px">累计 '+n+' 场已结算</b><b style="font-size:20px">'+pct+'% <span class="sub">未出界</span></b></div>'
     +'<div class="sub">进行中 '+pend.length+' 场 · 盘中高低不计,日K确认才结算'+(excluded?' · 盘中补建'+excluded+'场已排除':'')+'</div>'
     // v5.69: 周度复盘收成一行摘要+弹层按钮
@@ -3830,7 +3830,7 @@ function renderFcast(){
         let tip='';
         if(o.dn>=3&&o.dn>o.up*2) tip=' → <b style="color:#ff8a80">下沿偏窄·单边跌日拦不住</b>';
         else if(o.up>=3&&o.up>o.dn*2) tip=' → <b style="color:#e8a13c">上沿偏窄·单边涨日易卖早</b>';
-        return '<div class="prow"><span class="sub">'+o.name+' '+o.n+'场·出界率'+rate+'%'+dirT+tip+'</span></div>';
+        return '<div class="prow" style="cursor:pointer" onclick="openK(\''+c2+'\')"><span class="sub">'+o.name+' '+o.n+'场·出界率'+rate+'%'+dirT+tip+'</span></div>';
       }).join('');
       const tfDone=TFC.filter(f=>f.act&&f.statEligible!==false);
       let tfT='';
