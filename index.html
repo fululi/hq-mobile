@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#0b0e12">
-<title>我的持仓 · 行情 v5.96 · 0905-2115构建</title>
+<title>我的持仓 · 行情 v5.97 · 0905-2145构建</title>
 <style>
 /* v5.46 完整版换肤:暗色行情终端。只动皮肤——所有类名/布局/交互结构原样,计算逻辑零改动。
    调色板: 底#0b0e12 卡#14181e 描边#232a33 主文#dde3ec 次文#b0bac7 涨#f4655f 跌#2ebd7f 强调#4c8dff */
@@ -284,7 +284,7 @@ details.fold:not([open]) > summary { margin-bottom:0; }
 </head>
 <body>
 <div class="top">
-  <h1>我的持仓 · 行情 <span style="font-size:10px;color:#8d97a6;font-weight:400">v5.96·0905-2115</span></h1>
+  <h1>我的持仓 · 行情 <span style="font-size:10px;color:#8d97a6;font-weight:400">v5.97·0905-2145</span></h1>
   <div class="btns"><button class="ed" id="ntfyBtn" onclick="toggleNtfy()">提醒</button><button class="ed" id="edBtn" onclick="toggleEdit()">编辑</button><button class="rf" onclick="refresh(1)">刷新</button></div>
 </div>
 <div class="navSticky" id="navSticky">
@@ -2372,7 +2372,21 @@ function exportHolds(){
   toast('已导出 '+PF.holds.length+' 只持仓 + '+lbl+'做T计划');
 }
 function GET(c){ const r=window['v_'+c]; return r?r.split('~'):null; }
-function openK(c){ location.href='https://fululi.github.io/k-station/?code='+c; }
+// v5.97: openK 带上今日买卖档(B1/B2/S1/S2)+今日成交BS标记——点任何票进K站, 档位线和买卖数字直接画好, 分钟图同样显示
+function openK(c){
+  try{
+    const f=GET(c), p=F(f,3), prev=F(f,4), hi=F(f,33), lo=F(f,34);
+    const todayAmp=(hi!=null&&lo!=null)?hi-lo:null;
+    const h=PF.holds.find(x=>x.code===c)||{code:c,name:c,shares:0,cost:0};
+    const base=ampBase(c,todayAmp);
+    const tf=trendFlag(F(f,32),(todayAmp!=null&&prev)?todayAmp/prev*100:null,mktOf(h));
+    const nb=narrowBase(c,base,todayAmp);
+    const tr=tiers(anchorOf(c,p,prev),nb.base,prev,tf.lv,c,h.name);
+    const lines=tr.buys.map(x=>'b'+x.toFixed(2)).concat(tr.sells.map(x=>'s'+x.toFixed(2))).join(',');
+    const trades=TLOG.filter(r=>r.code===c&&r.d===today()&&r.t).map(r=>{const a=[];if(r.sell!=null)a.push(r.d+' '+r.t+',s,'+r.sell);if(r.buy!=null)a.push(r.d+' '+r.t+',b,'+r.buy);return a.join(';');}).filter(Boolean).join(';');
+    location.href='https://fululi.github.io/k-station/?code='+c+(lines?'&lines='+lines:'')+(trades?'&trades='+encodeURIComponent(trades):'');
+  }catch(e){ location.href='https://fululi.github.io/k-station/?code='+c; }
+}
 
 // v4.83: ETF/LOF 免印花税、券商普遍免5元最低佣金 —— 旧模型把ETF一笔算成10元,
 // 实际只有几毛,导致ETF做T看起来永远不赚钱。沪市基金5开头,深市15/16开头。
