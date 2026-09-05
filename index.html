@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#0b0e12">
-<title>我的持仓 · 行情 v5.106 · 0906-0125构建</title>
+<title>我的持仓 · 行情 v5.107 · 0906-0155构建</title>
 <style>
 /* v5.46 完整版换肤:暗色行情终端。只动皮肤——所有类名/布局/交互结构原样,计算逻辑零改动。
    调色板: 底#0b0e12 卡#14181e 描边#232a33 主文#dde3ec 次文#b0bac7 涨#f4655f 跌#2ebd7f 强调#4c8dff */
@@ -292,7 +292,7 @@ details.fold:not([open]) > summary { margin-bottom:0; }
 </head>
 <body>
 <div class="top">
-  <h1>我的持仓 · 行情 <span style="font-size:10px;color:#8d97a6;font-weight:400">v5.106·0906-0125</span></h1>
+  <h1>我的持仓 · 行情 <span style="font-size:10px;color:#8d97a6;font-weight:400">v5.107·0906-0155</span></h1>
   <div class="btns"><button class="ed" id="ntfyBtn" onclick="toggleNtfy()">提醒</button><button class="ed" id="edBtn" onclick="setView('holds');document.getElementById('holds').style.display='';toggleEdit()">编辑</button><button class="rf" onclick="refresh(1)">刷新</button></div>
 </div>
 <div class="navSticky" id="navSticky">
@@ -2422,8 +2422,8 @@ function ksUrl(c, simple){ // v5.104: URL构造拆出来,详情页内嵌K站和�
     const tr=tiers(anchorOf(c,p,prev),nb.base,prev,tf.lv,c,h.name);
     const lines=tr.buys.map(x=>'b'+x.toFixed(2)).concat(tr.sells.map(x=>'s'+x.toFixed(2))).join(',');
     const trades=TLOG.filter(r=>r.code===c&&r.d===today()&&r.t).map(r=>{const a=[];if(r.sell!=null)a.push(r.d+' '+r.t+',s,'+r.sell);if(r.buy!=null)a.push(r.d+' '+r.t+',b,'+r.buy);return a.join(';');}).filter(Boolean).join(';');
-    return 'https://fululi.github.io/k-station/?code='+c+(lines?'&lines='+lines:'')+(trades?'&trades='+encodeURIComponent(trades):'')+(simple?'&simple=1':'');
-  }catch(e){ return 'https://fululi.github.io/k-station/?code='+c+(simple?'&simple=1':''); }
+    return 'https://fululi.github.io/k-station/?code='+c+(lines?'&lines='+lines:'')+(trades?'&trades='+encodeURIComponent(trades):'')+(simple?'&simple=1&embed=1':'');
+  }catch(e){ return 'https://fululi.github.io/k-station/?code='+c+(simple?'&simple=1&embed=1':''); }
 }
 function openK(c){ location.href=ksUrl(c,false); }
 
@@ -3099,6 +3099,13 @@ function drawSparks(){
     x.beginPath(); x.moveTo(X(0),Y(a[0])); for(let i=1;i<a.length;i++) x.lineTo(X(i),Y(a[i]));
     x.strokeStyle=col; x.lineWidth=1.4; x.stroke();
     x.fillStyle=col; x.beginPath(); x.arc(X(a.length-1),Y(a[a.length-1]),2.4,0,7); x.fill();
+    // 趋势线(最小二乘回归, 淡黄虚线): 一眼看出这段走势在往上还是往下
+    const nn=a.length; let sx=0,sy=0,sxy=0,sxx=0;
+    a.forEach((v2,i2)=>{ sx+=i2; sy+=v2; sxy+=i2*v2; sxx+=i2*i2; });
+    const den=nn*sxx-sx*sx;
+    if(den){ const sl=(nn*sxy-sx*sy)/den, ic=(sy-sl*sx)/nn;
+      x.strokeStyle='rgba(255,210,63,0.65)'; x.lineWidth=1; x.setLineDash([3,2]);
+      x.beginPath(); x.moveTo(X(0),Y(ic)); x.lineTo(X(nn-1),Y(ic+sl*(nn-1))); x.stroke(); x.setLineDash([]); }
   });
 }
 let _rPend=false;
@@ -3122,7 +3129,7 @@ function wlAdvice(code,name){
     if(_pd&&b0!=null) bTxt='<span style="color:#e8a13c">接🔒先抛解锁</span>';
     else if(b0!=null) bTxt='<span style="color:#4fd79b">接 <b>'+P(b0)+'</b> '+sg(((b0/p-1)*100).toFixed(1))+'%</span>';
     if(s0!=null) sTxt='<span style="color:#ff8a80">抛 <b>'+P(s0)+'</b> +'+((s0/p-1)*100).toFixed(1)+'%</span>';
-    const gap=(b0!=null&&s0!=null&&s0>b0&&!_pd)?'<span class="dim">来回'+((s0-b0)/p*100).toFixed(1)+'点·每股毛'+(s0-b0).toFixed(2)+'元</span>':'';
+    const gap=(b0!=null&&s0!=null&&s0>b0&&!_pd)?'<span class="dim">来回'+((s0/b0-1)*100).toFixed(1)+'点·每股毛'+(s0-b0).toFixed(2)+'元</span>':'';
     const parts=[];
     if(_pd){ parts.push('<span style="color:#ff9066;font-weight:700">恐慌日·先卖后买</span>',sTxt,bTxt); }
     else if(pct!=null&&pct>0){ parts.push('<span style="color:#ff8a80;font-weight:700">红盘先抛</span>',sTxt,bTxt); }
