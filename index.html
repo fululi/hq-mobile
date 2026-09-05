@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#0b0e12">
-<title>我的持仓 · 行情 v5.95 · 0905-2050构建</title>
+<title>我的持仓 · 行情 v5.96 · 0905-2115构建</title>
 <style>
 /* v5.46 完整版换肤:暗色行情终端。只动皮肤——所有类名/布局/交互结构原样,计算逻辑零改动。
    调色板: 底#0b0e12 卡#14181e 描边#232a33 主文#dde3ec 次文#b0bac7 涨#f4655f 跌#2ebd7f 强调#4c8dff */
@@ -284,7 +284,7 @@ details.fold:not([open]) > summary { margin-bottom:0; }
 </head>
 <body>
 <div class="top">
-  <h1>我的持仓 · 行情 <span style="font-size:10px;color:#8d97a6;font-weight:400">v5.95·0905-2050</span></h1>
+  <h1>我的持仓 · 行情 <span style="font-size:10px;color:#8d97a6;font-weight:400">v5.96·0905-2115</span></h1>
   <div class="btns"><button class="ed" id="ntfyBtn" onclick="toggleNtfy()">提醒</button><button class="ed" id="edBtn" onclick="toggleEdit()">编辑</button><button class="rf" onclick="refresh(1)">刷新</button></div>
 </div>
 <div class="navSticky" id="navSticky">
@@ -325,6 +325,10 @@ details.fold:not([open]) > summary { margin-bottom:0; }
   <button onclick="confirmAdd('hold')">确认添加持仓</button>
 </div>
 <div id="holds"></div>
+<details class="fold" data-fk="mrg" open style="margin-bottom:10px">
+<summary class="sec"><span>合并总账 · 跨账户同票合一</span><span class="sub">买两次卖一次都并一笔 · 点行看分账户</span></summary>
+<div class="card tbl" id="mrgBox"></div>
+</details>
 <details class="fold" id="foldImp" style="margin-bottom:10px">
 <summary class="sec"><span>持仓导入 / 导出（多账户）</span><span class="sub">券商对不上时用这个</span></summary>
 <div class="card">
@@ -1888,8 +1892,8 @@ function refresh(manual){
   const s=document.createElement('script');
   s.src='https://qt.gtimg.cn/q='+allCodes().join(',')+'&_='+Date.now();
   s.charset='GBK';
-  s.onload=()=>{ render(); sweepPlans(); loadATR(scheduleRender); loadIdxHit(); loadWTrend(scheduleRender); loadM15(scheduleRender); maybeSync(); maybeFF(); maybeFFH(); s.remove(); done(); if(manual) toast('已刷新 · '+document.getElementById('time').textContent); };
-  s.onerror=()=>{ document.getElementById('time').textContent='网络拉取失败,请检查网络后点刷新'; s.remove(); done(); if(manual) toast('刷新失败,请检查网络'); };
+  s.onload=()=>{ try{ const _q={}; allCodes().forEach(c=>{ if(window['v_'+c]) _q[c]=window['v_'+c]; }); lsSet('qc_v1',JSON.stringify({d:_q})); }catch(e){} render(); sweepPlans(); loadATR(scheduleRender); loadIdxHit(); loadWTrend(scheduleRender); loadM15(scheduleRender); maybeSync(); maybeFF(); maybeFFH(); s.remove(); done(); if(manual) toast('已刷新 · '+document.getElementById('time').textContent); };
+  s.onerror=()=>{ render(); document.getElementById('time').textContent='实时接口被拦·显示缓存'; s.remove(); done(); if(manual) toast('行情接口被当前网络拦了(关代理/VPN试试),先显示缓存'); };
   document.body.appendChild(s);
 }
 let COLL={}; try{ COLL=JSON.parse(localStorage.getItem('hqm_coll_v1')||'{}'); }catch(e){ COLL={}; }
@@ -2453,7 +2457,7 @@ function renderT(){ try{ renderBT(); }catch(e){} try{ renderRV(); }catch(e){}
   const _tbEl=document.getElementById('tbody'); if(_tbEl) _tbEl.innerHTML = _rt.map(x=>x.html).join('') || '<tr><td class="sub" colspan="4">暂无持仓</td></tr>'; // v5.77: 分档表已并入卡片,元素可能不存在
   const _nxt=planNext(), _tt=document.getElementById('tTitle');
   if(_tt) _tt.textContent=(_nxt?planLbl()+'做T计划':'今日做T计划(盘中)'); // v5.69: 说明挪进?弹窗
-  document.getElementById('tSum').textContent = (mktLive()?nowHM()+'盘中':'')+((mktLive()||_nxt)?' · ':'')+'按最快触发排序'+(MKT!=null&&Math.abs(MKT)>=1.2?' · 大行情已加宽':'');
+  const _ts2=document.getElementById('tSum'); if(_ts2) _ts2.textContent = (mktLive()?nowHM()+'盘中':'')+((mktLive()||_nxt)?' · ':'')+'按最快触发排序'+(MKT!=null&&Math.abs(MKT)>=1.2?' · 大行情已加宽':'');
   const sel=document.getElementById('tSel');
   if(sel && sel.options.length!==PF.holds.length){
     sel.innerHTML=tSelOpts();
@@ -3039,6 +3043,40 @@ function drawSparks(){
   });
 }
 let _rPend=false;
+// v5.96: 合并总账——同一只票跨账户并成一笔: 总股数/加权成本/合计浮盈/今日合计/累计T净收益; 点行展开分账户明细, 右侧直达K线
+function renderMerged(){
+  const box=document.getElementById('mrgBox'); if(!box) return;
+  const byC={}, ord=[];
+  PF.holds.forEach(h=>{ if(!byC[h.code]){ byC[h.code]={name:h.name,rows:[]}; ord.push(h.code); } byC[h.code].rows.push(h); });
+  if(!ord.length){ box.innerHTML='<div class="sub" style="padding:10px">没有持仓</div>'; return; }
+  let html='';
+  ord.forEach(code=>{
+    const o=byC[code], f=GET(code), px=F(f,3), pv0=F(f,4);
+    let sh=0, costW=0, costQ=0, pnl=0, pnlOk=false, day=0, dayOk=false;
+    o.rows.forEach(h=>{
+      sh+=h.shares||0;
+      if(h.cost>0&&(h.shares||0)>0){ costW+=h.cost*h.shares; costQ+=h.shares; }
+      if(px!=null&&(h.shares||0)>0){
+        pnl+=(px-(h.cost||0))*h.shares; pnlOk=true;
+        const tp=todayPnlOf(code,h.shares,px,pv0,acctOf(h)); if(tp!=null){ day+=tp; dayOk=true; } }
+    });
+    const wCost=costQ>0?costW/costQ:null;
+    const tNet=TLOG.filter(r=>r.code===code).reduce((s2,r)=>s2+(r.profit||0),0);
+    const brk=o.rows.map(h=>'<div class="tlog-row" style="padding-left:14px">'
+      +'<span class="l sub">'+(acctOf(h)||'未分组')+'</span>'
+      +'<span class="sub">'+(h.shares||0)+'股 · 本'+(h.cost>0?h.cost:'—')+'</span>'
+      +'<span class="'+(px!=null&&h.cost>0?cls(px-h.cost):'')+'">'+(px!=null&&h.cost>0?sg(Math.round((px-h.cost)*(h.shares||0)).toLocaleString()):'—')+'</span>'
+      +'<span></span><span></span></div>').join('');
+    html+='<div class="tlog-row" style="background:#12161d;border-left:3px solid #e8c568;cursor:pointer" onclick="var d=document.getElementById(\'mrgd_'+code+'\'); if(d) d.style.display=(d.style.display===\'none\'?\'\':\'none\');">'
+      +'<span class="l" style="font-weight:700">'+o.name+' <span class="sub">'+code.replace(/^(sh|sz)/,'')+(o.rows.length>1?' · '+o.rows.length+'账户':'')+'</span></span>'
+      +'<span class="sub">'+sh+'股<br>本'+(wCost!=null?wCost.toFixed(2):'—')+'</span>'
+      +'<span class="sub">今'+(dayOk?sg(Math.round(day).toLocaleString()):'—')+'<br>T净'+sg(Math.round(tNet).toLocaleString())+'</span>'
+      +'<span class="'+(pnlOk?cls(pnl):'')+'" style="font-weight:700">'+(pnlOk?sg(Math.round(pnl).toLocaleString()):'—')+'</span>'
+      +'<span class="sub" style="text-align:right;cursor:pointer" onclick="event.stopPropagation();openK(\''+code+'\')">K线 ›</span></div>'
+      +'<div id="mrgd_'+code+'" style="display:none">'+brk+'</div>';
+  });
+  box.innerHTML=html;
+}
 function render(){
   if(_rPend) return;
   _rPend=true;
@@ -3508,6 +3546,7 @@ function doRender(){
         if(el2) el2.classList.add(p2>pv2?'fup':'fdn'); }
       if(p2!=null) window._PXP[h.code]=p2; }); }catch(e){}
 
+  try{ renderMerged(); }catch(e){}
   const _wOrd=PF.watch.map((_,j)=>j).sort((a,b)=>((PF.watch[b].fav?1:0)-(PF.watch[a].fav?1:0))||a-b); // v5.55 ★置顶
   document.getElementById('watch').innerHTML = _wOrd.map(i=>{ const w=PF.watch[i];
     const f=GET(w.code); const p=F(f,3),pct=F(f,32),hi=F(f,33),lo=F(f,34),prev=F(f,4);
@@ -3578,9 +3617,9 @@ function doRender(){
   if(fc&&!fc.value) fc.value=FEE.comm; if(fs&&!fs.value) fs.value=FEE.stamp;
   const ps=document.getElementById('prwSel'); if(ps) ps.value=PRW;
   const tde=document.getElementById('tDate'); if(tde&&!tde.value) tde.value=today();
-  renderT();
-  renderFcast();
-  renderPaper();
+  try{ renderT(); }catch(e){}
+  try{ renderFcast(); }catch(e){}
+  try{ renderPaper(); }catch(e){}
   // 标题栏：有持仓票跌破ATR下沿时显示⚠计数，手机标签页可感知
   const _brkN=PF.holds.filter(h=>{
     const f=GET(h.code),p=F(f,3),prev=F(f,4),ia=atrOf(h.code);
@@ -3965,6 +4004,7 @@ function rvTab(t){
   try{ localStorage.setItem('hqm_rvtab',t); }catch(e){}
 }
 try{ rvTab(localStorage.getItem('hqm_rvtab')||'rv'); }catch(e){}
+try{ const _qc=JSON.parse(localStorage.getItem('qc_v1')||'null'); if(_qc&&_qc.d) Object.keys(_qc.d).forEach(c=>{ window['v_'+c]=_qc.d[c]; }); }catch(e){} // v5.96: 行情快照回灌,断网首屏也有价
 render(); // v5.90: 首屏先画缓存(趋势/ATR/资金流都是本地缓存),报价栏先显'—',行情回来自动补——不再白屏等接口
 refresh();
 // v5.62 作战图回滚为纯展示版: 内容全保留(K线/档位色带/黄线/撑压/回归通道/高低点/MACD/周期切换),
