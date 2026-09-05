@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#0b0e12">
-<title>我的持仓 · 行情 v5.104 · 0906-0005构建</title>
+<title>我的持仓 · 行情 v5.105 · 0906-0030构建</title>
 <style>
 /* v5.46 完整版换肤:暗色行情终端。只动皮肤——所有类名/布局/交互结构原样,计算逻辑零改动。
    调色板: 底#0b0e12 卡#14181e 描边#232a33 主文#dde3ec 次文#b0bac7 涨#f4655f 跌#2ebd7f 强调#4c8dff */
@@ -292,7 +292,7 @@ details.fold:not([open]) > summary { margin-bottom:0; }
 </head>
 <body>
 <div class="top">
-  <h1>我的持仓 · 行情 <span style="font-size:10px;color:#8d97a6;font-weight:400">v5.104·0906-0005</span></h1>
+  <h1>我的持仓 · 行情 <span style="font-size:10px;color:#8d97a6;font-weight:400">v5.105·0906-0030</span></h1>
   <div class="btns"><button class="ed" id="ntfyBtn" onclick="toggleNtfy()">提醒</button><button class="ed" id="edBtn" onclick="setView('holds');document.getElementById('holds').style.display='';toggleEdit()">编辑</button><button class="rf" onclick="refresh(1)">刷新</button></div>
 </div>
 <div class="navSticky" id="navSticky">
@@ -507,7 +507,7 @@ const DEFAULT = {
   watch:[]
 };
 const K_UP=0.3, K_DN=0.5, ATR_FLOOR=0.75;
-const LS='portfolio_v2', LOG='tlog_v2', ATRK='atr14_v2', FEEK='fee_v1';
+const LS='portfolio_v2', LOG='tlog_v2', ATRK='atr14_v3', FEEK='fee_v1'; // v5.105: v3新增prevHi/prevLo(两日Fib),旧缓存作废重抓
 let PF, editMode=false, MKT=null, ATR={}, ATR_DATE='', ATR_FAIL=false;
 let FEE={comm:0.025, stamp:0.05, min:5}; // 佣金万2.5、印花税0.05%(卖出)、最低佣金5元(ETF不适用)
 try { PF = JSON.parse(localStorage.getItem(LS)) || JSON.parse(JSON.stringify(DEFAULT)); }
@@ -1379,7 +1379,8 @@ function parseIfzq(c, txt){
     const lastSettled=settled[settled.length-1];
     return {atr:last14.reduce((a,b)=>a+b,0)/last14.length, lastTR:trs[trs.length-1], legBase:base, legFrom:baseD,
       legHi:legHi, legLo:legLo, legHiD:legHiD, legLoD:legLoD,
-      lastHi:+lastSettled[3], lastLo:+lastSettled[4], lastC:+lastSettled[2]};
+      lastHi:+lastSettled[3], lastLo:+lastSettled[4], lastC:+lastSettled[2],
+      prevHi:settled.length>1?+settled[settled.length-2][3]:null, prevLo:settled.length>1?+settled[settled.length-2][4]:null};
   }catch(e){ return null; }
 }
 function parseSina(txt){
@@ -1393,8 +1394,9 @@ function parseSina(txt){
     for(let i=1;i<rows.length;i++){ const hi=+rows[i].high,lo=+rows[i].low,pc=+rows[i-1].close;
       trs.push(Math.max(hi-lo,Math.abs(hi-pc),Math.abs(lo-pc))); }
     const last14=trs.slice(-14);
-    const lr=rows[rows.length-1];
-    return {atr:last14.reduce((a,b)=>a+b,0)/last14.length, lastTR:trs[trs.length-1], lastHi:+lr.high, lastLo:+lr.low, lastC:+lr.close};
+    const lr=rows[rows.length-1], pr=rows.length>1?rows[rows.length-2]:null;
+    return {atr:last14.reduce((a,b)=>a+b,0)/last14.length, lastTR:trs[trs.length-1], lastHi:+lr.high, lastLo:+lr.low, lastC:+lr.close,
+      prevHi:pr?+pr.high:null, prevLo:pr?+pr.low:null};
   }catch(e){ return null; }
 }
 let WT={}, WSIG={}, DT={}, EXT={}, LV={}, WT_DATE='';
@@ -3160,16 +3162,51 @@ function closeDetail(){
   const host=document.getElementById('vDetailBody'); if(host) host.innerHTML=''; // 卡片是render产物,丢掉即可,#holds下次render自动重建
   DETAIL_I=null; VIEW='holds'; applyView(); render();
 }
+// v5.105: 详情页一键接/抛——价格直出+默认100股(fillT里已带),填进卡片快捷单,原地确认
+function quickDeal(i,side){
+  const h=PF.holds[i]; if(!h) return;
+  const f=GET(h.code), p=F(f,3), prev=F(f,4), hi=F(f,33), lo=F(f,34);
+  const todayAmp=(hi!=null&&lo!=null)?hi-lo:null;
+  const base=ampBase(h.code,todayAmp);
+  const tf=trendFlag(F(f,32),(todayAmp!=null&&prev)?todayAmp/prev*100:null,mktOf(h));
+  const tr=tiers(anchorOf(h.code,p,prev),narrowBase(h.code,base,todayAmp).base,prev,tf.lv,h.code,h.name);
+  const px=side==='sell'?tr.sells[0]:tr.buys[0];
+  if(px==null){ toast('这档价算不出来,先刷新行情'); return; }
+  fillT(i, +px.toFixed(2), side);
+  const card=document.getElementById('hcard_'+i); if(card) try{ card.scrollIntoView({behavior:'smooth',block:'center'}); }catch(e){}
+}
+// v5.105: 详情页左右滑换股(TradingView式)
+try{ const _vd=document.getElementById('v-detail'); let _x0=0,_y0=0;
+  _vd.addEventListener('touchstart',e=>{ _x0=e.touches[0].clientX; _y0=e.touches[0].clientY; },{passive:true});
+  _vd.addEventListener('touchend',e=>{ if(DETAIL_I==null) return;
+    const dx=e.changedTouches[0].clientX-_x0, dy=e.changedTouches[0].clientY-_y0;
+    if(Math.abs(dx)<60||Math.abs(dx)<Math.abs(dy)*1.4) return;
+    const ord=[]; PF.holds.forEach(h2=>{ if(ord.indexOf(h2.code)<0) ord.push(h2.code); });
+    let j=ord.indexOf(PF.holds[DETAIL_I].code); j=dx<0?j+1:j-1;
+    if(j<0||j>=ord.length){ toast(dx<0?'已经是最后一只':'已经是第一只'); return; }
+    openDetail(ord[j]); },{passive:true});
+}catch(e){}
 function renderDetailHead(){
   const i=DETAIL_I; if(i==null) return; const h=PF.holds[i]; if(!h) return;
   const f=GET(h.code), p=F(f,3), pct=F(f,32);
   const nm=document.getElementById('vDetailName'); if(nm) nm.textContent=h.name+' '+h.code.replace(/^(sh|sz)/,'');
   const kb=document.getElementById('vDetailK'); if(kb) kb.onclick=()=>openK(h.code);
   const hd=document.getElementById('vDetailHead'); if(!hd) return;
+  const _hi=F(f,33), _lo=F(f,34), _prev=F(f,4), _ta=(_hi!=null&&_lo!=null)?_hi-_lo:null;
+  const _tr2=tiers(anchorOf(h.code,p,_prev),narrowBase(h.code,ampBase(h.code,_ta),_ta).base,_prev,trendFlag(pct,(_ta!=null&&_prev)?_ta/_prev*100:null,mktOf(h)).lv,h.code,h.name);
+  const _b0=_tr2.buys[0], _s0=_tr2.sells[0];
+  const _soldT2=TLOG.some(r=>r.code===h.code&&r.d===today()&&r.sell>0);
+  const _pd2=((pct!=null&&pct<=-3)||!!(dayState(h.code).oneDn))&&!_soldT2;
   hd.innerHTML='<div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">'
     +'<b class="'+cls(pct)+'" style="font-size:22px">'+(p!=null?P(p):'—')+'</b>'
     +'<b class="'+cls(pct)+'" style="font-size:15px">'+(pct!=null?sg(pct.toFixed(2))+'%':'')+'</b>'
-    +'<div class="wladv" style="font-size:12px">'+wlAdvice(h.code,h.name)+'</div></div>';
+    +'<div class="wladv" style="font-size:12px">'+wlAdvice(h.code,h.name)+'</div></div>'
+    +'<div style="display:flex;gap:8px;margin-top:7px">'
+    +(_pd2
+      ?'<button style="flex:1;border:1px solid #3a2a22;background:#1a1512;color:#e8a13c;border-radius:10px;padding:9px 0;font-size:14px;font-weight:700" onclick="toast(\'恐慌日·先卖后买:先记一笔卖出才解锁接回\')">接 🔒先抛解锁</button>'
+      :'<button style="flex:1;border:1px solid #1e3a2e;background:#12241c;color:#4fd79b;border-radius:10px;padding:9px 0;font-size:14px;font-weight:700" onclick="quickDeal('+i+',\'buy\')">接 '+(_b0!=null?P(_b0):'—')+' ·100股</button>')
+    +'<button style="flex:1;border:1px solid #3a2424;background:#241514;color:#ff8a80;border-radius:10px;padding:9px 0;font-size:14px;font-weight:700" onclick="quickDeal('+i+',\'sell\')">抛 '+(_s0!=null?P(_s0):'—')+' ·100股</button>'
+    +'</div>';
 }
 function renderWL(){
   const box=document.getElementById('wlBox'); if(!box) return;
@@ -3696,7 +3733,7 @@ function doRender(){
           return '<div class="proj" style="margin-top:2px"><span class="sub">📐 大周期 '+(res0!=null?'压力'+P(res0):'')+(res0!=null&&sup0!=null?' · ':'')+(sup0!=null?'支撑'+P(sup0):'')+' · 段'+(isUp0?'高':'低')+'点'+P(isUp0?lg0.hi:lg0.lo)+(triS?' · '+triS:'')+'</span></div>'; }catch(e){ return ''; }
       })()}
       <details class="fold" data-fk="cy-${h.code}"><summary>周期情报 · 日线Fib / 15分 / 三角（点开看细节）</summary>
-      ${fibLine(lg,p)}
+      ${(lg&&lg.hi>0&&lg.lo>0)?`<canvas class="fiblad" data-fl="${h.code}" width="680" height="170" style="width:100%;height:auto;display:block;background:#10141a;border-radius:8px;margin:4px 0"></canvas>`:fibLine(lg,p)}
       ${m15FibLine(M15FIB[h.code], p, h.code)}
       ${triLine(h.code, p)}
       </details>
@@ -3754,6 +3791,7 @@ function doRender(){
   try{ renderWL(); }catch(e){}
   try{ renderMerged(); }catch(e){}
   try{ if(VIEW==='detail') renderDetailHead(); }catch(e){}
+  try{ drawFibLadders(); }catch(e){}
   const _wOrd=PF.watch.map((_,j)=>j).sort((a,b)=>((PF.watch[b].fav?1:0)-(PF.watch[a].fav?1:0))||a-b); // v5.55 ★置顶
   document.getElementById('watch').innerHTML = _wOrd.map(i=>{ const w=PF.watch[i];
     const f=GET(w.code); const p=F(f,3),pct=F(f,32),hi=F(f,33),lo=F(f,34),prev=F(f,4);
@@ -3943,6 +3981,69 @@ function settlePaperDaily(c,kl){
 }
 // v5.07: 预判复盘 —— 沉淀每场"预判vs实际",周度汇总准确率。数据来自fcast_v1快照(写一次冻结,日K结算)
 // v5.19: 日线大周期与15分钟小周期分层。扩展位只作反应区,不直接改做T档位/触发交易。
+// v5.105: 近两个已收盘日高低点 → 1.618扩展目标(长江量化打法: 高-R×1.618 ≡ 低-R×0.618)
+function twoDayFib(code){
+  const o=ATR[code]; if(!o||!(o.lastHi>0)||!(o.prevHi>0)) return null;
+  const hi=Math.max(o.lastHi,o.prevHi), lo=Math.min(o.lastLo,o.prevLo), R=hi-lo;
+  if(!(R>0)) return null;
+  return {hi:hi, lo:lo, dn:+(hi-R*1.618).toFixed(3), up:+(lo+R*1.618).toFixed(3)};
+}
+// v5.105: Fib价格梯子图 —— 替代PDF式文字; 横轴价格, 左撑右压, 现价大箭头
+function drawFibLadders(){
+  document.querySelectorAll('canvas[data-fl]').forEach(cv=>{
+    const code=cv.getAttribute('data-fl'), lg=legOf(code);
+    const f=GET(code), p=F(f,3);
+    const x=cv.getContext('2d'), W=cv.width, H=cv.height;
+    x.clearRect(0,0,W,H);
+    if(!lg||!(lg.hi>0)||!(lg.lo>0)||!(lg.hi>lg.lo)){ x.fillStyle='#8d97a6'; x.font='20px -apple-system'; x.textAlign='center'; x.fillText('日线波段还没识别出来',W/2,H/2); return; }
+    const isUp=String(lg.loD)<String(lg.hiD);
+    const R=lg.hi-lg.lo;
+    const e1=isUp?lg.lo+R*1.618:lg.hi-R*1.618;
+    const td=twoDayFib(code);
+    let mn=Math.min(lg.lo,e1,td?td.dn:1e18), mx=Math.max(lg.hi,e1,td?td.up:-1e18);
+    if(p!=null){ mn=Math.min(mn,p); mx=Math.max(mx,p); }
+    const pad=(mx-mn)*0.05||0.01; mn-=pad; mx+=pad;
+    const L=16, Rm=16, X=v=>L+(v-mn)/(mx-mn)*(W-L-Rm), T=34, B=H-40;
+    // 支撑绿 → 压力红 底带
+    const g=x.createLinearGradient(L,0,W-Rm,0);
+    g.addColorStop(0,'rgba(53,217,154,.13)'); g.addColorStop(.5,'rgba(232,197,104,.06)'); g.addColorStop(1,'rgba(255,111,102,.13)');
+    x.fillStyle=g; x.fillRect(L,T,W-L-Rm,B-T);
+    // Fib回撤位(虚线+上下错排标签)
+    const lvs=[[0.382,'38.2'],[0.5,'50'],[0.618,'61.8'],[0.786,'78.6']];
+    lvs.forEach((lv,j)=>{
+      const v=isUp?lg.hi-R*lv[0]:lg.lo+R*lv[0], px=X(v);
+      const near=(p!=null&&Math.abs(p/v-1)<0.005);
+      x.strokeStyle=near?'#d99a2b':'#2c3542'; x.setLineDash([4,4]); x.beginPath(); x.moveTo(px,T); x.lineTo(px,B); x.stroke(); x.setLineDash([]);
+      x.fillStyle=near?'#e8c568':'#8d97a6'; x.textAlign='center'; x.font=(near?'bold ':'')+'19px -apple-system';
+      x.fillText(lv[1]+'%', px, T-18);
+      x.fillText(P(v), px, T-2);
+    });
+    // 段高/段低(实线)
+    [[lg.hi,(isUp?'段高':'反弹顶')+' '+P(lg.hi)+(lg.hiD?' '+String(lg.hiD).slice(5):''),'#ff8a80'],
+     [lg.lo,(isUp?'起涨低':'段低')+' '+P(lg.lo)+(lg.loD?' '+String(lg.loD).slice(5):''),'#4fd79b']].forEach(m2=>{
+      const px=X(m2[0]); x.strokeStyle=m2[2]; x.lineWidth=2.5; x.beginPath(); x.moveTo(px,T); x.lineTo(px,B); x.stroke(); x.lineWidth=1;
+      x.fillStyle=m2[2]; x.font='bold 19px -apple-system';
+      x.textAlign=px>W/2?'right':'left'; x.fillText(m2[1], px>W/2?px-8:px+8, T+22);
+    });
+    // 大段扩展目标1(金色点划线)
+    { const px=X(e1); x.strokeStyle='#e8c568'; x.setLineDash([8,5]); x.beginPath(); x.moveTo(px,T); x.lineTo(px,B); x.stroke(); x.setLineDash([]);
+      x.fillStyle='#e8c568'; x.font='bold 19px -apple-system'; x.textAlign=px>W/2?'right':'left';
+      x.fillText((isUp?'上涨目标1 ':'下跌深撑 ')+P(e1), px>W/2?px-8:px+8, B-8); }
+    // 两日1.618扩展(紫色点划线) —— 朋友那套: 近两日高低往下一格
+    if(td){ const v=isUp?td.up:td.dn; if(v>mn&&v<mx){
+      const px=X(v); x.strokeStyle='#b48cf2'; x.setLineDash([3,4]); x.beginPath(); x.moveTo(px,T); x.lineTo(px,B); x.stroke(); x.setLineDash([]);
+      x.fillStyle='#b48cf2'; x.font='bold 19px -apple-system'; x.textAlign=px>W/2?'right':'left';
+      x.fillText('两日1.618 '+P(v), px>W/2?px-8:px+8, B-30); } }
+    // 现价大箭头
+    if(p!=null&&p>mn&&p<mx){ const px=X(p), my=(T+B)/2;
+      x.fillStyle='#f2f5f9'; x.beginPath(); x.moveTo(px,my-11); x.lineTo(px,my+11); x.lineTo(px+(px>W/2?12:-12),my); x.closePath(); x.fill();
+      const bw=104, bx=px>W/2?px-bw-16:px+16;
+      x.fillStyle='rgba(20,26,35,.95)'; x.fillRect(bx,my-15,bw,30);
+      x.strokeStyle='#4c8dff'; x.strokeRect(bx,my-15,bw,30);
+      x.fillStyle='#fff'; x.font='bold 21px -apple-system'; x.textAlign='center'; x.fillText('现价 '+P(p), bx+bw/2, my+7);
+    }
+  });
+}
 function fibLine(lg,p){
   if(!lg||!(lg.hi>0)||!(lg.lo>0)) return '';
   // A/B波段方向必须有明确的时间+价格证据
