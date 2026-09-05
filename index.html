@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#0b0e12">
-<title>我的持仓 · 行情 v5.99 · 0905-2225构建</title>
+<title>我的持仓 · 行情 v5.100 · 0905-2245构建</title>
 <style>
 /* v5.46 完整版换肤:暗色行情终端。只动皮肤——所有类名/布局/交互结构原样,计算逻辑零改动。
    调色板: 底#0b0e12 卡#14181e 描边#232a33 主文#dde3ec 次文#b0bac7 涨#f4655f 跌#2ebd7f 强调#4c8dff */
@@ -284,7 +284,7 @@ details.fold:not([open]) > summary { margin-bottom:0; }
 </head>
 <body>
 <div class="top">
-  <h1>我的持仓 · 行情 <span style="font-size:10px;color:#8d97a6;font-weight:400">v5.99·0905-2225</span></h1>
+  <h1>我的持仓 · 行情 <span style="font-size:10px;color:#8d97a6;font-weight:400">v5.100·0905-2245</span></h1>
   <div class="btns"><button class="ed" id="ntfyBtn" onclick="toggleNtfy()">提醒</button><button class="ed" id="edBtn" onclick="toggleEdit()">编辑</button><button class="rf" onclick="refresh(1)">刷新</button></div>
 </div>
 <div class="navSticky" id="navSticky">
@@ -3073,9 +3073,34 @@ function drawSparks(){
 }
 let _rPend=false;
 // v5.99: TV式自选表——持仓/观察分组+迷你走势图标+紧凑滚动; 持仓行点按=展开并定位卡片, 不再从头拉到尾
+// v5.100: 自选表傻瓜建议行——接/抛价+距现价%+接抛差几点, 与持仓卡片同一套档位引擎; 恐慌日买侧锁与卡片同口径
+function wlAdvice(code,name){
+  try{
+    const f=GET(code), p=F(f,3), prev=F(f,4), hi=F(f,33), lo=F(f,34), pct=F(f,32);
+    if(p==null||p<=0) return '';
+    const todayAmp=(hi!=null&&lo!=null)?hi-lo:null;
+    const hh=PF.holds.find(x=>x.code===code)||{code:code,name:name||code,shares:0,cost:0};
+    const base=ampBase(code,todayAmp);
+    const tf=trendFlag(pct,(todayAmp!=null&&prev)?todayAmp/prev*100:null,mktOf(hh));
+    const nb=narrowBase(code,base,todayAmp);
+    const tr=tiers(anchorOf(code,p,prev),nb.base,prev,tf.lv,code,hh.name);
+    const b0=tr.buys[0], s0=tr.sells[0];
+    if(b0==null&&s0==null) return '';
+    const _soldT=TLOG.some(r=>r.code===code&&r.d===today()&&r.sell>0);
+    const _pd=((pct!=null&&pct<=-3)||!!(dayState(code).oneDn))&&!_soldT;
+    let bTxt='', sTxt='';
+    if(_pd&&b0!=null) bTxt='<span style="color:#e8a13c">接🔒先抛解锁</span>';
+    else if(b0!=null) bTxt='<span style="color:#4fd79b">接 <b>'+P(b0)+'</b> '+sg(((b0/p-1)*100).toFixed(1))+'%</span>';
+    if(s0!=null) sTxt='<span style="color:#ff8a80">抛 <b>'+P(s0)+'</b> +'+((s0/p-1)*100).toFixed(1)+'%</span>';
+    let gap='';
+    if(b0!=null&&s0!=null&&s0>b0&&!_pd) gap=' <span class="dim">⇕差'+((s0/b0-1)*100).toFixed(1)+'点</span>';
+    if(!bTxt&&!sTxt) return '';
+    return '<div style="grid-column:1/-1;font-size:11px;padding:1px 0 2px;display:flex;gap:10px;flex-wrap:wrap">'+bTxt+sTxt+gap+'</div>';
+  }catch(e){ return ''; }
+}
 function renderWL(){
   const box=document.getElementById('wlBox'); if(!box) return;
-  let html='<div class="sub" style="padding:4px 2px">▍持仓</div>';
+  let html='<div class="sub" style="padding:4px 2px;font-weight:700">📦 持仓 · '+(function(){const s2={};PF.holds.forEach(h=>{s2[h.code]=1});return Object.keys(s2).length})()+'只</div>';
   const byC={}, ord=[];
   PF.holds.forEach((h,i)=>{ if(!byC[h.code]){ byC[h.code]={name:h.name,idx:[],shares:0}; ord.push(h.code); } byC[h.code].idx.push(i); byC[h.code].shares+=h.shares||0; });
   ord.forEach(code=>{
@@ -3086,19 +3111,22 @@ function renderWL(){
       +o.name+' <span class="sub">'+code.replace(/^(sh|sz)/,'')+(o.idx.length>1?' ×'+o.idx.length+'户':'')+'</span></span>'
       +'<span>'+(p!=null?P(p):'—')+'</span>'
       +'<span class="'+cls(pct)+'" style="font-weight:700">'+(pct!=null?sg(pct.toFixed(2))+'%':'—')+'</span>'
-      +'<span class="sub" style="text-align:right;cursor:pointer" onclick="event.stopPropagation();openK(\''+code+'\')">K ›</span></div>';
+      +'<span class="sub" style="text-align:right;cursor:pointer" onclick="event.stopPropagation();openK(\''+code+'\')">K ›</span>'
+      +wlAdvice(code,o.name)+'</div>';
   });
+  html+='<div class="sub" style="padding:8px 2px 4px;font-weight:700">👁 观察 · '+PF.watch.length+'只</div>';
+  if(!PF.watch.length) html+='<div class="sub" style="padding:2px 2px 6px;font-size:11px">空 · 下面＋添加自选</div>';
   if(PF.watch.length){
-    html+='<div class="sub" style="padding:6px 2px 4px">▍观察</div>';
     PF.watch.map((w,j)=>j).sort((a,b)=>((PF.watch[b].fav?1:0)-(PF.watch[a].fav?1:0))||a-b).forEach(j=>{
       const w=PF.watch[j], f=GET(w.code), p=F(f,3), pct=F(f,32);
       html+='<div class="tlog-row wlrow" data-wlk="'+w.code+'" style="cursor:pointer;padding:6px 4px">'
-        +'<span class="l" style="display:flex;align-items:center;gap:5px"><span style="color:'+(w.fav?'#e8c568':'#39424f')+'">★</span>'
+        +'<span class="l" style="display:flex;align-items:center;gap:5px;white-space:nowrap;overflow:hidden"><span style="color:'+(w.fav?'#e8c568':'#39424f')+'">★</span>'
         +(SPK[w.code]?'<canvas class="wlspk" data-spk="'+w.code+'" width="46" height="20" style="flex:none"></canvas>':'')
         +w.name+' <span class="sub">'+w.code.replace(/^(sh|sz)/,'')+'</span></span>'
         +'<span>'+(p!=null?P(p):'—')+'</span>'
         +'<span class="'+cls(pct)+'">'+(pct!=null?sg(pct.toFixed(2))+'%':'—')+'</span>'
-        +'<span class="sub" style="text-align:right">›</span></div>';
+        +'<span class="sub" style="text-align:right">›</span>'
+        +wlAdvice(w.code,w.name)+'</div>';
     });
   }
   box.innerHTML=html;
