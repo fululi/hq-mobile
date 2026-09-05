@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#0b0e12">
-<title>我的持仓 · 行情 v5.100 · 0905-2245构建</title>
+<title>我的持仓 · 行情 v5.101 · 0905-2310构建</title>
 <style>
 /* v5.46 完整版换肤:暗色行情终端。只动皮肤——所有类名/布局/交互结构原样,计算逻辑零改动。
    调色板: 底#0b0e12 卡#14181e 描边#232a33 主文#dde3ec 次文#b0bac7 涨#f4655f 跌#2ebd7f 强调#4c8dff */
@@ -119,6 +119,13 @@ details.mini[open] > summary::after { content:' ▴'; }
 details.mini > div { padding-top:2px; }
 .mkt { font-size:12.5px; color:#aeb8c6; margin:-6px 2px 12px; }
 .mkt b { font-weight:700; }
+.wltabs { display:flex; gap:6px; padding:2px 2px 6px; }
+.wltabs button { flex:1; background:#161b22; color:#8d97a6; border:1px solid #232a33; border-radius:8px; padding:5px 0; font-size:12px; font-weight:700; cursor:pointer; }
+.wltabs button.on { background:#1d2635; color:#e8c568; border-color:#3a4658; }
+.wlrow2 { display:grid; grid-template-columns:1fr 118px; gap:8px; align-items:center; padding:7px 6px; border-top:1px solid #1d232c; cursor:pointer; }
+.wlrow2 .wll { min-width:0; display:flex; flex-direction:column; gap:2px; }
+.wlrow2 .wladv { font-size:11px; display:flex; gap:9px; flex-wrap:wrap; align-items:center; }
+canvas.wlmin { width:118px; height:62px; background:#10141b; border-radius:6px; cursor:pointer; }
 .tlog-row { display:grid; grid-template-columns:1.4fr 1fr 1fr 1fr auto; gap:6px; align-items:center; padding:8px 10px; border-top:1px solid #1d232c; font-size:13px; }
 .tlog-row .rm { font-size:11px; color:#ff9066; background:rgba(255,144,102,.12); border:none; padding:3px 7px; border-radius:6px; }
 .tlog-row.hit { background:rgba(255,120,70,.12); animation:hitflash 1.2s ease-in-out infinite; }
@@ -284,7 +291,7 @@ details.fold:not([open]) > summary { margin-bottom:0; }
 </head>
 <body>
 <div class="top">
-  <h1>我的持仓 · 行情 <span style="font-size:10px;color:#8d97a6;font-weight:400">v5.100·0905-2245</span></h1>
+  <h1>我的持仓 · 行情 <span style="font-size:10px;color:#8d97a6;font-weight:400">v5.101·0905-2310</span></h1>
   <div class="btns"><button class="ed" id="ntfyBtn" onclick="toggleNtfy()">提醒</button><button class="ed" id="edBtn" onclick="toggleEdit()">编辑</button><button class="rf" onclick="refresh(1)">刷新</button></div>
 </div>
 <div class="navSticky" id="navSticky">
@@ -327,7 +334,7 @@ details.fold:not([open]) > summary { margin-bottom:0; }
   <button onclick="confirmAdd('hold')">确认添加持仓</button>
 </div>
 <details class="fold" data-fk="wl" open style="margin-bottom:10px">
-<summary class="sec"><span>自选表 · 持仓/观察分组</span><span class="sub">点行定位到卡片 · K›直达K站</span></summary>
+<summary class="sec"><span>自选表 · 持仓/观察分组</span><span class="sub">点行展开卡片 · 点图直达K站</span></summary>
 <div id="wlBox" style="max-height:300px;overflow-y:auto;-webkit-overflow-scrolling:touch"></div>
 </details>
 <div id="holds"></div>
@@ -1901,7 +1908,7 @@ function refresh(manual){
   const s=document.createElement('script');
   s.src='https://qt.gtimg.cn/q='+allCodes().join(',')+'&_='+Date.now();
   s.charset='GBK';
-  s.onload=()=>{ try{ const _q={}; allCodes().forEach(c=>{ if(window['v_'+c]) _q[c]=window['v_'+c]; }); lsSet('qc_v1',JSON.stringify({d:_q})); }catch(e){} render(); sweepPlans(); loadATR(scheduleRender); loadIdxHit(); loadWTrend(scheduleRender); loadM15(scheduleRender); maybeSync(); maybeFF(); maybeFFH(); s.remove(); done(); if(manual) toast('已刷新 · '+document.getElementById('time').textContent); };
+  s.onload=()=>{ try{ const _q={}; allCodes().forEach(c=>{ if(window['v_'+c]) _q[c]=window['v_'+c]; }); lsSet('qc_v1',JSON.stringify({d:_q})); }catch(e){} render(); sweepPlans(); loadATR(scheduleRender); loadIdxHit(); loadWTrend(scheduleRender); loadM15(scheduleRender); loadWLMin(scheduleRender); maybeSync(); maybeFF(); maybeFFH(); s.remove(); done(); if(manual) toast('已刷新 · '+document.getElementById('time').textContent); };
   s.onerror=()=>{ render(); document.getElementById('time').textContent='实时接口被拦·显示缓存'; s.remove(); done(); if(manual) toast('行情接口被当前网络拦了(关代理/VPN试试),先显示缓存'); };
   document.body.appendChild(s);
 }
@@ -3073,7 +3080,7 @@ function drawSparks(){
 }
 let _rPend=false;
 // v5.99: TV式自选表——持仓/观察分组+迷你走势图标+紧凑滚动; 持仓行点按=展开并定位卡片, 不再从头拉到尾
-// v5.100: 自选表傻瓜建议行——接/抛价+距现价%+接抛差几点, 与持仓卡片同一套档位引擎; 恐慌日买侧锁与卡片同口径
+// v5.101: 自选表傻瓜建议行——接/抛价+距现价%; 来回点=接抛到现价距离之和, 每股毛=抛-接; 红盘先抛/绿盘先接; 恐慌日买侧锁与卡片同口径
 function wlAdvice(code,name){
   try{
     const f=GET(code), p=F(f,3), prev=F(f,4), hi=F(f,33), lo=F(f,34), pct=F(f,32);
@@ -3092,57 +3099,89 @@ function wlAdvice(code,name){
     if(_pd&&b0!=null) bTxt='<span style="color:#e8a13c">接🔒先抛解锁</span>';
     else if(b0!=null) bTxt='<span style="color:#4fd79b">接 <b>'+P(b0)+'</b> '+sg(((b0/p-1)*100).toFixed(1))+'%</span>';
     if(s0!=null) sTxt='<span style="color:#ff8a80">抛 <b>'+P(s0)+'</b> +'+((s0/p-1)*100).toFixed(1)+'%</span>';
-    let gap='';
-    if(b0!=null&&s0!=null&&s0>b0&&!_pd) gap=' <span class="dim">⇕差'+((s0/b0-1)*100).toFixed(1)+'点</span>';
-    if(!bTxt&&!sTxt) return '';
-    return '<div style="grid-column:1/-1;font-size:11px;padding:1px 0 2px;display:flex;gap:10px;flex-wrap:wrap">'+bTxt+sTxt+gap+'</div>';
+    const gap=(b0!=null&&s0!=null&&s0>b0&&!_pd)?'<span class="dim">来回'+((s0-b0)/p*100).toFixed(1)+'点·每股毛'+(s0-b0).toFixed(2)+'元</span>':'';
+    const parts=[];
+    if(_pd){ parts.push('<span style="color:#ff9066;font-weight:700">恐慌日·先卖后买</span>',sTxt,bTxt); }
+    else if(pct!=null&&pct>0){ parts.push('<span style="color:#ff8a80;font-weight:700">红盘先抛</span>',sTxt,bTxt); }
+    else { parts.push('<span style="color:#4fd79b;font-weight:700">绿盘先接</span>',bTxt,sTxt); }
+    if(gap) parts.push(gap);
+    return parts.filter(x=>x).join('');
   }catch(e){ return ''; }
 }
+let WLTAB='h'; try{ WLTAB=localStorage.getItem('hqm_wltab_v1')||'h'; }catch(e){}
 function renderWL(){
   const box=document.getElementById('wlBox'); if(!box) return;
-  let html='<div class="sub" style="padding:4px 2px;font-weight:700">📦 持仓 · '+(function(){const s2={};PF.holds.forEach(h=>{s2[h.code]=1});return Object.keys(s2).length})()+'只</div>';
-  const byC={}, ord=[];
-  PF.holds.forEach((h,i)=>{ if(!byC[h.code]){ byC[h.code]={name:h.name,idx:[],shares:0}; ord.push(h.code); } byC[h.code].idx.push(i); byC[h.code].shares+=h.shares||0; });
-  ord.forEach(code=>{
-    const o=byC[code], f=GET(code), p=F(f,3), pct=F(f,32);
-    html+='<div class="tlog-row wlrow" data-wl="'+code+'" style="cursor:pointer;padding:6px 4px">'
-      +'<span class="l" style="font-weight:600;display:flex;align-items:center;gap:5px">'
-      +(SPK[code]?'<canvas class="wlspk" data-spk="'+code+'" width="46" height="20" style="flex:none"></canvas>':'')
-      +o.name+' <span class="sub">'+code.replace(/^(sh|sz)/,'')+(o.idx.length>1?' ×'+o.idx.length+'户':'')+'</span></span>'
-      +'<span>'+(p!=null?P(p):'—')+'</span>'
-      +'<span class="'+cls(pct)+'" style="font-weight:700">'+(pct!=null?sg(pct.toFixed(2))+'%':'—')+'</span>'
-      +'<span class="sub" style="text-align:right;cursor:pointer" onclick="event.stopPropagation();openK(\''+code+'\')">K ›</span>'
-      +wlAdvice(code,o.name)+'</div>';
-  });
-  html+='<div class="sub" style="padding:8px 2px 4px;font-weight:700">👁 观察 · '+PF.watch.length+'只</div>';
-  if(!PF.watch.length) html+='<div class="sub" style="padding:2px 2px 6px;font-size:11px">空 · 下面＋添加自选</div>';
-  if(PF.watch.length){
-    PF.watch.map((w,j)=>j).sort((a,b)=>((PF.watch[b].fav?1:0)-(PF.watch[a].fav?1:0))||a-b).forEach(j=>{
-      const w=PF.watch[j], f=GET(w.code), p=F(f,3), pct=F(f,32);
-      html+='<div class="tlog-row wlrow" data-wlk="'+w.code+'" style="cursor:pointer;padding:6px 4px">'
-        +'<span class="l" style="display:flex;align-items:center;gap:5px;white-space:nowrap;overflow:hidden"><span style="color:'+(w.fav?'#e8c568':'#39424f')+'">★</span>'
-        +(SPK[w.code]?'<canvas class="wlspk" data-spk="'+w.code+'" width="46" height="20" style="flex:none"></canvas>':'')
-        +w.name+' <span class="sub">'+w.code.replace(/^(sh|sz)/,'')+'</span></span>'
-        +'<span>'+(p!=null?P(p):'—')+'</span>'
-        +'<span class="'+cls(pct)+'">'+(pct!=null?sg(pct.toFixed(2))+'%':'—')+'</span>'
-        +'<span class="sub" style="text-align:right">›</span>'
-        +wlAdvice(w.code,w.name)+'</div>';
-    });
+  const _hc={}; PF.holds.forEach(h=>{_hc[h.code]=1});
+  const holdN=Object.keys(_hc).length;
+  let html='<div class="wltabs">'
+    +'<button class="'+(WLTAB==='h'?'on':'')+'" data-wtab="h">📦 持仓 '+holdN+'</button>'
+    +'<button class="'+(WLTAB==='w'?'on':'')+'" data-wtab="w">👁 观察 '+PF.watch.length+'</button></div>';
+  const rowHtml=(code,name,extra,fav)=>{
+    const f=GET(code), p=F(f,3), pct=F(f,32);
+    return '<div class="wlrow2" data-'+(fav==null?'wl':'wlk')+'="'+code+'">'
+      +'<div class="wll">'
+      +'<div style="font-weight:600;white-space:nowrap;overflow:hidden">'+(fav!=null?'<span style="color:'+(fav?'#e8c568':'#39424f')+'">★</span> ':'')+name+' <span class="sub">'+code.replace(/^(sh|sz)/,'')+(extra||'')+'</span></div>'
+      +'<div><b class="'+cls(pct)+'" style="font-size:15px">'+(p!=null?P(p):'—')+'</b> <b class="'+cls(pct)+'" style="font-weight:700">'+(pct!=null?sg(pct.toFixed(2))+'%':'')+'</b></div>'
+      +'<div class="wladv">'+wlAdvice(code,name)+'</div>'
+      +'</div>'
+      +'<canvas class="wlmin" data-min="'+code+'" width="118" height="62"></canvas></div>';
+  };
+  if(WLTAB==='h'){
+    const byC={}, ord=[];
+    PF.holds.forEach(h=>{ if(!byC[h.code]){ byC[h.code]={name:h.name,n:0}; ord.push(h.code); } byC[h.code].n++; });
+    if(!ord.length) html+='<div class="sub" style="padding:8px 2px">空 · 上面＋添加持仓</div>';
+    ord.forEach(code=>{ const o=byC[code]; html+=rowHtml(code,o.name,o.n>1?' ×'+o.n+'户':'',null); });
+  } else {
+    if(!PF.watch.length) html+='<div class="sub" style="padding:8px 2px">空 · 下面＋添加自选</div>';
+    PF.watch.map((w,j)=>j).sort((a,b)=>((PF.watch[b].fav?1:0)-(PF.watch[a].fav?1:0))||a-b).forEach(j=>{ const w=PF.watch[j]; html+=rowHtml(w.code,w.name,'',w.fav?1:0); });
   }
   box.innerHTML=html;
-  // 持仓行: 点按=展开卡片+滚动定位; 观察行: 点按=进K站
+  box.querySelectorAll('[data-wtab]').forEach(b2=>{ b2.addEventListener('click',()=>{ WLTAB=b2.getAttribute('data-wtab'); try{localStorage.setItem('hqm_wltab_v1',WLTAB);}catch(e){} renderWL(); }); });
   box.querySelectorAll('[data-wl]').forEach(el=>{ el.addEventListener('click',()=>{ const c=el.getAttribute('data-wl');
     COLL[c]='open'; lsSet('hqm_coll_v1',JSON.stringify(COLL)); render();
     setTimeout(()=>{ const i=PF.holds.findIndex(h=>h.code===c); if(i>=0) scrollToEl('hcard_'+i); },80); }); });
   box.querySelectorAll('[data-wlk]').forEach(el=>{ el.addEventListener('click',()=>{ openK(el.getAttribute('data-wlk')); }); });
-  // 迷你走势
-  box.querySelectorAll('.wlspk').forEach(cv2=>{
-    const arr=SPK[cv2.getAttribute('data-spk')]; if(!arr||arr.length<2) return;
-    const c2=cv2.getContext('2d'), up=arr[arr.length-1]>=arr[0];
+  box.querySelectorAll('canvas.wlmin').forEach(cv2=>{ cv2.addEventListener('click',ev=>{ ev.stopPropagation(); openK(cv2.getAttribute('data-min')); }); });
+  drawWLMin();
+}
+// v5.101: 行内实时分时线(腾讯1分钟,60秒节流,每次刷新跟着动)——拿不到分时就用40日日线垫底
+let MINL={}, MINL_TS=0;
+function loadWLMin(done){
+  const codes=[...new Set([...PF.holds.map(h=>h.code),...PF.watch.map(w=>w.code)])];
+  if(!codes.length){ done&&done(); return; }
+  const n=Date.now(); if(n-MINL_TS<60*1000){ done&&done(); return; } MINL_TS=n;
+  let left=codes.length;
+  const fin=()=>{ if(--left===0) done&&done(); };
+  codes.forEach(c=>{
+    const ctrl=new AbortController(); const tm=setTimeout(()=>ctrl.abort(),5000);
+    fetch('https://ifzq.gtimg.cn/appstock/app/minute/query?code='+c,{signal:ctrl.signal})
+      .then(r=>r.json()).then(d=>{ clearTimeout(tm);
+        const arr=d&&d.data&&d.data[c]&&d.data[c].data&&d.data[c].data.data;
+        if(Array.isArray(arr)&&arr.length>5){ const px=arr.map(x=>+String(x).split(' ')[1]).filter(v=>v>0); if(px.length>5) MINL[c]=px; }
+        fin(); }).catch(()=>{ clearTimeout(tm); fin(); });
+  });
+}
+function drawWLMin(){
+  document.querySelectorAll('canvas[data-min]').forEach(cv=>{
+    const code=cv.getAttribute('data-min');
+    let arr=MINL[code], isMin=true;
+    if(!arr||arr.length<2){ arr=SPK[code]; isMin=false; }
+    if(!arr||arr.length<2){ cv.style.display='none'; return; }
+    cv.style.display='';
+    const W=cv.width, H=cv.height, c2=cv.getContext('2d'); c2.clearRect(0,0,W,H);
+    const f=GET(code), prev=F(f,4);
     const mn=Math.min(...arr), mx=Math.max(...arr), rg=(mx-mn)||1;
-    c2.strokeStyle=up?'#ff6f66':'#35d99a'; c2.lineWidth=1.2; c2.beginPath();
-    arr.forEach((v2,i2)=>{ const x=i2/(arr.length-1)*44+1, y=18-(v2-mn)/rg*16; if(!i2) c2.moveTo(x,y); else c2.lineTo(x,y); });
+    const last=arr[arr.length-1], up=prev!=null?last>=prev:last>=arr[0];
+    const col=up?'#ff6f66':'#35d99a';
+    if(isMin&&prev>0&&prev>mn&&prev<mx){ // 昨收参考虚线
+      const y0=3+(1-(prev-mn)/rg)*(H-6);
+      c2.strokeStyle='#39424f'; c2.setLineDash([3,3]); c2.beginPath(); c2.moveTo(0,y0); c2.lineTo(W,y0); c2.stroke(); c2.setLineDash([]);
+    }
+    c2.strokeStyle=col; c2.lineWidth=1.4; c2.beginPath();
+    arr.forEach((v,i)=>{ const x=i/(arr.length-1)*(W-6)+3, y=3+(1-(v-mn)/rg)*(H-6); if(!i) c2.moveTo(x,y); else c2.lineTo(x,y); });
     c2.stroke();
+    const ly=3+(1-(last-mn)/rg)*(H-6);
+    c2.fillStyle=col; c2.beginPath(); c2.arc(W-3,ly,2.2,0,7); c2.fill();
   });
 }
 // v5.96: 合并总账——同一只票跨账户并成一笔: 总股数/加权成本/合计浮盈/今日合计/累计T净收益; 点行展开分账户明细, 右侧直达K线
@@ -3538,7 +3577,7 @@ function doRender(){
           const ch=['<span style="background:'+scenBg+';font-weight:700;color:#e8edf4">'+scenTxt+'</span>',
             '<span style="color:'+vCls(vd)+'">日线·周线 '+vd+'</span>'];
           if(tf.lv>=2||(pct!=null&&Math.abs(pct)>=5)) ch.push('<span style="color:'+((pct||0)>=0?'#ff8a80':'#4fd79b')+'">单边行情'+(pct!=null?' '+sg(pct.toFixed(1))+'%':'')+'</span>');
-          if(pct!=null&&pct<=-3) ch.push('<span style="color:#ff9066">恐慌日·先卖后买</span>');
+          if(pct!=null&&pct<=-3&&!_pd) ch.push('<span style="color:#ff9066">恐慌日·先卖后买</span>'); // v5.101: _pd时下面大横幅已说,不重复
           return '<div style="display:flex;flex-wrap:wrap;gap:5px;margin:6px 0">'+ch.map(x=>'<span style="font-size:11px;font-weight:600;padding:3px 8px;border-radius:7px;background:#161b22;border:1px solid #232a33">'+x+'</span>').join('')+'</div>';
         }catch(e){ return ''; }
       })()}
@@ -3567,8 +3606,8 @@ function doRender(){
         if(b0==null&&s0!=null) return `<div class="actnow wait">先抛 ${sTxt} · 记一笔卖出后解锁接回<small>${warn||'恐慌/单边日规则'}</small></div>`; // v5.89: 恐慌日缺买腿时不显示断箭头
         return `<div class="actnow wait">等 · ${bTxt} → ${sTxt}${roundS2}<small>${warn||'未到价·点价格直接填单'}</small></div>`;
       })()}
-      ${(tf.lv>=2||(pct!=null&&Math.abs(pct)>=5))?`<div style="margin:6px 0;padding:8px 12px;border-radius:9px;font-weight:800;font-size:14px;background:${(pct||0)>=0?'rgba(244,101,95,.15)':'rgba(46,189,127,.15)'};color:${(pct||0)>=0?'#ff8a80':'#4fd79b'}">⚡ 单边行情 ${pct!=null?sg(pct.toFixed(1))+'%':''} · ${tf.label||'极端波动'} · 档位已按极端日口径放宽,别按平常日的手感追</div>`:''}
-      ${_pd?`<div style="margin:6px 0;padding:8px 12px;border-radius:9px;font-weight:800;font-size:13.5px;background:rgba(255,144,102,.12);color:#ff9066">🛑 恐慌下跌日 · 先卖后买——先记一笔卖出,接回档才解锁;没抛的别新接</div>`:(!_pd&&_soldT&&(pct!=null&&pct<=-3)?`<div style="margin:6px 0;padding:6px 12px;border-radius:9px;font-weight:700;font-size:12.5px;background:rgba(46,189,127,.10);color:#4fd79b">✓ 恐慌日·今天已先卖 · 接回档位已解锁,跌到位照常提示</div>`:'')}
+      ${((tf.lv>=2||(pct!=null&&Math.abs(pct)>=5))&&!_pd)?`<div style="margin:6px 0;padding:8px 12px;border-radius:9px;font-weight:800;font-size:14px;background:${(pct||0)>=0?'rgba(244,101,95,.15)':'rgba(46,189,127,.15)'};color:${(pct||0)>=0?'#ff8a80':'#4fd79b'}">⚡ 单边行情 ${pct!=null?sg(pct.toFixed(1))+'%':''} · ${tf.label||'极端波动'} · 档位已按极端日口径放宽,别按平常日的手感追</div>`:''} // v5.101: _pd时并入下面一条,不重复发
+      ${_pd?`<div style="margin:6px 0;padding:8px 12px;border-radius:9px;font-weight:800;font-size:13.5px;background:rgba(255,144,102,.12);color:#ff9066">🛑 恐慌下跌日 ${pct!=null?sg(pct.toFixed(1))+'%':''} · 先卖后买——先记一笔卖出,接回档才解锁 · 档位已按极端日放宽</div>`:(!_pd&&_soldT&&(pct!=null&&pct<=-3)?`<div style="margin:6px 0;padding:6px 12px;border-radius:9px;font-weight:700;font-size:12.5px;background:rgba(46,189,127,.10);color:#4fd79b">✓ 恐慌日·今天已先卖 · 接回档位已解锁,跌到位照常提示</div>`:'')}
       <details class="fold" data-fk="wb-${h.code}"><summary style="font-size:12px;color:#8d97a6;padding:4px 0;cursor:pointer">水位·档位明细(实时)</summary>${actBar}</details>
       ${(BATTLE[i]={code:h.code,buys:tr.buys,sells:tr.sells,preLo:preLo,preHi:preHi,cost:h.cost,p3:(p!=null&&p<10),lev:(lg&&lg.hi>0&&lg.lo>0)?{hi:lg.hi,lo:lg.lo}:null},'')}
       <details class="fold" data-fk="ks-${i}" ontoggle="ksOpen(${i})" style="margin-top:6px;border-top:none;padding-top:0"><summary>盘中作战图 · 内嵌版（拖拽/双指缩放/十字线 · 1分K可切）</summary><iframe id="ksf_${i}" class="ksf"></iframe></details>
