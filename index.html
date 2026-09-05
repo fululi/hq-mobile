@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#0b0e12">
-<title>我的持仓 · 行情 v5.108 · 0906-0215构建</title>
+<title>我的持仓 · 行情 v5.110 · 0906-0240构建</title>
 <style>
 /* v5.46 完整版换肤:暗色行情终端。只动皮肤——所有类名/布局/交互结构原样,计算逻辑零改动。
    调色板: 底#0b0e12 卡#14181e 描边#232a33 主文#dde3ec 次文#b0bac7 涨#f4655f 跌#2ebd7f 强调#4c8dff */
@@ -292,7 +292,7 @@ details.fold:not([open]) > summary { margin-bottom:0; }
 </head>
 <body>
 <div class="top">
-  <h1>我的持仓 · 行情 <span style="font-size:10px;color:#8d97a6;font-weight:400">v5.108·0906-0215</span></h1>
+  <h1>我的持仓 · 行情 <span style="font-size:10px;color:#8d97a6;font-weight:400">v5.110·0906-0240</span></h1>
   <div class="btns"><button class="ed" id="ntfyBtn" onclick="toggleNtfy()">提醒</button><button class="ed" id="edBtn" onclick="setView('holds');document.getElementById('holds').style.display='';toggleEdit()">编辑</button><button class="rf" onclick="refresh(1)">刷新</button></div>
 </div>
 <div class="navSticky" id="navSticky">
@@ -3135,6 +3135,7 @@ function wlAdvice(code,name){
     if(_pd&&b0!=null) bTxt='<span style="color:#e8a13c">接🔒先抛解锁</span>';
     else if(b0!=null) bTxt='<span style="color:#4fd79b">接 <b>'+P(b0)+'</b> '+sg(((b0/p-1)*100).toFixed(1))+'%</span>';
     if(s0!=null) sTxt='<span style="color:#ff8a80">抛 <b>'+P(s0)+'</b> +'+((s0/p-1)*100).toFixed(1)+'%</span>';
+    if(b0!=null&&s0!=null&&s0>b0&&!_pd) sTxt='<span style="color:#e8c568">↗</span> '+sTxt; // 接→抛之间插上涨箭头
     const gap=(b0!=null&&s0!=null&&s0>b0&&!_pd)?'<span class="dim">来回'+((s0/b0-1)*100).toFixed(1)+'点·每股毛'+(s0-b0).toFixed(2)+'元</span>':'';
     const parts=[];
     if(_pd){ parts.push('<span style="color:#ff9066;font-weight:700">恐慌日·先卖后买</span>',sTxt,bTxt); }
@@ -3748,7 +3749,7 @@ function doRender(){
           return '<div class="proj" style="margin-top:2px"><span class="sub">📐 大周期 '+(res0!=null?'压力'+P(res0):'')+(res0!=null&&sup0!=null?' · ':'')+(sup0!=null?'支撑'+P(sup0):'')+' · 段'+(isUp0?'高':'低')+'点'+P(isUp0?lg0.hi:lg0.lo)+(triS?' · '+triS:'')+'</span></div>'; }catch(e){ return ''; }
       })()}
       <details class="fold" data-fk="cy-${h.code}"><summary>周期情报 · 日线Fib / 15分 / 三角（点开看细节）</summary>
-      ${(lg&&lg.hi>0&&lg.lo>0)?`<canvas class="fiblad" data-fl="${h.code}" width="680" height="170" style="width:100%;height:auto;display:block;background:#10141a;border-radius:8px;margin:4px 0"></canvas>`:fibLine(lg,p)}
+      ${(lg&&lg.hi>0&&lg.lo>0)?`<canvas class="fiblad" data-fl="${h.code}" width="680" height="186" style="width:100%;height:auto;display:block;background:#10141a;border-radius:8px;margin:4px 0"></canvas>`:fibLine(lg,p)}
       ${m15FibLine(M15FIB[h.code], p, h.code)}
       ${triLine(h.code, p)}
       </details>
@@ -3791,7 +3792,7 @@ function doRender(){
         let cls2='', actTxt='';
         if(p!=null&&s0!=null&&p>=s0*0.998){ cls2=' now-s'; actTxt=`抛${P(s0)}`; }
         else if(p!=null&&b0!=null&&p<=b0*1.002){ cls2=' now-b'; actTxt=`接${P(b0)}`; }
-        else { const bG=b0?`接${P(b0)}`:''; const sG=s0?`抛${P(s0)}`:''; actTxt=[bG,sG].filter(Boolean).join('/'); }
+        else { const bG=b0?`接${P(b0)}`:''; const sG=s0?`抛${P(s0)}`:''; const rt=(b0&&s0&&s0>b0)?`<b style="color:#e8c568">↗${((s0/b0-1)*100).toFixed(1)}</b>`:''; actTxt=bG+rt+sG; } // v5.110: 接抛之间插↗来回点(期望涨幅)
         return `<span class="qs${cls2}" onclick="scrollToEl('hcard_${i}')">${lb}<b class="${cls(pc)}">${pc!=null?sg(pc.toFixed(1))+'%':''}</b> ${actTxt}</span>`; // v5.78: 名称+涨跌+接抛 一条装下
       }).join('');
       qs.innerHTML=_qsH;
@@ -4018,20 +4019,23 @@ function drawFibLadders(){
     let mn=Math.min(lg.lo,e1,td?td.dn:1e18), mx=Math.max(lg.hi,e1,td?td.up:-1e18);
     if(p!=null){ mn=Math.min(mn,p); mx=Math.max(mx,p); }
     const pad=(mx-mn)*0.05||0.01; mn-=pad; mx+=pad;
-    const L=16, Rm=16, X=v=>L+(v-mn)/(mx-mn)*(W-L-Rm), T=34, B=H-40;
+    const L=16, Rm=16, X=v=>L+(v-mn)/(mx-mn)*(W-L-Rm), T=88, B=H-40;
     // 支撑绿 → 压力红 底带
     const g=x.createLinearGradient(L,0,W-Rm,0);
     g.addColorStop(0,'rgba(53,217,154,.13)'); g.addColorStop(.5,'rgba(232,197,104,.06)'); g.addColorStop(1,'rgba(255,111,102,.13)');
     x.fillStyle=g; x.fillRect(L,T,W-L-Rm,B-T);
     // Fib回撤位(虚线+上下错排标签)
     const lvs=[[0.382,'38.2'],[0.5,'50'],[0.618,'61.8'],[0.786,'78.6']];
-    lvs.forEach((lv,j)=>{
-      const v=isUp?lg.hi-R*lv[0]:lg.lo+R*lv[0], px=X(v);
-      const near=(p!=null&&Math.abs(p/v-1)<0.005);
-      x.strokeStyle=near?'#d99a2b':'#2c3542'; x.setLineDash([4,4]); x.beginPath(); x.moveTo(px,T); x.lineTo(px,B); x.stroke(); x.setLineDash([]);
-      x.fillStyle=near?'#e8c568':'#8d97a6'; x.textAlign='center'; x.font=(near?'bold ':'')+'19px -apple-system';
-      x.fillText(lv[1]+'%', px, T-18);
-      x.fillText(P(v), px, T-2);
+    const lab=lvs.map(lv=>({lv:lv, v:isUp?lg.hi-R*lv[0]:lg.lo+R*lv[0]})).map(o=>({lv:o.lv, v:o.v, px:X(o.v)})).sort((a2,b2)=>a2.px-b2.px);
+    let row=-1, lastPx=-999;
+    lab.forEach(o=>{ if(o.px-lastPx<86) row=Math.min(row+1,3); else row=0; lastPx=o.px; o.row=row; }); // x间距<86px就换层,最多4层
+    lab.forEach(o=>{
+      const near=(p!=null&&Math.abs(p/o.v-1)<0.005);
+      x.strokeStyle=near?'#d99a2b':'#2c3542'; x.setLineDash([4,4]); x.beginPath(); x.moveTo(o.px,T); x.lineTo(o.px,B); x.stroke(); x.setLineDash([]);
+      x.fillStyle=near?'#e8c568':'#8d97a6'; x.textAlign='center'; x.font=(near?'bold ':'')+'16px -apple-system';
+      const ty=14+o.row*17, tx=Math.max(L+34,Math.min(W-Rm-34,o.px)); // 4层排布+边缘钳制
+      x.fillText(o.lv[1]+'%·'+P(o.v), tx, ty);
+      if(o.row>0){ x.strokeStyle='rgba(93,111,100,.5)'; x.beginPath(); x.moveTo(o.px,ty+4); x.lineTo(o.px,T); x.stroke(); } // 错层标签加引线
     });
     // 段高/段低(实线)
     [[lg.hi,(isUp?'段高':'反弹顶')+' '+P(lg.hi)+(lg.hiD?' '+String(lg.hiD).slice(5):''),'#ff8a80'],
@@ -4052,7 +4056,7 @@ function drawFibLadders(){
       // 跌透徽章(回测口径: 现价高于MA20超+2%=高位飞刀,别接; 否则=已跌透可接区)
       const _o=ATR[code], _ma=(_o&&typeof _o==='object')?_o.ma20:null;
       if(p!=null&&_ma>0){ const dev=(p/_ma-1)*100, knife=dev>2;
-        const bw=176, bx=Math.max(L+2,Math.min(W-Rm-bw-2, px-bw/2)), by=T+34;
+        const bw=176, bx=L+2, by=T+8; // 固定左上, 不跟价位线走, 避免压字
         x.fillStyle=knife?'rgba(255,111,102,.16)':'rgba(53,217,154,.14)';
         x.strokeStyle=knife?'#ff6f66':'#35d99a'; x.setLineDash([]);
         x.beginPath(); x.rect(bx,by,bw,26); x.fill(); x.stroke();
