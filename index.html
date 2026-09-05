@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#0b0e12">
-<title>我的持仓 · 行情 v5.112 · 0906-0340构建</title>
+<title>我的持仓 · 行情 v5.113 · 0906-0410构建</title>
 <style>
 /* v5.46 完整版换肤:暗色行情终端。只动皮肤——所有类名/布局/交互结构原样,计算逻辑零改动。
    调色板: 底#0b0e12 卡#14181e 描边#232a33 主文#dde3ec 次文#b0bac7 涨#f4655f 跌#2ebd7f 强调#4c8dff */
@@ -292,7 +292,7 @@ details.fold:not([open]) > summary { margin-bottom:0; }
 </head>
 <body>
 <div class="top">
-  <h1>我的持仓 · 行情 <span style="font-size:10px;color:#8d97a6;font-weight:400">v5.112·0906-0340</span></h1>
+  <h1>我的持仓 · 行情 <span style="font-size:10px;color:#8d97a6;font-weight:400">v5.113·0906-0410</span></h1>
   <div class="btns"><button class="ed" id="ntfyBtn" onclick="toggleNtfy()">提醒</button><button class="ed" id="edBtn" onclick="setView('holds');document.getElementById('holds').style.display='';toggleEdit()">编辑</button><button class="rf" onclick="refresh(1)">刷新</button></div>
 </div>
 <div class="navSticky" id="navSticky">
@@ -3128,6 +3128,15 @@ function drawSparks(){
     if(rHi<mx-1e-9){ x.strokeStyle='rgba(244,101,95,.4)'; x.beginPath(); x.moveTo(2,Y(rHi)); x.lineTo(W-2,Y(rHi)); x.stroke(); }
     if(rLo>mn+1e-9){ x.strokeStyle='rgba(46,189,127,.4)'; x.beginPath(); x.moveTo(2,Y(rLo)); x.lineTo(W-2,Y(rLo)); x.stroke(); }
     x.setLineDash([]);
+    // v5.113: 上升腿趋势线——最近两个摆动低连线(斜率>0才画), 跌破变红+“破腿”; 解决“涨了一段再跌,小图上看不出腿断了”
+    const pv3=[]; for(let i3=3;i3<a.length-3;i3++){ let ok=true; for(let k5=i3-3;k5<=i3+3;k5++){ if(a[k5]<a[i3]){ ok=false; break; } } if(ok) pv3.push(i3); }
+    if(pv3.length>=2){ const tA=pv3[pv3.length-2], tB=pv3[pv3.length-1];
+      if(tB-tA>=4&&a[tB]>a[tA]){ const sl2=(a[tB]-a[tA])/(tB-tA), lvL=sl2*(a.length-1-tA)+a[tA];
+        const brk=a[a.length-1]<lvL*0.998;
+        x.strokeStyle=brk?'rgba(244,101,95,.85)':'rgba(46,189,127,.7)'; x.lineWidth=1.2; x.setLineDash([4,2]);
+        x.beginPath(); x.moveTo(X(tA),Y(a[tA])); x.lineTo(W-2,Y(lvL)); x.stroke(); x.setLineDash([]);
+        if(brk){ x.fillStyle='#f4655f'; x.font='9px sans-serif'; x.textAlign='right'; x.fillText('破腿',W-3,Y(lvL)-3); }
+      } }
   });
 }
 let _rPend=false;
@@ -3332,7 +3341,6 @@ function loadWLMin(done){
 function drawWLMin(){
   document.querySelectorAll('canvas[data-min]').forEach(cv=>{
     const code=cv.getAttribute('data-min');
-    cv.onclick=ev=>{ ev.stopPropagation(); openK(code); };
     let arr=MINL[code], isMin=true;
     if(!arr||arr.length<2){ arr=SPK[code]; isMin=false; }
     if(!arr||arr.length<2){ cv.style.display='none'; return; }
@@ -3351,6 +3359,15 @@ function drawWLMin(){
     c2.stroke();
     const ly=3+(1-(last-mn)/rg)*(H-6);
     c2.fillStyle=col; c2.beginPath(); c2.arc(W-3,ly,2.2,0,7); c2.fill();
+    // v5.113: 上升腿趋势线(与指数卡同口径), 跌破变红
+    const pv4=[]; for(let i4=3;i4<arr.length-3;i4++){ let ok2=true; for(let k6=i4-3;k6<=i4+3;k6++){ if(arr[k6]<arr[i4]){ ok2=false; break; } } if(ok2) pv4.push(i4); }
+    if(pv4.length>=2){ const tA2=pv4[pv4.length-2], tB2=pv4[pv4.length-1];
+      if(tB2-tA2>=4&&arr[tB2]>arr[tA2]){ const sl3=(arr[tB2]-arr[tA2])/(tB2-tA2), lv2=sl3*(arr.length-1-tA2)+arr[tA2];
+        const brk2=arr[arr.length-1]<lv2*0.998;
+        const X2=i5=>i5/(arr.length-1)*(W-6)+3, Y2=v3=>3+(1-(v3-mn)/rg)*(H-6);
+        c2.strokeStyle=brk2?'rgba(255,111,102,.9)':'rgba(53,217,154,.75)'; c2.lineWidth=1.1; c2.setLineDash([4,2]);
+        c2.beginPath(); c2.moveTo(X2(tA2),Y2(arr[tA2])); c2.lineTo(W-2,Y2(lv2)); c2.stroke(); c2.setLineDash([]);
+      } }
   });
 }
 // v5.96: 合并总账——同一只票跨账户并成一笔: 总股数/加权成本/合计浮盈/今日合计/累计T净收益; 点行展开分账户明细, 右侧直达K线
@@ -3646,7 +3663,7 @@ function doRender(){
         let st='';
         const _dp=DPOS[h.code], _gk=Math.abs(o.x/_vw-1)*100;
         const _pr=(o.k==='s')?hitPr(_dp&&_dp.U,_gk):((o.k==='b')?hitPr(_dp&&_dp.D,_gk):null);
-        const _prS=(_pr!=null)?'<span class="pr'+(_pr>=50?' hi':(_pr<=20?' lo':''))+'">'+_pr+'%</span> ':'';
+        const _prS=(_pr!=null)?'<span class="pr'+(_pr>=50?' hi':(_pr<=20?' lo':''))+'">往绩'+_pr+'%</span> ':'';
         const _cx=(o.k==='s')?(p>=o.x):((o.k==='b')?(p<=o.x):false);
         const _touchok=mktLive()&&mktMin()>=5;
         const _ev=(_touchok&&(o.k==='s'||o.k==='b'))?touchCross(dst,o.t,p,o.x,o.k==='s'?'sell':'buy'):null;
@@ -3661,10 +3678,11 @@ function doRender(){
         // 有点时事件才叫“已记录触发”;只有日高/日低越过当前档,只能标为无时点证据,不能撒谎写“未到”。
         if(o.k==='s'){
           const ev=touchSeen(dst,o.t,o.x), dayCross=hi!=null&&hi>=o.x;
-          st=_prS+(_cx?'<b style="color:#f4655f">现价越过</b>':(ev?'已记录触发':(dayCross?'<span style="color:#d99a2b">日高到过·时点未知</span>':'无触发记录')));
+          // v5.113: 休市后不撒"到过/未到"的谎(档位是下一交易日的,今日高低是昨天的)——只展示往绩触及率
+          st=_prS+(!mktLive()?'<span class="dim">休市·往绩=历史同幅度触及率</span>':(_cx?'<b style="color:#f4655f">现价越过</b>':(ev?'已记录触发':(dayCross?'<span style="color:#d99a2b">日高到过·时点未知</span>':'无触发记录'))));
         } else if(o.k==='b'){
           const ev=touchSeen(dst,o.t,o.x), dayCross=lo!=null&&lo<=o.x;
-          st=_prS+(_cx?'<b style="color:#34c07c">现价越过</b>':(ev?'已记录触发':(dayCross?'<span style="color:#d99a2b">日低到过·时点未知</span>':'无触发记录')));
+          st=_prS+(!mktLive()?'<span class="dim">休市·往绩=历史同幅度触及率</span>':(_cx?'<b style="color:#34c07c">现价越过</b>':(ev?'已记录触发':(dayCross?'<span style="color:#d99a2b">日低到过·时点未知</span>':'无触发记录'))));
         }
         else if(o.k==='c'){ const pl=(p/h.cost-1)*100; st='<b class="'+cls(pl)+'">'+sg(pl.toFixed(1))+'%</b>'; }
         else st=dst.vw?(_vwok?'基准':'<span class="dim">锚'+(dst.vwAt?'于'+dst.vwAt.slice(11):'已锁定')+'</span>')
@@ -3847,7 +3865,7 @@ function doRender(){
         let cls2='', actTxt='';
         if(p!=null&&s0!=null&&p>=s0*0.998){ cls2=' now-s'; actTxt=`抛${P(s0)}`; }
         else if(p!=null&&b0!=null&&p<=b0*1.002){ cls2=' now-b'; actTxt=`接${P(b0)}`; }
-        else { const bG=b0?`接${P(b0)}`:''; const sG=s0?`抛${P(s0)}`:''; const rt=(b0&&s0&&s0>b0)?`<b style="color:#e8c568">↗${((s0/b0-1)*100).toFixed(1)}</b>`:''; actTxt=bG+rt+sG; } // v5.110: 接抛之间插↗来回点(期望涨幅)
+        else { const bG=b0?`接${P(b0)}`:''; const sG=s0?`抛${P(s0)}`:''; const rt=(b0&&s0&&s0>b0)?`<b style="color:#e8c568">↗${((s0/b0-1)*100).toFixed(1)}</b>`:''; let lot=''; if(b0&&s0&&s0>b0){ const _ft2=(feeOf(s0,b0,100,100,h.code)||{fee:0}).fee; lot=`<span style="color:#e8c568">·净${Math.round((s0-b0)*100-_ft2)}/手</span>`; } actTxt=bG+rt+sG+lot; } // v5.113: 速览条直给每手净额(100股·已扣费),不再只看百分比
         return `<span class="qs${cls2}" onclick="scrollToEl('hcard_${i}')">${lb}<b class="${cls(pc)}">${pc!=null?sg(pc.toFixed(1))+'%':''}</b> ${actTxt}</span>`; // v5.78: 名称+涨跌+接抛 一条装下
       }).join('');
       qs.innerHTML=_qsH;
