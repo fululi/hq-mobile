@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#0b0e12">
-<title>我的持仓 · 行情 v5.101 · 0905-2310构建</title>
+<title>我的持仓 · 行情 v5.103 · 0905-2345构建</title>
 <style>
 /* v5.46 完整版换肤:暗色行情终端。只动皮肤——所有类名/布局/交互结构原样,计算逻辑零改动。
    调色板: 底#0b0e12 卡#14181e 描边#232a33 主文#dde3ec 次文#b0bac7 涨#f4655f 跌#2ebd7f 强调#4c8dff */
@@ -122,6 +122,7 @@ details.mini > div { padding-top:2px; }
 .wltabs { display:flex; gap:6px; padding:2px 2px 6px; }
 .wltabs button { flex:1; background:#161b22; color:#8d97a6; border:1px solid #232a33; border-radius:8px; padding:5px 0; font-size:12px; font-weight:700; cursor:pointer; }
 .wltabs button.on { background:#1d2635; color:#e8c568; border-color:#3a4658; }
+.cline2 { display:grid; grid-template-columns:1fr 118px; gap:8px; align-items:center; margin-top:6px; }
 .wlrow2 { display:grid; grid-template-columns:1fr 118px; gap:8px; align-items:center; padding:7px 6px; border-top:1px solid #1d232c; cursor:pointer; }
 .wlrow2 .wll { min-width:0; display:flex; flex-direction:column; gap:2px; }
 .wlrow2 .wladv { font-size:11px; display:flex; gap:9px; flex-wrap:wrap; align-items:center; }
@@ -291,21 +292,22 @@ details.fold:not([open]) > summary { margin-bottom:0; }
 </head>
 <body>
 <div class="top">
-  <h1>我的持仓 · 行情 <span style="font-size:10px;color:#8d97a6;font-weight:400">v5.101·0905-2310</span></h1>
-  <div class="btns"><button class="ed" id="ntfyBtn" onclick="toggleNtfy()">提醒</button><button class="ed" id="edBtn" onclick="toggleEdit()">编辑</button><button class="rf" onclick="refresh(1)">刷新</button></div>
+  <h1>我的持仓 · 行情 <span style="font-size:10px;color:#8d97a6;font-weight:400">v5.103·0905-2345</span></h1>
+  <div class="btns"><button class="ed" id="ntfyBtn" onclick="toggleNtfy()">提醒</button><button class="ed" id="edBtn" onclick="setView('holds');document.getElementById('holds').style.display='';toggleEdit()">编辑</button><button class="rf" onclick="refresh(1)">刷新</button></div>
 </div>
 <div class="navSticky" id="navSticky">
-  <button onclick="ovShow();scrollToEl('sum')">总览</button>
-  <button onclick="scrollToEl('holds')">持仓</button>
-  <button onclick="openTForm();scrollToEl('tboxMain')">做T</button>
-  <button onclick="scrollToEl('foldPlan')">挂单</button>
-  <button onclick="ovShow();repShow();scrollToEl('rvBox')">复盘</button>
-  <button onclick="scrollToEl('tlog')">台账</button>
+  <button data-v="home" onclick="setView('home');ovShow()">总览</button>
+  <button data-v="holds" onclick="setView('holds')">持仓</button>
+  <button data-v="t" onclick="setView('t');openTForm()">做T</button>
+  <button data-v="plan" onclick="setView('plan')">挂单</button>
+  <button data-v="rv" onclick="setView('rv');repShow()">复盘</button>
+  <button data-v="tlog" onclick="setView('tlog')">台账</button>
 </div>
 <div class="navStk" id="navStk" style="display:none"></div>
 <div id="qstrip" style="display:none"></div>
 <div class="time" id="time">加载中…</div>
 
+<div class="view" id="v-home">
 <div class="ovbd">
 <div class="ovhd" onclick="togOv()" style="cursor:pointer"><span>■ 总览看板 <span id="ovArr" style="color:#4a5361;font-size:12px">▾</span></span><b id="ovClock">--:--:--</b></div>
 <div id="ovBody">
@@ -326,8 +328,10 @@ details.fold:not([open]) > summary { margin-bottom:0; }
 </details>
 </div>
 </div>
+</div>
 
-<div class="sec"><span>持仓</span><span><button class="add" onclick="togAllCards()" style="margin-right:6px">全展/全收</button><button class="add" onclick="addSec('hold')">＋添加持仓</button></span></div>
+<div class="view" id="v-holds" style="display:none">
+<div class="sec"><span>持仓</span><span><button class="add" onclick="var d=document.getElementById('holds');d.style.display=(d.style.display==='none'?'':'none')" style="margin-right:6px">卡片管理</button><button class="add" onclick="addSec('hold')">＋添加持仓</button></span></div>
 <div class="addform" id="fHold">
   <input id="ahCode" placeholder="代码或名称 如德明利"><input id="ahName" placeholder="名称(留空=自动)">
   <input id="ahCost" type="number" step="0.001" placeholder="成本价"><input id="ahQty" type="number" step="100" placeholder="股数">
@@ -337,7 +341,7 @@ details.fold:not([open]) > summary { margin-bottom:0; }
 <summary class="sec"><span>自选表 · 持仓/观察分组</span><span class="sub">点行展开卡片 · 点图直达K站</span></summary>
 <div id="wlBox" style="max-height:300px;overflow-y:auto;-webkit-overflow-scrolling:touch"></div>
 </details>
-<div id="holds"></div>
+<div id="holds" style="display:none"></div>
 <details class="fold" data-fk="mrg" open style="margin-bottom:10px">
 <summary class="sec"><span>合并总账 · 跨账户同票合一</span><span class="sub">买两次卖一次都并一笔 · 点行看分账户</span></summary>
 <div class="card tbl" id="mrgBox"></div>
@@ -371,9 +375,6 @@ details.fold:not([open]) > summary { margin-bottom:0; }
 </div>
 </details>
 <div class="card" id="dayChg" style="display:none"></div>
-
-<div class="sec" id="reportSec"><span>📋 盘后报告 · 观察/模拟/复盘</span><span class="sub">整块收纳 · 点开才展开</span></div>
-<div id="reportWrap">
 <div class="sec"><span>观察</span><button class="add" onclick="addSec('watch')">＋添加观察</button></div>
 <div class="addform" id="fWatch">
   <input id="awCode" placeholder="代码或名称 如德明利"><input id="awName" placeholder="名称(留空=自动)">
@@ -383,6 +384,11 @@ details.fold:not([open]) > summary { margin-bottom:0; }
   <table><thead><tr><th class="l">名称</th><th>现价</th><th>涨跌%</th><th>可入档位</th><th id="wdelh"></th></tr></thead>
   <tbody id="watch"></tbody></table>
 </div>
+</div>
+
+<div class="view" id="v-rv" style="display:none">
+<div class="sec" id="reportSec"><span>📋 盘后报告 · 观察/模拟/复盘</span><span class="sub">整块收纳 · 点开才展开</span></div>
+<div id="reportWrap">
 
 <details class="fold">
 <summary class="sec"><span>模拟建仓 · 每日自动跟踪</span><span class="sub">每天首次打开自动扫 · 纯代码零成本 · 日线三角突破跟踪，无真实持仓</span></summary>
@@ -405,9 +411,9 @@ details.fold:not([open]) > summary { margin-bottom:0; }
   <div class="sub" id="clEmpty" style="padding:4px 2px 10px">还没有清仓记录 —— 哪只票全卖光了,这里自动沉淀一条</div>
 </div>
 </div>
+</div>
 
-
-
+<div class="view" id="v-plan" style="display:none">
 <details class="fold" id="foldPlan" open>
 <summary class="sec"><span>挂单计划 · 先记着</span><span class="sub" id="pHit">没成交也能记,成交后点「填入」</span></summary>
 <div class="tbox">
@@ -423,7 +429,9 @@ details.fold:not([open]) > summary { margin-bottom:0; }
 </div>
 <div class="card tbl" id="plist"></div>
 </details>
+</div>
 
+<div class="view" id="v-t" style="display:none">
 <div class="sec"><span>做T复盘 · 记一笔</span><span class="sub">高抛-低吸全周期</span></div>
 <details class="fold" id="foldTForm">
 <summary class="sec"><span>✏️ 记账完整表单</span><span class="sub">选股/换账户/补记/费用 · 点开</span></summary>
@@ -460,6 +468,8 @@ details.fold:not([open]) > summary { margin-bottom:0; }
 <div class="trec"><span>本周做T(周一起)</span><span class="v" id="tWeek">—</span></div>
 <div class="trec"><span>本月做T</span><span class="v" id="tMonth">—</span></div>
 <div class="trec"><span>行为样本 <span class="sub">(满30笔开模式分析)</span></span><span class="v" id="tSamp">—</span></div>
+</div>
+<div class="view" id="v-tlog" style="display:none">
 <div class="sec"><span>历史记录</span><span class="sub" id="tCum"></span></div>
 <div class="qtys" style="margin:-4px 0 8px"><span>台账:</span>
   <button onclick="exportCSV()">📤 导出CSV(Excel)</button>
@@ -472,14 +482,21 @@ details.fold:not([open]) > summary { margin-bottom:0; }
 <summary class="sec"><span>台账明细（按日→按票分组）</span><span class="sub">每票T差价/T数量/T收益</span></summary>
 <div class="card tbl" id="tlog"></div>
 </details>
+</div>
+
+<div class="view" id="v-detail" style="display:none">
+  <div class="sec"><span><button class="add" onclick="closeDetail()" style="margin-right:8px">← 返回列表</button><b id="vDetailName"></b></span><span><button class="add" id="vDetailK">K站 ›</button></span></div>
+  <div class="card" style="padding:8px;margin-bottom:8px"><div id="vDetailHead"></div></div>
+  <div id="vDetailBody"></div>
+</div>
 
 <div class="foot"></div>
 
 <div class="quickActions" id="quickActions">
-  <button onclick="goQuickT()">记一笔</button>
-  <button onclick="ovShow();repShow();addSec('watch');setTimeout(()=>scrollToEl('fWatch'),100)">观察</button>
-  <button onclick="scrollToEl('foldPlan')">挂单</button>
-  <button onclick="ovShow();repShow();scrollToEl('rvBox')">复盘</button>
+  <button onclick="setView('t');openTForm()">记一笔</button>
+  <button onclick="setView('holds');WLTAB='w';try{localStorage.setItem('hqm_wltab_v1','w')}catch(e){}renderWL();addSec('watch')">观察</button>
+  <button onclick="setView('plan')">挂单</button>
+  <button onclick="setView('rv');repShow()">复盘</button>
 </div>
 
 <script>
@@ -3109,6 +3126,48 @@ function wlAdvice(code,name){
   }catch(e){ return ''; }
 }
 let WLTAB='h'; try{ WLTAB=localStorage.getItem('hqm_wltab_v1')||'h'; }catch(e){}
+// ===== v5.103: 真分页路由 —— 顶部tab整页切换;持仓页=纯列表;点行进详情页(左操作信息+右实时分时+完整卡片) =====
+let VIEW='home', DETAIL_I=null;
+try{ VIEW=localStorage.getItem('hqm_view_v1')||'home'; }catch(e){}
+function applyView(){
+  if(!document.getElementById('v-'+VIEW)) VIEW='home';
+  try{ localStorage.setItem('hqm_view_v1',VIEW); }catch(e){}
+  document.querySelectorAll('.view').forEach(d=>{ d.style.display=(d.id==='v-'+VIEW)?'':'none'; });
+  document.querySelectorAll('#navSticky button').forEach(b=>{ b.classList.toggle('active', b.getAttribute('data-v')===VIEW); });
+  window.scrollTo(0,0);
+}
+function setView(v){
+  if(v!=='detail'&&DETAIL_I!=null){ const host=document.getElementById('vDetailBody'); if(host) host.innerHTML=''; DETAIL_I=null; }
+  VIEW=v; applyView();
+}
+function openDetail(code){
+  const i=PF.holds.findIndex(h=>h.code===code);
+  if(i<0){ openK(code); return; } // 观察票没卡片,直达K站
+  COLL[code]='open'; lsSet('hqm_coll_v1',JSON.stringify(COLL));
+  DETAIL_I=i; VIEW='detail'; applyView(); render();
+  setTimeout(()=>{ // render后卡片是新实例,搬到详情页(DOM搬移保留iframe与全部功能)
+    const host=document.getElementById('vDetailBody'), card=document.getElementById('hcard_'+DETAIL_I);
+    if(!host||!card) return;
+    host.innerHTML=''; host.appendChild(card);
+    renderDetailHead();
+  },60);
+}
+function closeDetail(){
+  const host=document.getElementById('vDetailBody'); if(host) host.innerHTML=''; // 卡片是render产物,丢掉即可,#holds下次render自动重建
+  DETAIL_I=null; VIEW='holds'; applyView(); render();
+}
+function renderDetailHead(){
+  const i=DETAIL_I; if(i==null) return; const h=PF.holds[i]; if(!h) return;
+  const f=GET(h.code), p=F(f,3), pct=F(f,32);
+  const nm=document.getElementById('vDetailName'); if(nm) nm.textContent=h.name+' '+h.code.replace(/^(sh|sz)/,'');
+  const kb=document.getElementById('vDetailK'); if(kb) kb.onclick=()=>openK(h.code);
+  const hd=document.getElementById('vDetailHead'); if(!hd) return;
+  hd.innerHTML='<div class="cline2" style="margin-top:0"><div class="wll">'
+    +'<div><b class="'+cls(pct)+'" style="font-size:19px">'+(p!=null?P(p):'—')+'</b> <b class="'+cls(pct)+'" style="font-weight:700">'+(pct!=null?sg(pct.toFixed(2))+'%':'')+'</b></div>'
+    +'<div class="wladv">'+wlAdvice(h.code,h.name)+'</div>'
+    +'</div><canvas class="wlmin" data-min="'+h.code+'" width="118" height="62"></canvas></div>';
+  drawWLMin();
+}
 function renderWL(){
   const box=document.getElementById('wlBox'); if(!box) return;
   const _hc={}; PF.holds.forEach(h=>{_hc[h.code]=1});
@@ -3137,9 +3196,7 @@ function renderWL(){
   }
   box.innerHTML=html;
   box.querySelectorAll('[data-wtab]').forEach(b2=>{ b2.addEventListener('click',()=>{ WLTAB=b2.getAttribute('data-wtab'); try{localStorage.setItem('hqm_wltab_v1',WLTAB);}catch(e){} renderWL(); }); });
-  box.querySelectorAll('[data-wl]').forEach(el=>{ el.addEventListener('click',()=>{ const c=el.getAttribute('data-wl');
-    COLL[c]='open'; lsSet('hqm_coll_v1',JSON.stringify(COLL)); render();
-    setTimeout(()=>{ const i=PF.holds.findIndex(h=>h.code===c); if(i>=0) scrollToEl('hcard_'+i); },80); }); });
+  box.querySelectorAll('[data-wl]').forEach(el=>{ el.addEventListener('click',()=>{ openDetail(el.getAttribute('data-wl')); }); });
   box.querySelectorAll('[data-wlk]').forEach(el=>{ el.addEventListener('click',()=>{ openK(el.getAttribute('data-wlk')); }); });
   box.querySelectorAll('canvas.wlmin').forEach(cv2=>{ cv2.addEventListener('click',ev=>{ ev.stopPropagation(); openK(cv2.getAttribute('data-min')); }); });
   drawWLMin();
@@ -3164,6 +3221,7 @@ function loadWLMin(done){
 function drawWLMin(){
   document.querySelectorAll('canvas[data-min]').forEach(cv=>{
     const code=cv.getAttribute('data-min');
+    cv.onclick=ev=>{ ev.stopPropagation(); openK(code); };
     let arr=MINL[code], isMin=true;
     if(!arr||arr.length<2){ arr=SPK[code]; isMin=false; }
     if(!arr||arr.length<2){ cv.style.display='none'; return; }
@@ -3542,17 +3600,20 @@ function doRender(){
     return `<div class="card" id="hcard_${i}"${cleared?' style="opacity:.55"':''}>${cleared?'<span class="badge flat" style="position:absolute;top:10px;right:78px">已清仓·沉底</span>':''}${delBtn}
       <div class="row1"><div><span class="nm">${h.name}</span><span class="code">${h.code.replace(/^(sh|sz)/,'')}</span>${acctTag(h)}${badge}${wtBadge}${dtBadgeH}${wsgTxtH}${m15Badge}${gzH}${extBadge}</div>
         <div class="pct ${cls(pct)}">${pct!=null?sg(pct.toFixed(2))+'%':''}<button class="ctog" onclick="togCard('${h.code}')">${COLL[h.code]==='open'?'▾':'▸'}</button></div></div>
-      ${((COLL[h.code]!=='open')&&!editMode&&!cleared)?(()=>{ // v5.92: 折叠态摘要行——现价/今日盈亏/作战结论/到价提示,不展开也能扫
+      ${((COLL[h.code]!=='open')&&!editMode&&!cleared)?(()=>{ // v5.102: 折叠态=左傻瓜建议右实时分时图,不展开也能看图看价
         const b0c=(typeof _pd!=='undefined'&&_pd)?null:tr.buys[0], s0c=tr.sells[0];
         let actC='';
         if(p!=null&&s0c!=null&&p>=s0c*0.998) actC='<b style="color:#ff8a80">↑到卖 '+P(s0c)+'</b>';
         else if(p!=null&&b0c!=null&&p<=b0c*1.002) actC='<b style="color:#4fd79b">↓到接 '+P(b0c)+'</b>';
         const _fck=(()=>{ for(let i2=FCAST.length-1;i2>=0;i2--){ const f2=FCAST[i2]; if(f2.code===h.code&&f2.act) return f2; } return null; })();
-        return '<div class="cline"><b class="'+cls(pct)+'">'+P(p)+'</b>'
-          +(todayPnl!=null?'<span class="'+cls(todayPnl)+'">今日'+sg(Math.round(todayPnl))+'</span>':'')
-          +(vd?'<span style="color:'+vCls(vd)+'">'+vd+'</span>':'')
-          +(_fck?'<span class="dim">回验'+_fck.targetDate.slice(5)+'</span><span style="color:'+(_fck.act.out?'#ff8a80':'#4fd79b')+'">'+(_fck.act.out?'✗出界':'✓未出界')+'</span>':'')
-          +actC+'</div>';
+        return '<div class="cline2"><div class="wll">'
+          +'<div><b class="'+cls(pct)+'" style="font-size:16px">'+P(p)+'</b>'
+          +(todayPnl!=null?' <span class="'+cls(todayPnl)+'">今日'+sg(Math.round(todayPnl))+'</span>':'')
+          +(_fck?' <span class="dim" style="font-size:10px">回验'+_fck.targetDate.slice(5)+'</span><span style="font-size:10px;color:'+(_fck.act.out?'#ff8a80':'#4fd79b')+'">'+(_fck.act.out?'✗出界':'✓未出界')+'</span>':'')+'</div>'
+          +(vd?'<div style="color:'+vCls(vd)+';font-size:11.5px">'+vd+'</div>':'')
+          +'<div class="wladv">'+wlAdvice(h.code,h.name)+'</div>'
+          +(actC?'<div style="font-size:11.5px">'+actC+'</div>':'')
+          +'</div><canvas class="wlmin" data-min="'+h.code+'" width="118" height="62"></canvas></div>';
       })():''}
       <div class="row1" style="margin-top:4px;${((COLL[h.code]!=='open')&&!editMode)?'display:none':''}"><div class="px ${cls(pct)}">${P(p)}</div>
         <div class="sub">${cleared?'<b style="color:#ff8f5e">已清仓</b> · 0股':(()=>{
@@ -3606,7 +3667,7 @@ function doRender(){
         if(b0==null&&s0!=null) return `<div class="actnow wait">先抛 ${sTxt} · 记一笔卖出后解锁接回<small>${warn||'恐慌/单边日规则'}</small></div>`; // v5.89: 恐慌日缺买腿时不显示断箭头
         return `<div class="actnow wait">等 · ${bTxt} → ${sTxt}${roundS2}<small>${warn||'未到价·点价格直接填单'}</small></div>`;
       })()}
-      ${((tf.lv>=2||(pct!=null&&Math.abs(pct)>=5))&&!_pd)?`<div style="margin:6px 0;padding:8px 12px;border-radius:9px;font-weight:800;font-size:14px;background:${(pct||0)>=0?'rgba(244,101,95,.15)':'rgba(46,189,127,.15)'};color:${(pct||0)>=0?'#ff8a80':'#4fd79b'}">⚡ 单边行情 ${pct!=null?sg(pct.toFixed(1))+'%':''} · ${tf.label||'极端波动'} · 档位已按极端日口径放宽,别按平常日的手感追</div>`:''} // v5.101: _pd时并入下面一条,不重复发
+      ${((tf.lv>=2||(pct!=null&&Math.abs(pct)>=5))&&!_pd)?`<div style="margin:6px 0;padding:8px 12px;border-radius:9px;font-weight:800;font-size:14px;background:${(pct||0)>=0?'rgba(244,101,95,.15)':'rgba(46,189,127,.15)'};color:${(pct||0)>=0?'#ff8a80':'#4fd79b'}">⚡ 单边行情 ${pct!=null?sg(pct.toFixed(1))+'%':''} · ${tf.label||'极端波动'} · 档位已按极端日口径放宽,别按平常日的手感追</div>`:''}
       ${_pd?`<div style="margin:6px 0;padding:8px 12px;border-radius:9px;font-weight:800;font-size:13.5px;background:rgba(255,144,102,.12);color:#ff9066">🛑 恐慌下跌日 ${pct!=null?sg(pct.toFixed(1))+'%':''} · 先卖后买——先记一笔卖出,接回档才解锁 · 档位已按极端日放宽</div>`:(!_pd&&_soldT&&(pct!=null&&pct<=-3)?`<div style="margin:6px 0;padding:6px 12px;border-radius:9px;font-weight:700;font-size:12.5px;background:rgba(46,189,127,.10);color:#4fd79b">✓ 恐慌日·今天已先卖 · 接回档位已解锁,跌到位照常提示</div>`:'')}
       <details class="fold" data-fk="wb-${h.code}"><summary style="font-size:12px;color:#8d97a6;padding:4px 0;cursor:pointer">水位·档位明细(实时)</summary>${actBar}</details>
       ${(BATTLE[i]={code:h.code,buys:tr.buys,sells:tr.sells,preLo:preLo,preHi:preHi,cost:h.cost,p3:(p!=null&&p<10),lev:(lg&&lg.hi>0&&lg.lo>0)?{hi:lg.hi,lo:lg.lo}:null},'')}
@@ -3689,6 +3750,7 @@ function doRender(){
 
   try{ renderWL(); }catch(e){}
   try{ renderMerged(); }catch(e){}
+  try{ if(VIEW==='detail') renderDetailHead(); }catch(e){}
   const _wOrd=PF.watch.map((_,j)=>j).sort((a,b)=>((PF.watch[b].fav?1:0)-(PF.watch[a].fav?1:0))||a-b); // v5.55 ★置顶
   document.getElementById('watch').innerHTML = _wOrd.map(i=>{ const w=PF.watch[i];
     const f=GET(w.code); const p=F(f,3),pct=F(f,32),hi=F(f,33),lo=F(f,34),prev=F(f,4);
@@ -4147,6 +4209,7 @@ function rvTab(t){
 }
 try{ rvTab(localStorage.getItem('hqm_rvtab')||'rv'); }catch(e){}
 try{ const _qc=JSON.parse(localStorage.getItem('qc_v1')||'null'); if(_qc&&_qc.d) Object.keys(_qc.d).forEach(c=>{ window['v_'+c]=_qc.d[c]; }); }catch(e){} // v5.96: 行情快照回灌,断网首屏也有价
+applyView(); // v5.103: 分页路由落地
 render(); // v5.90: 首屏先画缓存(趋势/ATR/资金流都是本地缓存),报价栏先显'—',行情回来自动补——不再白屏等接口
 refresh();
 // v5.62 作战图回滚为纯展示版: 内容全保留(K线/档位色带/黄线/撑压/回归通道/高低点/MACD/周期切换),
