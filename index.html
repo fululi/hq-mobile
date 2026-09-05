@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#0b0e12">
-<title>我的持仓 · 行情 v5.93 · 0905-2020构建</title>
+<title>我的持仓 · 行情 v5.94 · 0905-2040构建</title>
 <style>
 /* v5.46 完整版换肤:暗色行情终端。只动皮肤——所有类名/布局/交互结构原样,计算逻辑零改动。
    调色板: 底#0b0e12 卡#14181e 描边#232a33 主文#dde3ec 次文#b0bac7 涨#f4655f 跌#2ebd7f 强调#4c8dff */
@@ -284,7 +284,7 @@ details.fold:not([open]) > summary { margin-bottom:0; }
 </head>
 <body>
 <div class="top">
-  <h1>我的持仓 · 行情 <span style="font-size:10px;color:#8d97a6;font-weight:400">v5.93·0905-2020</span></h1>
+  <h1>我的持仓 · 行情 <span style="font-size:10px;color:#8d97a6;font-weight:400">v5.94·0905-2040</span></h1>
   <div class="btns"><button class="ed" id="ntfyBtn" onclick="toggleNtfy()">提醒</button><button class="ed" id="edBtn" onclick="toggleEdit()">编辑</button><button class="rf" onclick="refresh(1)">刷新</button></div>
 </div>
 <div class="navSticky" id="navSticky">
@@ -3061,7 +3061,7 @@ function doRender(){
     const iph=PREHIT[c], iku=(iph&&iph.kUp)||1, ikd=(iph&&iph.kDn)||1; // v5.45: 指数也用自己的实测系数
     const ipre=(iref!=null&&ia!=null)?(iref-ikd*ia).toFixed(0)+'~'+(iref+iku*ia).toFixed(0):'—';
     const ipos=(!inx&&p!=null&&iref!=null&&ia!=null)?(p>=iref+iku*ia?' <b class="up">▲破上沿</b>':(p<=iref-ikd*ia?' <b class="down">▼破下沿</b>':'')):'';
-    return `<div class="c"><div class="n">${n}</div><div class="v ${cls(pct)}">${p!=null?p.toFixed(2):'—'}</div><div class="g ${cls(pct)}">${pct!=null?sg(pct.toFixed(2))+'%':''}</div><canvas class="ispk" data-ispk="${c}" width="260" height="68"></canvas><div class="g sub" style="font-weight:400">${inx?planLbl():'今日'}预判${ipre}${ipos}<span class="qm" onclick="event.stopPropagation();preWhy('${c}','${n}')">?</span>${iph?`<br><span style="font-size:9px;color:#7e8798">实测${iph.inr}%不出界</span>`:''}</div>${ifib}</div>`;
+    return `<div class="c" style="cursor:pointer" onclick="window.open('https://fululi.github.io/k-station/?code=${c}')"><div class="n">${n}</div><div class="v ${cls(pct)}">${p!=null?p.toFixed(2):'—'}</div><div class="g ${cls(pct)}">${pct!=null?sg(pct.toFixed(2))+'%':''}</div><canvas class="ispk" data-ispk="${c}" width="260" height="68"></canvas><div class="g sub" style="font-weight:400">${inx?planLbl():'今日'}预判${ipre}${ipos}<span class="qm" onclick="event.stopPropagation();preWhy('${c}','${n}')">?</span>${iph?`<br><span style="font-size:9px;color:#7e8798">实测${iph.inr}%不出界</span>`:''}</div>${ifib}</div>`;
   }).join('');
   drawSparks();
   const me=document.getElementById('mkt');
