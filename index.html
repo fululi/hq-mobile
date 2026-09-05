@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#0b0e12">
-<title>我的持仓 · 行情 v5.103 · 0905-2345构建</title>
+<title>我的持仓 · 行情 v5.104 · 0906-0005构建</title>
 <style>
 /* v5.46 完整版换肤:暗色行情终端。只动皮肤——所有类名/布局/交互结构原样,计算逻辑零改动。
    调色板: 底#0b0e12 卡#14181e 描边#232a33 主文#dde3ec 次文#b0bac7 涨#f4655f 跌#2ebd7f 强调#4c8dff */
@@ -292,7 +292,7 @@ details.fold:not([open]) > summary { margin-bottom:0; }
 </head>
 <body>
 <div class="top">
-  <h1>我的持仓 · 行情 <span style="font-size:10px;color:#8d97a6;font-weight:400">v5.103·0905-2345</span></h1>
+  <h1>我的持仓 · 行情 <span style="font-size:10px;color:#8d97a6;font-weight:400">v5.104·0906-0005</span></h1>
   <div class="btns"><button class="ed" id="ntfyBtn" onclick="toggleNtfy()">提醒</button><button class="ed" id="edBtn" onclick="setView('holds');document.getElementById('holds').style.display='';toggleEdit()">编辑</button><button class="rf" onclick="refresh(1)">刷新</button></div>
 </div>
 <div class="navSticky" id="navSticky">
@@ -487,6 +487,7 @@ details.fold:not([open]) > summary { margin-bottom:0; }
 <div class="view" id="v-detail" style="display:none">
   <div class="sec"><span><button class="add" onclick="closeDetail()" style="margin-right:8px">← 返回列表</button><b id="vDetailName"></b></span><span><button class="add" id="vDetailK">K站 ›</button></span></div>
   <div class="card" style="padding:8px;margin-bottom:8px"><div id="vDetailHead"></div></div>
+  <iframe id="vDetailKs" class="ksf" style="height:46vh;min-height:300px" loading="lazy"></iframe>
   <div id="vDetailBody"></div>
 </div>
 
@@ -2406,7 +2407,7 @@ function exportHolds(){
 }
 function GET(c){ const r=window['v_'+c]; return r?r.split('~'):null; }
 // v5.97: openK 带上今日买卖档(B1/B2/S1/S2)+今日成交BS标记——点任何票进K站, 档位线和买卖数字直接画好, 分钟图同样显示
-function openK(c){
+function ksUrl(c, simple){ // v5.104: URL构造拆出来,详情页内嵌K站和跳转K站同一个口径(档位线/当日BS标记一致)
   try{
     const f=GET(c), p=F(f,3), prev=F(f,4), hi=F(f,33), lo=F(f,34);
     const todayAmp=(hi!=null&&lo!=null)?hi-lo:null;
@@ -2417,9 +2418,10 @@ function openK(c){
     const tr=tiers(anchorOf(c,p,prev),nb.base,prev,tf.lv,c,h.name);
     const lines=tr.buys.map(x=>'b'+x.toFixed(2)).concat(tr.sells.map(x=>'s'+x.toFixed(2))).join(',');
     const trades=TLOG.filter(r=>r.code===c&&r.d===today()&&r.t).map(r=>{const a=[];if(r.sell!=null)a.push(r.d+' '+r.t+',s,'+r.sell);if(r.buy!=null)a.push(r.d+' '+r.t+',b,'+r.buy);return a.join(';');}).filter(Boolean).join(';');
-    location.href='https://fululi.github.io/k-station/?code='+c+(lines?'&lines='+lines:'')+(trades?'&trades='+encodeURIComponent(trades):'');
-  }catch(e){ location.href='https://fululi.github.io/k-station/?code='+c; }
+    return 'https://fululi.github.io/k-station/?code='+c+(lines?'&lines='+lines:'')+(trades?'&trades='+encodeURIComponent(trades):'')+(simple?'&simple=1':'');
+  }catch(e){ return 'https://fululi.github.io/k-station/?code='+c+(simple?'&simple=1':''); }
 }
+function openK(c){ location.href=ksUrl(c,false); }
 
 // v4.83: ETF/LOF 免印花税、券商普遍免5元最低佣金 —— 旧模型把ETF一笔算成10元,
 // 实际只有几毛,导致ETF做T看起来永远不赚钱。沪市基金5开头,深市15/16开头。
@@ -3145,6 +3147,8 @@ function openDetail(code){
   if(i<0){ openK(code); return; } // 观察票没卡片,直达K站
   COLL[code]='open'; lsSet('hqm_coll_v1',JSON.stringify(COLL));
   DETAIL_I=i; VIEW='detail'; applyView(); render();
+  const _ksf=document.getElementById('vDetailKs');
+  if(_ksf&&_ksf.dataset.cur!==code){ _ksf.dataset.cur=code; _ksf.src=ksUrl(code,true); } // 内嵌K站:simple模式(一根线+档位+成本+成交量),画线工具可用
   setTimeout(()=>{ // render后卡片是新实例,搬到详情页(DOM搬移保留iframe与全部功能)
     const host=document.getElementById('vDetailBody'), card=document.getElementById('hcard_'+DETAIL_I);
     if(!host||!card) return;
@@ -3162,11 +3166,10 @@ function renderDetailHead(){
   const nm=document.getElementById('vDetailName'); if(nm) nm.textContent=h.name+' '+h.code.replace(/^(sh|sz)/,'');
   const kb=document.getElementById('vDetailK'); if(kb) kb.onclick=()=>openK(h.code);
   const hd=document.getElementById('vDetailHead'); if(!hd) return;
-  hd.innerHTML='<div class="cline2" style="margin-top:0"><div class="wll">'
-    +'<div><b class="'+cls(pct)+'" style="font-size:19px">'+(p!=null?P(p):'—')+'</b> <b class="'+cls(pct)+'" style="font-weight:700">'+(pct!=null?sg(pct.toFixed(2))+'%':'')+'</b></div>'
-    +'<div class="wladv">'+wlAdvice(h.code,h.name)+'</div>'
-    +'</div><canvas class="wlmin" data-min="'+h.code+'" width="118" height="62"></canvas></div>';
-  drawWLMin();
+  hd.innerHTML='<div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">'
+    +'<b class="'+cls(pct)+'" style="font-size:22px">'+(p!=null?P(p):'—')+'</b>'
+    +'<b class="'+cls(pct)+'" style="font-size:15px">'+(pct!=null?sg(pct.toFixed(2))+'%':'')+'</b>'
+    +'<div class="wladv" style="font-size:12px">'+wlAdvice(h.code,h.name)+'</div></div>';
 }
 function renderWL(){
   const box=document.getElementById('wlBox'); if(!box) return;
