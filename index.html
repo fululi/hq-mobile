@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#0b0e12">
-<title>我的持仓 · 行情 v5.110 · 0906-0240构建</title>
+<title>我的持仓 · 行情 v5.111 · 0906-0320构建</title>
 <style>
 /* v5.46 完整版换肤:暗色行情终端。只动皮肤——所有类名/布局/交互结构原样,计算逻辑零改动。
    调色板: 底#0b0e12 卡#14181e 描边#232a33 主文#dde3ec 次文#b0bac7 涨#f4655f 跌#2ebd7f 强调#4c8dff */
@@ -292,7 +292,7 @@ details.fold:not([open]) > summary { margin-bottom:0; }
 </head>
 <body>
 <div class="top">
-  <h1>我的持仓 · 行情 <span style="font-size:10px;color:#8d97a6;font-weight:400">v5.110·0906-0240</span></h1>
+  <h1>我的持仓 · 行情 <span style="font-size:10px;color:#8d97a6;font-weight:400">v5.111·0906-0320</span></h1>
   <div class="btns"><button class="ed" id="ntfyBtn" onclick="toggleNtfy()">提醒</button><button class="ed" id="edBtn" onclick="setView('holds');document.getElementById('holds').style.display='';toggleEdit()">编辑</button><button class="rf" onclick="refresh(1)">刷新</button></div>
 </div>
 <div class="navSticky" id="navSticky">
@@ -488,7 +488,19 @@ details.fold:not([open]) > summary { margin-bottom:0; }
   <div class="sec"><span><button class="add" onclick="closeDetail()" style="margin-right:8px">← 返回列表</button><b id="vDetailName"></b></span><span><button class="add" id="vDetailK">K站 ›</button></span></div>
   <div class="card" style="padding:8px;margin-bottom:8px"><div id="vDetailHead"></div></div>
   <iframe id="vDetailKs" class="ksf" style="height:46vh;min-height:300px" loading="lazy"></iframe>
+  <button class="add" id="vDetailFull" style="width:100%;margin:5px 0 8px;font-size:13px">⛶ 全屏看K站 ↗</button>
   <div id="vDetailBody"></div>
+</div>
+
+<div class="view" id="v-chart" style="display:none">
+  <div class="sec"><span><button class="add" onclick="closeChart()" style="margin-right:8px">← 返回</button><b id="vChartName"></b></span><span class="sub" id="vChartPos"></span></div>
+  <iframe id="vChartKs" class="ksf" style="height:58vh;min-height:340px" loading="lazy"></iframe>
+  <button class="add" id="vChartFull" style="width:100%;margin:6px 0 4px;font-size:14px;font-weight:700">⛶ 全屏看K站 ↗</button>
+  <div class="sub" style="text-align:center;padding:6px 0" id="vChartNav">
+    <button class="add" onclick="stepChart(-1)" style="min-width:110px">↑ 上一只</button>
+    <button class="add" onclick="stepChart(1)" style="min-width:110px">↓ 下一只</button>
+  </div>
+  <div class="sub" style="text-align:center;font-size:10.5px;color:#5b6675">图上以外的地方上滑=下一只 · 下滑=上一只</div>
 </div>
 
 <div class="foot"></div>
@@ -3178,6 +3190,37 @@ function closeDetail(){
   const host=document.getElementById('vDetailBody'); if(host) host.innerHTML=''; // 卡片是render产物,丢掉即可,#holds下次render自动重建
   DETAIL_I=null; VIEW='holds'; applyView(); render();
 }
+// ===== v5.111: 轻量看图页 —— 点指数/观察票不再跳出app,内嵌K站+上下滑切票+全屏按钮 =====
+let CHART_LIST=[], CHART_I=0, CHART_FROM='home';
+function openChart(code, list){
+  CHART_LIST=(list&&list.length?list.slice():[code]);
+  if(CHART_LIST.indexOf(code)<0) CHART_LIST.unshift(code);
+  CHART_I=CHART_LIST.indexOf(code);
+  if(VIEW!=='chart') CHART_FROM=VIEW;
+  VIEW='chart'; applyView(); showChart();
+}
+function showChart(){
+  const code=CHART_LIST[CHART_I]; if(!code) return;
+  const nm=document.getElementById('vChartName'); if(nm) nm.textContent=nameOf(code)+' '+code.replace(/^(sh|sz)/,'');
+  const ps=document.getElementById('vChartPos'); if(ps) ps.textContent=(CHART_I+1)+'/'+CHART_LIST.length;
+  const f=document.getElementById('vChartKs');
+  if(f&&f.dataset.cur!==code){ f.dataset.cur=code; f.src=ksUrl(code,true); }
+  const fb=document.getElementById('vChartFull'); if(fb) fb.onclick=()=>{ location.href=ksUrl(code,false); };
+  const nv=document.getElementById('vChartNav'); if(nv) nv.style.display=CHART_LIST.length>1?'':'none';
+}
+function closeChart(){ VIEW=CHART_FROM||'home'; applyView(); }
+function stepChart(d){
+  const j=CHART_I+d;
+  if(j<0||j>=CHART_LIST.length){ toast(d>0?'已经是最后一只':'已经是第一只'); return; }
+  CHART_I=j; showChart();
+}
+try{ const _vc=document.getElementById('v-chart'); let _cx=0,_cy=0;
+  _vc.addEventListener('touchstart',e=>{ _cx=e.touches[0].clientX; _cy=e.touches[0].clientY; },{passive:true});
+  _vc.addEventListener('touchend',e=>{ if(VIEW!=='chart') return;
+    const dx=e.changedTouches[0].clientX-_cx, dy=e.changedTouches[0].clientY-_cy;
+    if(Math.abs(dy)<60||Math.abs(dy)<Math.abs(dx)*1.4) return;
+    stepChart(dy<0?1:-1); },{passive:true});
+}catch(e){}
 // v5.105: 详情页一键接/抛——价格直出+默认100股(fillT里已带),填进卡片快捷单,原地确认
 function quickDeal(i,side){
   const h=PF.holds[i]; if(!h) return;
@@ -3207,6 +3250,7 @@ function renderDetailHead(){
   const f=GET(h.code), p=F(f,3), pct=F(f,32);
   const nm=document.getElementById('vDetailName'); if(nm) nm.textContent=h.name+' '+h.code.replace(/^(sh|sz)/,'');
   const kb=document.getElementById('vDetailK'); if(kb) kb.onclick=()=>openK(h.code);
+  const fb2=document.getElementById('vDetailFull'); if(fb2) fb2.onclick=()=>openK(h.code);
   const hd=document.getElementById('vDetailHead'); if(!hd) return;
   const _hi=F(f,33), _lo=F(f,34), _prev=F(f,4), _ta=(_hi!=null&&_lo!=null)?_hi-_lo:null;
   const _tr2=tiers(anchorOf(h.code,p,_prev),narrowBase(h.code,ampBase(h.code,_ta),_ta).base,_prev,trendFlag(pct,(_ta!=null&&_prev)?_ta/_prev*100:null,mktOf(h)).lv,h.code,h.name);
@@ -3253,8 +3297,8 @@ function renderWL(){
   box.innerHTML=html;
   box.querySelectorAll('[data-wtab]').forEach(b2=>{ b2.addEventListener('click',()=>{ WLTAB=b2.getAttribute('data-wtab'); try{localStorage.setItem('hqm_wltab_v1',WLTAB);}catch(e){} renderWL(); }); });
   box.querySelectorAll('[data-wl]').forEach(el=>{ el.addEventListener('click',()=>{ openDetail(el.getAttribute('data-wl')); }); });
-  box.querySelectorAll('[data-wlk]').forEach(el=>{ el.addEventListener('click',()=>{ openK(el.getAttribute('data-wlk')); }); });
-  box.querySelectorAll('canvas.wlmin').forEach(cv2=>{ cv2.addEventListener('click',ev=>{ ev.stopPropagation(); openK(cv2.getAttribute('data-min')); }); });
+  box.querySelectorAll('[data-wlk]').forEach(el=>{ el.addEventListener('click',()=>{ openChart(el.getAttribute('data-wlk'),PF.watch.map(w=>w.code)); }); });
+  box.querySelectorAll('canvas.wlmin').forEach(cv2=>{ cv2.addEventListener('click',ev=>{ ev.stopPropagation(); const cd2=cv2.getAttribute('data-min'); openChart(cd2,(WLTAB==='h'?PF.holds.map(h3=>h3.code):PF.watch.map(w=>w.code))); }); });
   drawWLMin();
 }
 // v5.101: 行内实时分时线(腾讯1分钟,60秒节流,每次刷新跟着动)——拿不到分时就用40日日线垫底
@@ -3354,7 +3398,7 @@ function doRender(){
     const iph=PREHIT[c], iku=(iph&&iph.kUp)||1, ikd=(iph&&iph.kDn)||1; // v5.45: 指数也用自己的实测系数
     const ipre=(iref!=null&&ia!=null)?(iref-ikd*ia).toFixed(0)+'~'+(iref+iku*ia).toFixed(0):'—';
     const ipos=(!inx&&p!=null&&iref!=null&&ia!=null)?(p>=iref+iku*ia?' <b class="up">▲破上沿</b>':(p<=iref-ikd*ia?' <b class="down">▼破下沿</b>':'')):'';
-    return `<div class="c" style="cursor:pointer" onclick="window.open('https://fululi.github.io/k-station/?code=${c}')"><div class="n">${n}</div><div class="v ${cls(pct)}">${p!=null?p.toFixed(2):'—'}</div><div class="g ${cls(pct)}">${pct!=null?sg(pct.toFixed(2))+'%':''}</div><canvas class="ispk" data-ispk="${c}" width="260" height="68"></canvas><div class="g sub" style="font-weight:400">${inx?planLbl():'今日'}预判${ipre}${ipos}<span class="qm" onclick="event.stopPropagation();preWhy('${c}','${n}')">?</span>${iph?`<br><span style="font-size:9px;color:#7e8798">实测${iph.inr}%不出界</span>`:''}</div>${ifib}</div>`;
+    return `<div class="c" style="cursor:pointer" onclick="openChart('${c}',IDX.map(x=>x[0]))"><div class="n">${n}</div><div class="v ${cls(pct)}">${p!=null?p.toFixed(2):'—'}</div><div class="g ${cls(pct)}">${pct!=null?sg(pct.toFixed(2))+'%':''}</div><canvas class="ispk" data-ispk="${c}" width="260" height="68"></canvas><div class="g sub" style="font-weight:400">${inx?planLbl():'今日'}预判${ipre}${ipos}<span class="qm" onclick="event.stopPropagation();preWhy('${c}','${n}')">?</span>${iph?`<br><span style="font-size:9px;color:#7e8798">实测${iph.inr}%不出界</span>`:''}</div>${ifib}</div>`;
   }).join('');
   drawSparks();
   const me=document.getElementById('mkt');
@@ -3958,7 +4002,7 @@ function atrLast(kl){
   return s2/14;
 }
 function daysBetween(a,b){ return Math.round((new Date(b)-new Date(a))/864e5); }
-function nameOf(c){ const h=PF.holds.find(x=>x.code===c)||PF.watch.find(x=>x.code===c); return h?h.name:c; }
+function nameOf(c){ const ix=IDX.find(x=>x[0]===c); if(ix) return ix[1]; const h=PF.holds.find(x=>x.code===c)||PF.watch.find(x=>x.code===c); return h?h.name:c; }
 function paperScan(c, kl){ // loadWTrend 拉到日线时顺带扫描
   kl=settledRows(kl);   // v5.10: 盘中未完成K不算突破证据 —— 否则假突破当天开当天止损,统计全是0%
   const tr=triDet(kl);
