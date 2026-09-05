@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#0b0e12">
-<title>我的持仓 · 行情 v5.105 · 0906-0030构建</title>
+<title>我的持仓 · 行情 v5.106 · 0906-0125构建</title>
 <style>
 /* v5.46 完整版换肤:暗色行情终端。只动皮肤——所有类名/布局/交互结构原样,计算逻辑零改动。
    调色板: 底#0b0e12 卡#14181e 描边#232a33 主文#dde3ec 次文#b0bac7 涨#f4655f 跌#2ebd7f 强调#4c8dff */
@@ -292,7 +292,7 @@ details.fold:not([open]) > summary { margin-bottom:0; }
 </head>
 <body>
 <div class="top">
-  <h1>我的持仓 · 行情 <span style="font-size:10px;color:#8d97a6;font-weight:400">v5.105·0906-0030</span></h1>
+  <h1>我的持仓 · 行情 <span style="font-size:10px;color:#8d97a6;font-weight:400">v5.106·0906-0125</span></h1>
   <div class="btns"><button class="ed" id="ntfyBtn" onclick="toggleNtfy()">提醒</button><button class="ed" id="edBtn" onclick="setView('holds');document.getElementById('holds').style.display='';toggleEdit()">编辑</button><button class="rf" onclick="refresh(1)">刷新</button></div>
 </div>
 <div class="navSticky" id="navSticky">
@@ -507,7 +507,7 @@ const DEFAULT = {
   watch:[]
 };
 const K_UP=0.3, K_DN=0.5, ATR_FLOOR=0.75;
-const LS='portfolio_v2', LOG='tlog_v2', ATRK='atr14_v3', FEEK='fee_v1'; // v5.105: v3新增prevHi/prevLo(两日Fib),旧缓存作废重抓
+const LS='portfolio_v2', LOG='tlog_v2', ATRK='atr14_v4', FEEK='fee_v1'; // v5.106: v4新增ma20(跌透判断),旧缓存作废重抓
 let PF, editMode=false, MKT=null, ATR={}, ATR_DATE='', ATR_FAIL=false;
 let FEE={comm:0.025, stamp:0.05, min:5}; // 佣金万2.5、印花税0.05%(卖出)、最低佣金5元(ETF不适用)
 try { PF = JSON.parse(localStorage.getItem(LS)) || JSON.parse(JSON.stringify(DEFAULT)); }
@@ -1380,7 +1380,8 @@ function parseIfzq(c, txt){
     return {atr:last14.reduce((a,b)=>a+b,0)/last14.length, lastTR:trs[trs.length-1], legBase:base, legFrom:baseD,
       legHi:legHi, legLo:legLo, legHiD:legHiD, legLoD:legLoD,
       lastHi:+lastSettled[3], lastLo:+lastSettled[4], lastC:+lastSettled[2],
-      prevHi:settled.length>1?+settled[settled.length-2][3]:null, prevLo:settled.length>1?+settled[settled.length-2][4]:null};
+      prevHi:settled.length>1?+settled[settled.length-2][3]:null, prevLo:settled.length>1?+settled[settled.length-2][4]:null,
+      ma20:(function(){ const cl=settled.slice(-20).map(r=>+r[2]); return cl.reduce((a,b)=>a+b,0)/cl.length; })()};
   }catch(e){ return null; }
 }
 function parseSina(txt){
@@ -1396,7 +1397,8 @@ function parseSina(txt){
     const last14=trs.slice(-14);
     const lr=rows[rows.length-1], pr=rows.length>1?rows[rows.length-2]:null;
     return {atr:last14.reduce((a,b)=>a+b,0)/last14.length, lastTR:trs[trs.length-1], lastHi:+lr.high, lastLo:+lr.low, lastC:+lr.close,
-      prevHi:pr?+pr.high:null, prevLo:pr?+pr.low:null};
+      prevHi:pr?+pr.high:null, prevLo:pr?+pr.low:null,
+      ma20:(function(){ const cl=rows.slice(-20).map(r=>r.close); return cl.reduce((a,b)=>a+b,0)/cl.length; })()};
   }catch(e){ return null; }
 }
 let WT={}, WSIG={}, DT={}, EXT={}, LV={}, WT_DATE='';
@@ -4033,7 +4035,16 @@ function drawFibLadders(){
     if(td){ const v=isUp?td.up:td.dn; if(v>mn&&v<mx){
       const px=X(v); x.strokeStyle='#b48cf2'; x.setLineDash([3,4]); x.beginPath(); x.moveTo(px,T); x.lineTo(px,B); x.stroke(); x.setLineDash([]);
       x.fillStyle='#b48cf2'; x.font='bold 19px -apple-system'; x.textAlign=px>W/2?'right':'left';
-      x.fillText('两日1.618 '+P(v), px>W/2?px-8:px+8, B-30); } }
+      x.fillText('两日1.618 '+P(v), px>W/2?px-8:px+8, B-30);
+      // 跌透徽章(回测口径: 现价高于MA20超+2%=高位飞刀,别接; 否则=已跌透可接区)
+      const _o=ATR[code], _ma=(_o&&typeof _o==='object')?_o.ma20:null;
+      if(p!=null&&_ma>0){ const dev=(p/_ma-1)*100, knife=dev>2;
+        const bw=176, bx=Math.max(L+2,Math.min(W-Rm-bw-2, px-bw/2)), by=T+34;
+        x.fillStyle=knife?'rgba(255,111,102,.16)':'rgba(53,217,154,.14)';
+        x.strokeStyle=knife?'#ff6f66':'#35d99a'; x.setLineDash([]);
+        x.beginPath(); x.rect(bx,by,bw,26); x.fill(); x.stroke();
+        x.fillStyle=knife?'#ff8a80':'#4fd79b'; x.font='bold 18px -apple-system'; x.textAlign='center';
+        x.fillText(knife?'⚠没跌透·别接':'✓已跌透·可接区', bx+bw/2, by+19); } } }
     // 现价大箭头
     if(p!=null&&p>mn&&p<mx){ const px=X(p), my=(T+B)/2;
       x.fillStyle='#f2f5f9'; x.beginPath(); x.moveTo(px,my-11); x.lineTo(px,my+11); x.lineTo(px+(px>W/2?12:-12),my); x.closePath(); x.fill();
