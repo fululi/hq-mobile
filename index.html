@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#0b0e12">
-<title>我的持仓 · 行情 v5.111 · 0906-0320构建</title>
+<title>我的持仓 · 行情 v5.112 · 0906-0340构建</title>
 <style>
 /* v5.46 完整版换肤:暗色行情终端。只动皮肤——所有类名/布局/交互结构原样,计算逻辑零改动。
    调色板: 底#0b0e12 卡#14181e 描边#232a33 主文#dde3ec 次文#b0bac7 涨#f4655f 跌#2ebd7f 强调#4c8dff */
@@ -292,7 +292,7 @@ details.fold:not([open]) > summary { margin-bottom:0; }
 </head>
 <body>
 <div class="top">
-  <h1>我的持仓 · 行情 <span style="font-size:10px;color:#8d97a6;font-weight:400">v5.111·0906-0320</span></h1>
+  <h1>我的持仓 · 行情 <span style="font-size:10px;color:#8d97a6;font-weight:400">v5.112·0906-0340</span></h1>
   <div class="btns"><button class="ed" id="ntfyBtn" onclick="toggleNtfy()">提醒</button><button class="ed" id="edBtn" onclick="setView('holds');document.getElementById('holds').style.display='';toggleEdit()">编辑</button><button class="rf" onclick="refresh(1)">刷新</button></div>
 </div>
 <div class="navSticky" id="navSticky">
@@ -485,10 +485,14 @@ details.fold:not([open]) > summary { margin-bottom:0; }
 </div>
 
 <div class="view" id="v-detail" style="display:none">
-  <div class="sec"><span><button class="add" onclick="closeDetail()" style="margin-right:8px">← 返回列表</button><b id="vDetailName"></b></span><span><button class="add" id="vDetailK">K站 ›</button></span></div>
+  <div class="sec"><span><button class="add" onclick="closeDetail()" style="margin-right:8px">← 返回列表</button><b id="vDetailName"></b> <span class="sub" id="vDetailPos"></span></span><span><button class="add" id="vDetailK">K站 ›</button></span></div>
   <div class="card" style="padding:8px;margin-bottom:8px"><div id="vDetailHead"></div></div>
   <iframe id="vDetailKs" class="ksf" style="height:46vh;min-height:300px" loading="lazy"></iframe>
-  <button class="add" id="vDetailFull" style="width:100%;margin:5px 0 8px;font-size:13px">⛶ 全屏看K站 ↗</button>
+  <button class="add" id="vDetailFull" style="width:100%;margin:5px 0 4px;font-size:13px">⛶ 全屏看K站 ↗</button>
+  <div class="sub" style="text-align:center;padding:0 0 6px" id="vDetailNav">
+    <button class="add" onclick="stepDetail(-1)" style="min-width:100px">↑ 上一只</button>
+    <button class="add" onclick="stepDetail(1)" style="min-width:100px">↓ 下一只</button>
+  </div>
   <div id="vDetailBody"></div>
 </div>
 
@@ -3234,21 +3238,28 @@ function quickDeal(i,side){
   fillT(i, +px.toFixed(2), side);
   const card=document.getElementById('hcard_'+i); if(card) try{ card.scrollIntoView({behavior:'smooth',block:'center'}); }catch(e){}
 }
-// v5.105: 详情页左右滑换股(TradingView式)
-try{ const _vd=document.getElementById('v-detail'); let _x0=0,_y0=0;
-  _vd.addEventListener('touchstart',e=>{ _x0=e.touches[0].clientX; _y0=e.touches[0].clientY; },{passive:true});
-  _vd.addEventListener('touchend',e=>{ if(DETAIL_I==null) return;
+// v5.112: 详情页换股手势与看图页统一——上滑=下一只/下滑=上一只;为保护下方卡片滚动,滑动只在顶部价格区/按钮区起手才认
+function stepDetail(d){
+  if(DETAIL_I==null) return;
+  const ord=[]; PF.holds.forEach(h2=>{ if(ord.indexOf(h2.code)<0) ord.push(h2.code); });
+  let j=ord.indexOf(PF.holds[DETAIL_I].code); j+=d;
+  if(j<0||j>=ord.length){ toast(d>0?'已经是最后一只':'已经是第一只'); return; }
+  openDetail(ord[j]);
+}
+try{ const _vd=document.getElementById('v-detail'); let _x0=0,_y0=0,_zone=false;
+  _vd.addEventListener('touchstart',e=>{ _x0=e.touches[0].clientX; _y0=e.touches[0].clientY;
+    const t=e.target; _zone=!!(t.closest&&(t.closest('#vDetailHead')||t.closest('#vDetailNav')||t.closest('#vDetailFull')||t.closest('.sec'))); },{passive:true});
+  _vd.addEventListener('touchend',e=>{ if(DETAIL_I==null||!_zone) return;
     const dx=e.changedTouches[0].clientX-_x0, dy=e.changedTouches[0].clientY-_y0;
-    if(Math.abs(dx)<60||Math.abs(dx)<Math.abs(dy)*1.4) return;
-    const ord=[]; PF.holds.forEach(h2=>{ if(ord.indexOf(h2.code)<0) ord.push(h2.code); });
-    let j=ord.indexOf(PF.holds[DETAIL_I].code); j=dx<0?j+1:j-1;
-    if(j<0||j>=ord.length){ toast(dx<0?'已经是最后一只':'已经是第一只'); return; }
-    openDetail(ord[j]); },{passive:true});
+    if(Math.abs(dy)<60||Math.abs(dy)<Math.abs(dx)*1.4) return;
+    stepDetail(dy<0?1:-1); },{passive:true});
 }catch(e){}
 function renderDetailHead(){
   const i=DETAIL_I; if(i==null) return; const h=PF.holds[i]; if(!h) return;
   const f=GET(h.code), p=F(f,3), pct=F(f,32);
   const nm=document.getElementById('vDetailName'); if(nm) nm.textContent=h.name+' '+h.code.replace(/^(sh|sz)/,'');
+  const _ord2=[]; PF.holds.forEach(h2=>{ if(_ord2.indexOf(h2.code)<0) _ord2.push(h2.code); });
+  const ps2=document.getElementById('vDetailPos'); if(ps2) ps2.textContent=(_ord2.indexOf(h.code)+1)+'/'+_ord2.length;
   const kb=document.getElementById('vDetailK'); if(kb) kb.onclick=()=>openK(h.code);
   const fb2=document.getElementById('vDetailFull'); if(fb2) fb2.onclick=()=>openK(h.code);
   const hd=document.getElementById('vDetailHead'); if(!hd) return;
