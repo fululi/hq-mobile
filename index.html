@@ -292,7 +292,7 @@ details.fold:not([open]) > summary { margin-bottom:0; }
 </head>
 <body>
 <div class="top">
-  <h1>我的持仓 · 行情 <span style="font-size:10px;color:#8d97a6;font-weight:400">v5.113·0906-0410</span></h1>
+  <h1>我的持仓 · 行情 <span style="font-size:10px;color:#8d97a6;font-weight:400">v5.114·0906-0600</span></h1>
   <div class="btns"><button class="ed" id="ntfyBtn" onclick="toggleNtfy()">提醒</button><button class="ed" id="edBtn" onclick="setView('holds');document.getElementById('holds').style.display='';toggleEdit()">编辑</button><button class="rf" onclick="refresh(1)">刷新</button></div>
 </div>
 <div class="navSticky" id="navSticky">
@@ -2174,8 +2174,11 @@ function maybeConfirmT_(){
   const h=PF.holds[i];
   const sell=parseFloat(document.getElementById('tSell').value);
   const buy=parseFloat(document.getElementById('tBuy').value);
-  const qty=parseInt(document.getElementById('tQty').value);
-  const q2v=parseInt(document.getElementById('tQty2').value);
+  let qty=parseInt(document.getElementById('tQty').value);
+  let q2v=parseInt(document.getElementById('tQty2').value);
+  // v5.114: A股100股整手铁律——手输非整百自动向下取整(150→100), 避免拆分股入账
+  if(!isNaN(qty)&&qty>0) qty=Math.floor(qty/100)*100;
+  if(!isNaN(q2v)&&q2v>0) q2v=Math.floor(q2v/100)*100;
   ['tSell','tBuy','tQty','tQty2'].forEach(id=>document.getElementById(id).classList.toggle('armed', !!document.getElementById(id).value));
   const hasS=!isNaN(sell)&&sell>0, hasB=!isNaN(buy)&&buy>0;
   if(!h||(!hasS&&!hasB)){ box.style.display='none'; return; }
@@ -2593,8 +2596,11 @@ function addTrade(){
   const h=PF.holds[i]; if(!h){ toast('先添加持仓'); return; }
   const sell=parseFloat(document.getElementById('tSell').value);
   const buy=parseFloat(document.getElementById('tBuy').value);
-  const qty=parseInt(document.getElementById('tQty').value);
-  const q2v=parseInt(document.getElementById('tQty2').value);
+  let qty=parseInt(document.getElementById('tQty').value);
+  let q2v=parseInt(document.getElementById('tQty2').value);
+  // v5.114: A股100股整手——入账前强制取整, 手输150股按100股记并提示
+  if(!isNaN(qty)&&qty>0&&qty%100){ const q0=Math.floor(qty/100)*100; toast('股数已按整手取整 '+qty+'→'+q0); qty=q0; document.getElementById('tQty').value=q0||''; }
+  if(!isNaN(q2v)&&q2v>0&&q2v%100){ const q0=Math.floor(q2v/100)*100; q2v=q0; document.getElementById('tQty2').value=q0||''; }
   const hasS=!isNaN(sell)&&sell>0, hasB=!isNaN(buy)&&buy>0;
   if(!hasS&&!hasB){ toast('卖出价/接回价至少填一个'); return; }
   const d0=document.getElementById('tDate').value||today();
