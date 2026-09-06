@@ -292,7 +292,7 @@ details.fold:not([open]) > summary { margin-bottom:0; }
 </head>
 <body>
 <div class="top">
-  <h1>我的持仓 · 行情 <span style="font-size:10px;color:#8d97a6;font-weight:400">v5.115·0906-1830</span></h1>
+  <h1>我的持仓 · 行情 <span style="font-size:10px;color:#8d97a6;font-weight:400">v5.116·0906-1950</span></h1>
   <div class="btns"><button class="ed" id="ntfyBtn" onclick="toggleNtfy()">提醒</button><button class="ed" id="edBtn" onclick="setView('holds');document.getElementById('holds').style.display='';toggleEdit()">编辑</button><button class="rf" onclick="refresh(1)">刷新</button></div>
 </div>
 <div class="navSticky" id="navSticky">
@@ -3806,7 +3806,7 @@ function doRender(){
       ${_pd?`<div style="margin:6px 0;padding:8px 12px;border-radius:9px;font-weight:800;font-size:13.5px;background:rgba(255,144,102,.12);color:#ff9066">🛑 恐慌下跌日 ${pct!=null?sg(pct.toFixed(1))+'%':''} · 先卖后买——先记一笔卖出,接回档才解锁 · 档位已按极端日放宽</div>`:(!_pd&&_soldT&&(pct!=null&&pct<=-3)?`<div style="margin:6px 0;padding:6px 12px;border-radius:9px;font-weight:700;font-size:12.5px;background:rgba(46,189,127,.10);color:#4fd79b">✓ 恐慌日·今天已先卖 · 接回档位已解锁,跌到位照常提示</div>`:'')}
       <details class="fold" data-fk="wb-${h.code}"><summary style="font-size:12px;color:#8d97a6;padding:4px 0;cursor:pointer">水位·档位明细(实时)</summary>${actBar}</details>
       ${(BATTLE[i]={code:h.code,buys:tr.buys,sells:tr.sells,preLo:preLo,preHi:preHi,cost:h.cost,p3:(p!=null&&p<10),lev:(lg&&lg.hi>0&&lg.lo>0)?{hi:lg.hi,lo:lg.lo}:null},'')}
-      <details class="fold" data-fk="ks-${i}" ontoggle="ksOpen(${i})" style="margin-top:6px;border-top:none;padding-top:0"><summary>📈 作战图 ▾ <span class="dim" style="font-size:10px">内嵌K站·可拖可缩·1分K</span></summary><iframe id="ksf_${i}" class="ksf"></iframe></details>
+      <details class="fold" data-fk="ks-${i}" ontoggle="ksOpen(${i})" style="margin-top:6px;border-top:none;padding-top:0"><summary>📈 作战图 ▾</summary><iframe id="ksf_${i}" class="ksf"></iframe></details>
       <a href="https://fululi.github.io/k-station/?code=${h.code}&simple=1&lines=${tr.buys.map(x=>'b'+x.toFixed(2)).concat(tr.sells.map(x=>'s'+x.toFixed(2))).join(',')}&trades=${encodeURIComponent(TLOG.filter(r=>r.code===h.code&&r.d===today()&&r.t).map(r=>{const a3=[];if(r.sell!=null)a3.push(r.d+' '+r.t+',s,'+r.sell);if(r.buy!=null)a3.push(r.d+' '+r.t+',b,'+r.buy);return a3.join(';');}).join(';'))}" target="_blank" style="display:block;text-align:right;margin-top:5px;color:#7aa8ff;text-decoration:none;font-size:12.5px">全屏看图 ↗</a>
       
       <div class="grid2">
@@ -4169,9 +4169,6 @@ function fibLine(lg,p){
   const isUp=upEvidence;
 
   const R=lg.hi-lg.lo, lv=[[0.382,'38.2%'],[0.5,'50%'],[0.618,'61.8%'],[0.786,'78.6%']];
-  const tx=lv.map(x=>{ const px=isUp?lg.hi-R*x[0]:lg.lo+R*x[0];
-    const near=(p!=null&&Math.abs(p/px-1)<0.005);
-    return near?('<b style="color:#d99a2b">'+x[1]+'='+P(px)+'👈</b>'):(x[1]+'='+P(px)); }).join(' · ');
   const e1=isUp?lg.lo+R*1.618:lg.hi-R*1.618, e2=isUp?lg.lo+R*2.618:lg.hi-R*2.618;
   // v5.80: 扩展位按方向命名, 不再笼统叫"扩展"(用户反馈看不懂)
   var extLbl1=isUp?'上涨目标1':'下跌目标1', extLbl2=isUp?'上涨目标2':'下跌目标2';
@@ -4184,8 +4181,21 @@ function fibLine(lg,p){
       concl='<div class="atrnote" style="border-top:none;padding-top:0;color:#cfd6e0">📌 一句话: 上方最近压力 <b style="color:#ff8a80">'+(res?P(res.px)+'('+res.k+'反弹天花板)':'无·已收复全部回撤')+'</b> · 下方支撑 <b style="color:#4fd79b">'+P(lg.lo)+'(段低点)</b>,跌破再看 <b style="color:#4fd79b">'+P(e1)+'</b>(深支撑) · 现价'+P(p)+(res&&p<res.px?'在压力下方·到压力位<b>看反应</b>(被压住才减,怼过去就跟)':'在压力上方·突破后回踩确认再追')+'</div>'; }
     else { const sup=fibs.filter(f2=>f2.px<p).sort((a2,b2)=>b2.px-a2.px)[0];
       concl='<div class="atrnote" style="border-top:none;padding-top:0;color:#cfd6e0">📌 一句话: 下方最近支撑 <b style="color:#4fd79b">'+(sup?P(sup.px)+'('+sup.k+'回调地板)':'无·直接看段低点')+'</b> · 上方压力 <b style="color:#ff8a80">'+P(lg.hi)+'(段高点)</b>,突破再看 <b style="color:#ff8a80">'+P(e1)+'</b>('+(isUp?'上涨':'下跌')+'目标) · 现价'+P(p)+(sup&&p>sup.px?'在支撑上方·回踩到支撑<b>看承接</b>(缩量企稳才接,放量砸穿就跑)':'在支撑下方·别抄底,等站稳再说')+'</div>'; } }
+  // v5.116: Fib回撤位图形化——横向价格尺(四档刻度+段端点+现价游标)取代一排小字, 一眼看现价卡在哪档
+  const rLo=Math.min(lg.lo, p!=null?p:lg.lo), rHi=Math.max(lg.hi, p!=null?p:lg.hi), rSp=(rHi-rLo)||1;
+  const RX=v2=>(10+(v2-rLo)/rSp*320).toFixed(1);
+  let ruler='<svg viewBox="0 0 340 46" style="width:100%;height:46px;display:block;margin:3px 0">';
+  ruler+='<line x1="10" y1="21" x2="330" y2="21" stroke="#3a4250" stroke-width="1"/>';
+  ruler+='<line x1="'+RX(lg.lo)+'" y1="15" x2="'+RX(lg.lo)+'" y2="27" stroke="#4fd79b" stroke-width="1.5"/><text x="'+RX(lg.lo)+'" y="42" font-size="8" fill="#4fd79b" text-anchor="middle">'+P(lg.lo)+'</text>';
+  ruler+='<line x1="'+RX(lg.hi)+'" y1="15" x2="'+RX(lg.hi)+'" y2="27" stroke="#ff8a80" stroke-width="1.5"/><text x="'+RX(lg.hi)+'" y="42" font-size="8" fill="#ff8a80" text-anchor="middle">'+P(lg.hi)+'</text>';
+  fibs.forEach(f2=>{ const x=RX(f2.px), near=(p!=null&&Math.abs(p/f2.px-1)<0.005);
+    ruler+='<line x1="'+x+'" y1="15" x2="'+x+'" y2="27" stroke="'+(near?'#d99a2b':'#8d97a6')+'" stroke-width="'+(near?2:1)+'"/>'
+    +'<text x="'+x+'" y="11" font-size="7.5" fill="'+(near?'#d99a2b':'#8d97a6')+'" text-anchor="middle">'+f2.k+'</text>'
+    +'<text x="'+x+'" y="35" font-size="7.5" fill="'+(near?'#d99a2b':'#cfd6e0')+'" text-anchor="middle">'+P(f2.px)+'</text>'; });
+  if(p!=null){ const x=RX(p); ruler+='<path d="M'+x+' 17 l4.5 -8 h-9 z" fill="#57a7ff"/>'; }
+  ruler+='</svg>';
   return '<div class="atrnote">🌀 日线大周期 '+(isUp?'↑ ':'↓ ')+P(isUp?lg.lo:lg.hi)+(d1?'('+d1.slice(5)+')':'')+'→'+P(isUp?lg.hi:lg.lo)+(d2?'('+d2.slice(5)+')':'')
-    +' · '+(isUp?'回撤支撑 ':'反弹压力 ')+tx+' · '+extLbl1+'='+P(e1)+' · '+extLbl2+'='+P(e2)+'</div>'+concl;
+    +' · '+extLbl1+'='+P(e1)+' · '+extLbl2+'='+P(e2)+'</div>'+ruler+concl;
 }
 function m15FibLine(f,p,code){
   // 处理MSIG中的三角信息
@@ -4199,15 +4209,12 @@ function m15FibLine(f,p,code){
       triTxt=' · △15分'+(tri>0?'上破':'下破')+(same?'(日线同向=顺势)':'(日线反向='+(tri>0?'反弹':'回调')+'性质)');
     }
   }
-  // 完全无数据
-  if(!f) return '<div class="atrnote">⏱ 15分小周期<br>暂无15分钟行情数据·未生成Fib</div>';
-  // 有数据但无Fib结构
-  if(f.kind==='no-data') return '<div class="atrnote">⏱ 15分小周期<br>暂无15分钟行情数据·未生成Fib</div>';
+  // 完全无数据 / 无结构: v5.116 无信号不出声, 整块不显示(用户:没信号的文字都是噪音)
+  if(!f) return '';
+  if(f.kind==='no-data') return '';
   if(f.kind==='none'){
-    const sd=f.sessionDate?String(f.sessionDate).slice(5):'';
-    const bars=f.bars||0;
-    const triLine=triTxt||'';
-    return '<div class="atrnote">⏱ '+(sd?sd+' ':'')+'15分小周期<br>15分钟数据已获取·已完成K '+bars+'根·'+f.reason+triLine+'<br>暂不生成1.0/1.618/2.618</div>';
+    if(triTxt) return '<div class="atrnote">⏱ 15分'+triTxt.replace(/^ · /,'·')+'</div>';
+    return '';
   }
   // 有Fib结构：需要根据triKind判断四态
   if(f.kind!=='fib') return '';
