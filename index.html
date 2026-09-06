@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#0b0e12">
-<title>我的持仓 · 行情 v5.133 · 0907-0635构建</title>
+<title>我的持仓 · 行情 v5.134 · 0907-0650构建</title>
 <style>
 /* v5.46 完整版换肤:暗色行情终端。只动皮肤——所有类名/布局/交互结构原样,计算逻辑零改动。
    调色板: 底#0b0e12 卡#14181e 描边#232a33 主文#dde3ec 次文#b0bac7 涨#f4655f 跌#2ebd7f 强调#4c8dff */
@@ -326,7 +326,7 @@ details.fold:not([open]) > summary { margin-bottom:0; }
 </head>
 <body>
 <div class="top">
-  <h1>我的持仓 · 行情 <span style="font-size:10px;color:#8d97a6;font-weight:400">v5.133·0907-0635</span></h1>
+  <h1>我的持仓 · 行情 <span style="font-size:10px;color:#8d97a6;font-weight:400">v5.134·0907-0650</span></h1>
   <div class="btns"><button class="ed" id="ntfyBtn" onclick="toggleNtfy()">提醒</button><button class="ed" id="edBtn" onclick="setView('holds');document.getElementById('holds').style.display='';toggleEdit()">编辑</button><button class="rf" onclick="refresh(1)">刷新</button></div>
 </div>
 <div class="navSticky" id="navSticky">
@@ -382,6 +382,7 @@ details.fold:not([open]) > summary { margin-bottom:0; }
   <span><span class="ovtabs" id="ydVw"><b data-v="line" class="on" onclick="setYDVw('line')">分时</b><b data-v="k" onclick="setYDVw('k')">K线</b></span>
   <span class="ovtabs" id="ydTabs"><b data-e="all" class="on" onclick="setYDTab('all')">事件流</b><b data-e="tail" onclick="setYDTab('tail')">尾盘掘金</b><b data-e="mine" onclick="setYDTab('mine')">持股异动</b><b data-e="zt" onclick="setYDTab('zt')">涨停榜</b></span></span></div>
   <div id="ydChart"></div>
+  <div id="ydDrill" style="display:none;font-size:11.5px;padding:4px 2px"></div>
   <div id="ydEv"></div>
   <div class="ovfoot" id="ydFoot"></div>
 </div>
@@ -2349,13 +2350,29 @@ function renderSenti(){
 }
 
 // ---- 模块4 v5.125: 大盘异动(分时+十字光标 / 事件流6类 / 尾盘掘金14:30后 / 我的自选过滤) ----
-let YD_TS=0, YD={line:null,bk:null,dt:'',ev:[],G:null,zt:null,mf:null}, YD_TAB='all';
+let YD_TS=0, YD={line:null,bk:null,dt:'',ev:[],G:null,zt:null,mf:null,bkmap:null}, YD_TAB='all';
 try{ YD_TAB=localStorage.getItem('hqm_yd_tab')||'all'; }catch(e){}
 const YD_TL={'8201':'火箭发射','8202':'快速反弹','8203':'大笔买入','8204':'封涨停','8205':'打开涨停','8206':'有大买盘','8207':'有大卖盘','8218':'加速下跌','8219':'高台跳水','8220':'大笔卖出','8221':'封跌停','8222':'打开跌停'};
 const YD_UPT={8201:1,8202:1,8203:1,8204:1,8206:1};
 const YD_ET=['8201','8219','8204','8221','8203','8220'];
 function setYDTab(t){ YD_TAB=t; try{localStorage.setItem('hqm_yd_tab',t)}catch(e){}
   document.querySelectorAll('#ydTabs b').forEach(b=>b.classList.toggle('on',b.dataset.e===t)); renderYidong(); }
+// v5.134: 气泡点击下钻——板块涨跌/主力净流入 + 我的持仓观察同行业票 + 牛股池同行业票,一层串到底
+function ydBubbleTap(hy){
+  const dd=document.getElementById('ydDrill'); if(!dd) return;
+  const bk=YD.bkmap&&YD.bkmap[hy];
+  let h='<div style="display:flex;justify-content:space-between;align-items:center"><b style="font-size:13px;color:#e8c568">'+hy+'</b><span style="cursor:pointer;color:#5d6675;padding:0 4px" onclick="document.getElementById(\'ydDrill\').style.display=\'none\'">✕</span></div>';
+  if(bk&&bk.pct!=null) h+='<div style="padding:2px 0">板块 <b class="'+cls(bk.pct)+'">'+sg(bk.pct.toFixed(2))+'%</b> · 主力 <b style="color:'+(bk.mf>=0?'#ff5f56':'#4fd79b')+'">'+(bk.mf>=0?'+':'')+bk.mf.toFixed(1)+'亿</b></div>';
+  else h+='<div class="sub" style="padding:2px 0">板块行情未取到(非东财行业板块或限流)</div>';
+  const mine=[]; PF.holds.concat(PF.watch).forEach(x=>{ if(HY[x.code]===hy) mine.push(x); });
+  if(mine.length){ h+='<div style="color:#7e8798;padding-top:3px">我的持仓/观察 · '+mine.length+'只:</div>';
+    mine.forEach(x=>{ const f=GET(x.code), pct=F(f,32);
+      h+='<div style="display:flex;justify-content:space-between;padding:1.5px 0;cursor:pointer" onclick="openChart(\''+x.code+'\')"><span>'+x.name+'</span><b class="'+cls(pct)+'">'+(pct!=null?sg(pct.toFixed(2))+'%':'—')+'</b></div>'; }); }
+  if(POOL_CACHE&&POOL_CACHE.L){ const hits=[]; Object.keys(POOL_CACHE.L).forEach(k2=>{ (POOL_CACHE.L[k2]||[]).forEach(x=>{ if(x.ind===hy) hits.push(x); }); });
+    if(hits.length){ h+='<div style="color:#7e8798;padding-top:3px">牛股池同行业 · '+hits.length+'只:</div>';
+      hits.slice(0,6).forEach(x=>{ h+='<div style="display:flex;justify-content:space-between;padding:1.5px 0;cursor:pointer" onclick="openK(\''+x.code+'\')"><span>'+x.name+' <span class="sub">'+x.code.slice(2)+'</span></span><b class="'+cls(x.pct)+'">'+sg(x.pct)+'%</b></div>'; }); } }
+  dd.innerHTML=h; dd.style.display='';
+}
 async function loadYidong(){
   const n=Date.now(); if(n-YD_TS<75*1000){ renderYidong(); return; } YD_TS=n; // v5.127: 盘中refresh每20s触发,事件流节流降到75s,尾盘异动不再滞后5分钟
   try{
@@ -2395,6 +2412,19 @@ async function loadYidong(){
     sm.src='https://push2his.eastmoney.com/api/qt/stock/fflow/kline/get?secid=1.000001&klt=1&lmt=260&fqt=0&fields1=f1,f2,f3,f7&fields2=f51,f52&ut=b2884a393a59ad64002292a3e90d46a5&cb='+cbM+'&_='+Date.now();
     sm.onload=()=>sm.remove(); sm.onerror=()=>{ sm.remove(); if(!gm){ gm=true; clearTimeout(tmm); renderYidong(); } };
     document.body.appendChild(sm);
+  }
+  // v5.134: 行业板块行情表(东财t:2行业,名称→涨跌幅/主力净流入亿)——气泡标注+点击下钻用
+  {
+    const cbB='ydBkCb'; let gb=false;
+    const tmb=setTimeout(()=>{ if(!gb){ gb=true; renderYidong(); } },6000);
+    window[cbB]=(d)=>{ if(gb) return; gb=true; clearTimeout(tmb); try{
+      const arr=d&&d.data&&d.data.diff;
+      if(arr&&arr.length){ const m={}; arr.forEach(x=>{ m[String(x.f14)]={c:String(x.f12),pct:+x.f3,mf:(+x.f62||0)/1e8}; }); YD.bkmap=m; }
+    }catch(e){} try{ delete window[cbB]; }catch(e2){} renderYidong(); };
+    const sb2=document.createElement('script');
+    sb2.src='https://push2.eastmoney.com/api/qt/clist/get?fid=f3&po=1&pz=100&pn=1&np=1&fltt=2&invt=2&fs=m:90+t:2&fields=f12,f14,f3,f62&cb='+cbB+'&_='+Date.now();
+    sb2.onload=()=>sb2.remove(); sb2.onerror=()=>{ sb2.remove(); if(!gb){ gb=true; clearTimeout(tmb); renderYidong(); } };
+    document.body.appendChild(sb2);
   }
   // 伪板块过滤: 东财异动TOP全是融资融券/股通/昨日XX等聚合板, 真行业(BK0420-0549)/地域(BK0150-0189)直通, 概念板过黑名单
   const JUNK=/融资融券|股通|昨日|MSCI|富时|标普|证金|重仓|QFII|次新|高送转|创业板综|央视|红利|小盘|大盘|中盘|低价|高价|破净|摘帽|壳资源|预增|预亏|预盈|扭亏|减亏|亏损|热股|ST股|AB股|含H股|含GDR|转债/;
@@ -2637,13 +2667,16 @@ function renderYidong(){
       const main=series[0];
       cands.forEach((b,i)=>{ let x=XT(b.min); if(x<PL+AW+4||x>W-PR-8) return;
         let yv=zeroY; for(let j=0;j<main.pts.length;j++){ if(main.pts[j][0]===b.min){ yv=YT(main.pts[j][1]); break; } }
-        const tw=b.hy.length*9+10;
+        const bki=YD.bkmap&&YD.bkmap[b.hy]; // v5.134: 气泡带板块涨跌幅+点击下钻
+        const pTxt=bki&&bki.pct!=null?((bki.pct>=0?'+':'')+bki.pct.toFixed(1)+'%'):'';
+        const label=b.hy+pTxt;
+        const tw=b.hy.length*9+pTxt.length*5.5+12;
         x=Math.max(PL+tw/2, Math.min(W-PR-tw/2, x));
         let by=(i%2===0)?yv-16:yv+14; by=Math.max(PT+7,Math.min(H-PB-8,by));
         const cc=b.up?'#f4655f':'#2ebd7f';
-        bub+='<line x1="'+x.toFixed(1)+'" x2="'+x.toFixed(1)+'" y1="'+yv.toFixed(1)+'" y2="'+by.toFixed(1)+'" stroke="'+cc+'" stroke-width="0.6" stroke-dasharray="1.5,1.5" opacity="0.55"/>'
+        bub+='<g style="cursor:pointer" onclick="ydBubbleTap(\''+b.hy+'\')"><line x1="'+x.toFixed(1)+'" x2="'+x.toFixed(1)+'" y1="'+yv.toFixed(1)+'" y2="'+by.toFixed(1)+'" stroke="'+cc+'" stroke-width="0.6" stroke-dasharray="1.5,1.5" opacity="0.55"/>'
           +'<rect x="'+(x-tw/2).toFixed(1)+'" y="'+(by-6).toFixed(1)+'" width="'+tw+'" height="12" rx="3" fill="#161b24" stroke="'+cc+'" stroke-width="0.7" opacity="0.92"/>'
-          +'<text x="'+x.toFixed(1)+'" y="'+(by+3).toFixed(1)+'" font-size="8.5" fill="'+cc+'" text-anchor="middle">'+b.hy+'</text>';
+          +'<text x="'+x.toFixed(1)+'" y="'+(by+3).toFixed(1)+'" font-size="8.5" fill="'+cc+'" text-anchor="middle">'+label+'</text></g>';
       });
     }
     svg='<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;display:block;touch-action:none" onpointermove="ydCrossMv(event)" onpointerleave="ydCrossOff()">'
@@ -4608,17 +4641,17 @@ function drawWLMin(){
       if(tB2-tA2>=4&&arr[tB2]>arr[tA2]){ const sl3=(arr[tB2]-arr[tA2])/(tB2-tA2), lv2=sl3*(arr.length-1-tA2)+arr[tA2];
         const brk2=arr[arr.length-1]<lv2*0.998;
         const X2=i5=>i5/(arr.length-1)*(W-6)+3, Y2=v3=>3+(1-(v3-mn)/rg)*(H-6);
-        c2.strokeStyle=brk2?'rgba(255,111,102,.9)':'rgba(53,217,154,.75)'; c2.lineWidth=1.1; c2.setLineDash([4,2]);
+        c2.strokeStyle=brk2?'rgba(255,95,86,.95)':'rgba(232,197,104,.55)'; c2.lineWidth=1.1; c2.setLineDash(brk2?[]:[2,2]);
         c2.beginPath(); c2.moveTo(X2(tA2),Y2(arr[tA2])); c2.lineTo(W-2,Y2(lv2)); c2.stroke(); c2.setLineDash([]);
       } }
-    // v5.133: 实时回归趋势线(盘中分钟数据才有;最小二乘,斜率上=红/下=绿,虚线贯穿全天)
+    // v5.134: 三角线——支撑=实时最低点怼到现价(斜上),压力=实时最高点压到现价(斜下),金色点线(红绿底上都显眼)
     if(isMin&&arr.length>10){
-      const nn=arr.length; let sx=0,sy=0,sxy=0,sxx=0;
-      arr.forEach((v,i)=>{ sx+=i; sy+=v; sxy+=i*v; sxx+=i*i; });
-      const sl=(nn*sxy-sx*sy)/((nn*sxx-sx*sx)||1), ic=(sy-sl*sx)/nn;
-      const Yr=v=>Math.max(2,Math.min(H-2,3+(1-(v-mn)/rg)*(H-6)));
-      c2.strokeStyle=sl>=0?'rgba(244,101,95,.8)':'rgba(46,189,127,.8)'; c2.lineWidth=1; c2.setLineDash([5,3]);
-      c2.beginPath(); c2.moveTo(3,Yr(ic)); c2.lineTo(W-3,Yr(ic+sl*(nn-1))); c2.stroke(); c2.setLineDash([]);
+      let iLo=0,iHi=0; arr.forEach((v,i)=>{ if(v<arr[iLo]) iLo=i; if(v>arr[iHi]) iHi=i; });
+      const XT2=i5=>i5/(arr.length-1)*(W-6)+3, YT2=v3=>Math.max(2,Math.min(H-2,3+(1-(v3-mn)/rg)*(H-6)));
+      c2.strokeStyle='rgba(232,197,104,.9)'; c2.lineWidth=1; c2.setLineDash([2,2]);
+      c2.beginPath(); c2.moveTo(XT2(iLo),YT2(arr[iLo])); c2.lineTo(W-3,YT2(arr[arr.length-1])); c2.stroke();
+      c2.beginPath(); c2.moveTo(XT2(iHi),YT2(arr[iHi])); c2.lineTo(W-3,YT2(arr[arr.length-1])); c2.stroke();
+      c2.setLineDash([]);
     }
   });
 }
