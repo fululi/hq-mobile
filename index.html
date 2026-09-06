@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#0b0e12">
-<title>我的持仓 · 行情 v5.120 · 0906-2310构建</title>
+<title>我的持仓 · 行情 v5.121 · 0906-2250构建</title>
 <style>
 /* v5.46 完整版换肤:暗色行情终端。只动皮肤——所有类名/布局/交互结构原样,计算逻辑零改动。
    调色板: 底#0b0e12 卡#14181e 描边#232a33 主文#dde3ec 次文#b0bac7 涨#f4655f 跌#2ebd7f 强调#4c8dff */
@@ -292,7 +292,7 @@ details.fold:not([open]) > summary { margin-bottom:0; }
 </head>
 <body>
 <div class="top">
-  <h1>我的持仓 · 行情 <span style="font-size:10px;color:#8d97a6;font-weight:400">v5.120·0906-2310</span></h1>
+  <h1>我的持仓 · 行情 <span style="font-size:10px;color:#8d97a6;font-weight:400">v5.121·0906-2250</span></h1>
   <div class="btns"><button class="ed" id="ntfyBtn" onclick="toggleNtfy()">提醒</button><button class="ed" id="edBtn" onclick="setView('holds');document.getElementById('holds').style.display='';toggleEdit()">编辑</button><button class="rf" onclick="refresh(1)">刷新</button></div>
 </div>
 <div class="navSticky" id="navSticky">
@@ -336,7 +336,7 @@ details.fold:not([open]) > summary { margin-bottom:0; }
 <div class="sec"><span>🐂 主力意图牛股池</span><span class="sub" id="poolDate"></span></div>
 <div class="card" style="padding:10px 12px;margin-bottom:10px">
   <div style="font-size:12px;color:#7e8798;line-height:1.7">沪深300全成分 · 严选口径：控盘度≥100且10日上升（黄线在建）· 近10日≥4天缩量休整（洗盘）· 收盘&gt;EMA20且上行 · 60日区间20~60% —— 一只不符合就显示0，宁缺毋滥</div>
-  <div style="display:flex;align-items:center;gap:10px;margin:9px 0 6px"><button class="add" id="poolBtn" onclick="poolScan(1)">⟳ 扫描（约1分钟）</button><span class="sub" id="poolProg"></span></div>
+  <div style="display:flex;align-items:center;gap:10px;margin:9px 0 6px"><button class="add" id="poolBtn" onclick="poolScan(1)">⟳ 全A扫描（约3分钟）</button><span class="sub" id="poolProg"></span></div>
   <div style="height:6px;background:#1c232e;border-radius:3px;overflow:hidden"><i id="poolBar" style="display:block;height:100%;background:#4a9eff;width:0"></i></div>
   <div id="poolOut"></div>
 </div>
@@ -3249,44 +3249,96 @@ let POOL_CACHE = null;
 try{ const _px = JSON.parse(localStorage.getItem('hqm_pool_v1')); if(_px && _px.date === today()) POOL_CACHE = _px; }catch(e){}
 function poolShow(){
   const d = document.getElementById('poolDate');
-  if(POOL_CACHE){ if(d) d.textContent = '数据截至' + POOL_CACHE.d0 + ' · 扫描于' + POOL_CACHE.ts; poolRender(POOL_CACHE.pool, POOL_CACHE.pre); }
+  if(POOL_CACHE){ if(d) d.textContent = '数据截至' + POOL_CACHE.d0 + ' · 扫描于' + POOL_CACHE.ts + ' · ' + (POOL_CACHE.uni||300) + '只'; poolRender(POOL_CACHE.pool, POOL_CACHE.pre, POOL_CACHE.lt); }
   else poolScan();
 }
-function poolRender(pool, pre){
+function poolRender(pool, pre, lt){
   const out = document.getElementById('poolOut'); if(!out) return;
   const row = (x, tag) => `<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 2px;border-bottom:1px solid #1c232e;cursor:pointer;gap:8px" onclick="openK('${x.code}')">`
     + '<span style="white-space:nowrap"><b>' + x.name + '</b> <span class="sub">' + x.code.replace(/^(sh|sz)/, '') + '</span>' + (tag || '') + '</span>'
     + '<span class="sub" style="text-align:right">收' + x.close.toFixed(2) + ' · 控盘' + x.ctrl + ' · 区间' + Math.round(x.pos * 100) + '% · 缩量' + x.wash + '天</span></div>';
-  let h = '<div style="margin:8px 0 4px;font-size:13px">今日符合 <b style="color:' + (pool.length ? '#4fd79b' : '#7e8798') + ';font-size:16px">' + pool.length + ' 只</b>' + (pool.length ? '' : ' · 宁缺毋滥，空仓等信号') + '</div>';
+  const ltRow = (x) => `<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 2px;border-bottom:1px solid #1c232e;cursor:pointer;gap:8px" onclick="openK('${x.code}')">`
+    + '<span style="white-space:nowrap"><b>' + x.name + '</b> <span class="sub">' + x.code.replace(/^(sh|sz)/, '') + '</span> <span style="color:#ff9f6e;font-size:11px">' + x.tag + '</span></span>'
+    + '<span class="sub" style="text-align:right">收' + x.close.toFixed(2) + '</span></div>';
+  let h = '<div style="margin:8px 0 4px;font-size:13px">严选池（控盘洗盘·低位）今日符合 <b style="color:' + (pool.length ? '#4fd79b' : '#7e8798') + ';font-size:16px">' + pool.length + ' 只</b>' + (pool.length ? '' : ' · 宁缺毋滥，空仓等信号') + '</div>';
   h += pool.map(x => row(x)).join('');
   if(pre && pre.length) h += '<div style="margin:12px 0 4px;font-size:12px;color:#7e8798">预备队（洗盘差1天，明日再缩量1天即符合）</div>' + pre.slice(0, 10).map(x => row(x, ' <span style="color:#e8c568;font-size:11px">预备</span>')).join('');
+  if(lt){
+    h += '<div style="margin:16px 0 4px;font-size:13px">龙头观察（涨停动量）<b style="color:#ff9f6e;font-size:16px"> ' + lt.length + ' 只</b></div>';
+    h += '<div style="font-size:11px;color:#8d97a6;margin:0 0 6px;line-height:1.6">⚠️ 回测无超额收益（全A抽样250日：启动+0.38% vs 基准+0.34%，主升/二波为负）——只看不追，买点必须等回踩确认</div>';
+    h += lt.slice(0, 30).map(ltRow).join('');
+  }
   out.innerHTML = h;
 }
 let POOL_RUN = false;
+// v5.121: 宇宙扩到全A(alla_universe.json 4599只, 腾讯rank接口落盘), 滤ST/退/PT; 失败回退内嵌沪深300
+let POOL_UNI_ALL = null;
+async function poolUni(){
+  if(POOL_UNI_ALL) return POOL_UNI_ALL;
+  try{ const r = await fetch('alla_universe.json?_=' + Date.now());
+    if(r.ok){ const a = await r.json(); if(a && a.length > 1000){ POOL_UNI_ALL = a.filter(x => !/ST|退|PT/.test(x[1])); return POOL_UNI_ALL; } }
+  }catch(e){}
+  return POOL_UNI;
+}
+// v5.121: 龙头观察轨(仅最新一日, 口径=longtou_bt回测v1; 回测无超额, 只看不追)
+function ltCheck(code, name, rows){
+  const kl = rows.map(x => ({ d: x[0], o: +x[1], c: +x[2], h: +x[3], l: +x[4], v: +x[5] }));
+  const n = kl.length; if(n < 130) return null;
+  const lim = (code.indexOf('sz300') === 0 || code.indexOf('sz301') === 0 || code.indexOf('sh688') === 0) ? 19.8 : 9.8;
+  const isLU = (j) => { const pct = (kl[j].c / kl[j - 1].c - 1) * 100; return pct >= lim - 0.3 && kl[j].l < kl[j].h; };
+  const cs = kl.map(x => x.c);
+  const k2 = 2 / 21; let e = null; const e20 = new Array(n).fill(null);
+  for(let t = 0; t < n; t++){ e = e === null ? cs[t] : cs[t] * k2 + e * (1 - k2); e20[t] = e; }
+  const i = n - 1;
+  if(e20[i] === null || e20[i - 5] === null) return null;
+  const up = cs[i] > e20[i] && e20[i] > e20[i - 5];
+  let hi20 = -1e18, hi60 = -1e18, hiOld = -1e18, loNew = 1e18;
+  for(let j = i - 19; j <= i; j++){ if(kl[j].h > hi20) hi20 = kl[j].h; }
+  for(let j = i - 59; j <= i; j++){ if(kl[j].h > hi60) hi60 = kl[j].h; }
+  let lu5 = false, lu60 = false, cnt = 0, luOld = false;
+  for(let j = i - 4; j <= i; j++) if(isLU(j)) lu5 = true;
+  for(let j = i - 64; j <= i - 5; j++) if(j >= 1 && isLU(j)) lu60 = true;
+  for(let j = i - 19; j <= i; j++) if(isLU(j)) cnt++;
+  for(let j = i - 60; j <= i - 20; j++){ if(isLU(j)) luOld = true; if(kl[j].h > hiOld) hiOld = kl[j].h; }
+  for(let j = i - 19; j <= i; j++) if(kl[j].l < loNew) loNew = kl[j].l;
+  const pctI = (kl[i].c / kl[i - 1].c - 1) * 100;
+  const ma5v = (kl[i - 1].v + kl[i - 2].v + kl[i - 3].v + kl[i - 4].v + kl[i - 5].v) / 5;
+  const dd20 = (hi20 - cs[i]) / hi20;
+  const tags = [];
+  if(lu5 && !lu60 && up && dd20 <= 0.12) tags.push('启动');
+  if(cnt >= 2 && cs[i] >= hi60 * 0.98 && cs[i] > e20[i]) tags.push('主升');
+  if(luOld && loNew <= hiOld * 0.88 && pctI >= 2 && kl[i].v > ma5v * 1.5 && up) tags.push('二波');
+  if(!tags.length) return null;
+  return { code: code, name: name, close: cs[i], tag: tags.join('/') };
+}
 async function poolScan(manual){
   if(POOL_RUN) return; POOL_RUN = true;
   const prog = document.getElementById('poolProg'), bar = document.getElementById('poolBar');
-  const pool = [], pre = []; let done = 0, fail = 0, d0 = '';
-  const upd = () => { if(prog) prog.textContent = done + '/' + POOL_UNI.length + (fail ? ' ·失败' + fail : ''); if(bar) bar.style.width = (done / POOL_UNI.length * 100) + '%'; };
+  const UNI = await poolUni();
+  const pool = [], pre = [], lt = []; let done = 0, fail = 0, d0 = '';
+  const upd = () => { if(prog) prog.textContent = done + '/' + UNI.length + (fail ? ' ·失败' + fail : ''); if(bar) bar.style.width = (done / UNI.length * 100) + '%'; };
   let idx = 0;
   async function worker(){
-    while(idx < POOL_UNI.length){
-      const i = idx++; const u = POOL_UNI[i], code = u[0], name = u[1];
+    while(idx < UNI.length){
+      const i = idx++; const u = UNI[i], code = u[0], name = u[1];
       try{
         const r = await kfetch('/appstock/app/fqkline/get?param=' + code + ',day,,,500,qfq');
         const d = await r.json(); const node = d.data[code], rows = node.qfqday || node.day;
-        if(rows && rows.length >= 120){ if(!d0) d0 = rows[rows.length - 1][0]; const hit = poolCheck(code, name, rows); if(hit) (hit.pre ? pre : pool).push(hit); }
+        if(rows && rows.length >= 120){ if(!d0) d0 = rows[rows.length - 1][0];
+          const hit = poolCheck(code, name, rows); if(hit) (hit.pre ? pre : pool).push(hit);
+          const lth = ltCheck(code, name, rows); if(lth) lt.push(lth);
+        }
         else fail++;
       }catch(e){ fail++; }
-      done++; if(done % 10 === 0 || done === POOL_UNI.length) upd();
+      done++; if(done % 10 === 0 || done === UNI.length) upd();
     }
   }
   await Promise.all([worker(), worker(), worker(), worker(), worker(), worker()]);
   pool.sort((a, b) => b.ctrl - a.ctrl); pre.sort((a, b) => b.ctrl - a.ctrl);
-  POOL_CACHE = { date: today(), ts: new Date().toTimeString().slice(0, 5), d0: d0, pool: pool, pre: pre };
+  POOL_CACHE = { date: today(), ts: new Date().toTimeString().slice(0, 5), d0: d0, uni: UNI.length, pool: pool, pre: pre, lt: lt };
   try{ localStorage.setItem('hqm_pool_v1', JSON.stringify(POOL_CACHE)); }catch(e){}
-  poolRender(pool, pre);
-  const d2 = document.getElementById('poolDate'); if(d2) d2.textContent = '数据截至' + d0 + ' · 扫描于' + POOL_CACHE.ts;
+  poolRender(pool, pre, lt);
+  const d2 = document.getElementById('poolDate'); if(d2) d2.textContent = '数据截至' + d0 + ' · 扫描于' + POOL_CACHE.ts + ' · ' + UNI.length + '只';
   POOL_RUN = false;
 }
 function poolCheck(code, name, rows){
