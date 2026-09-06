@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#0b0e12">
-<title>我的持仓 · 行情 v5.134 · 0907-0650构建</title>
+<title>我的持仓 · 行情 v5.135 · 0907-0715构建</title>
 <style>
 /* v5.46 完整版换肤:暗色行情终端。只动皮肤——所有类名/布局/交互结构原样,计算逻辑零改动。
    调色板: 底#0b0e12 卡#14181e 描边#232a33 主文#dde3ec 次文#b0bac7 涨#f4655f 跌#2ebd7f 强调#4c8dff */
@@ -326,7 +326,7 @@ details.fold:not([open]) > summary { margin-bottom:0; }
 </head>
 <body>
 <div class="top">
-  <h1>我的持仓 · 行情 <span style="font-size:10px;color:#8d97a6;font-weight:400">v5.134·0907-0650</span></h1>
+  <h1>我的持仓 · 行情 <span style="font-size:10px;color:#8d97a6;font-weight:400">v5.135·0907-0715</span></h1>
   <div class="btns"><button class="ed" id="ntfyBtn" onclick="toggleNtfy()">提醒</button><button class="ed" id="edBtn" onclick="setView('holds');document.getElementById('holds').style.display='';toggleEdit()">编辑</button><button class="rf" onclick="refresh(1)">刷新</button></div>
 </div>
 <div class="navSticky" id="navSticky">
@@ -2360,7 +2360,7 @@ function setYDTab(t){ YD_TAB=t; try{localStorage.setItem('hqm_yd_tab',t)}catch(e
 // v5.134: 气泡点击下钻——板块涨跌/主力净流入 + 我的持仓观察同行业票 + 牛股池同行业票,一层串到底
 function ydBubbleTap(hy){
   const dd=document.getElementById('ydDrill'); if(!dd) return;
-  const bk=YD.bkmap&&YD.bkmap[hy];
+  const bk=YD.bkmap&&YD.bkmap[String(hy).replace(/[ⅠⅡⅢ]+$/,'')];
   let h='<div style="display:flex;justify-content:space-between;align-items:center"><b style="font-size:13px;color:#e8c568">'+hy+'</b><span style="cursor:pointer;color:#5d6675;padding:0 4px" onclick="document.getElementById(\'ydDrill\').style.display=\'none\'">✕</span></div>';
   if(bk&&bk.pct!=null) h+='<div style="padding:2px 0">板块 <b class="'+cls(bk.pct)+'">'+sg(bk.pct.toFixed(2))+'%</b> · 主力 <b style="color:'+(bk.mf>=0?'#ff5f56':'#4fd79b')+'">'+(bk.mf>=0?'+':'')+bk.mf.toFixed(1)+'亿</b></div>';
   else h+='<div class="sub" style="padding:2px 0">板块行情未取到(非东财行业板块或限流)</div>';
@@ -2400,18 +2400,29 @@ async function loadYidong(){
     sa.onload=()=>sa.remove(); sa.onerror=()=>{ sa.remove(); if(!ga){ ga=true; clearTimeout(tma); renderYidong(); } };
     document.body.appendChild(sa);
   });
-  // v5.133: 上证分钟级主力净流入(push2his fflow klt=1, f52=该分钟主力净额元)——分时图下方资金幅图数据源
+  // v5.133: 上证分钟级主力净流入(fflow klt=1, f52=该分钟主力净额元)——分时图下方资金幅图数据源
+  // v5.135: 改K站已验证口径——双通道竞速(push2his+push2)+lmt=0+ut用K站同款,单通道push2his之前经常空手
   {
-    const cbM='ydMfCb'; let gm=false;
-    const tmm=setTimeout(()=>{ if(!gm){ gm=true; renderYidong(); } },6000);
-    window[cbM]=(d)=>{ if(gm) return; gm=true; clearTimeout(tmm); try{
+    const q='secid=1.000001&ut=fa5fd1943c7b386f172d6893dbfba10b&lmt=0&klt=1&fields1=f1,f2,f3,f7&fields2=f51,f52,f53,f54,f55,f56';
+    let doneM=false;
+    const parseM=(d)=>{ try{
       const kl=d&&d.data&&d.data.klines;
-      if(kl&&kl.length){ YD.mf=kl.map(s2=>{ const a=String(s2).split(','); return [a[0].slice(-5).replace(':',''), +a[1]/1e8]; }); } // [hhmm, 主力净流入亿]
-    }catch(e){} try{ delete window[cbM]; }catch(e2){} renderYidong(); };
-    const sm=document.createElement('script');
-    sm.src='https://push2his.eastmoney.com/api/qt/stock/fflow/kline/get?secid=1.000001&klt=1&lmt=260&fqt=0&fields1=f1,f2,f3,f7&fields2=f51,f52&ut=b2884a393a59ad64002292a3e90d46a5&cb='+cbM+'&_='+Date.now();
-    sm.onload=()=>sm.remove(); sm.onerror=()=>{ sm.remove(); if(!gm){ gm=true; clearTimeout(tmm); renderYidong(); } };
-    document.body.appendChild(sm);
+      if(kl&&kl.length){ const day=String(kl[kl.length-1]).split(',')[0].slice(0,10);
+        const rows=[];
+        kl.forEach(s2=>{ const a=String(s2).split(','); if(a[0].slice(0,10)!==day) return;
+          const tm2=a[0].slice(11,16).replace(':',''); const v2=+a[1];
+          if(tm2&&!isNaN(v2)) rows.push([tm2, v2/1e8]); });
+        if(rows.length>5){ YD.mf=rows; return true; } }
+    }catch(e){} return false; };
+    ['push2his','push2'].forEach(host=>{
+      const cbM='ydMfCb'+host;
+      window[cbM]=(d)=>{ if(!doneM&&parseM(d)){ doneM=true; renderYidong(); } try{ delete window[cbM]; }catch(e2){} };
+      const sm=document.createElement('script');
+      sm.src='https://'+host+'.eastmoney.com/api/qt/stock/fflow/kline/get?'+q+'&cb='+cbM+'&_='+Date.now();
+      sm.onload=()=>sm.remove(); sm.onerror=()=>sm.remove();
+      document.body.appendChild(sm);
+    });
+    setTimeout(()=>{ if(!doneM){ doneM=true; renderYidong(); } },9000);
   }
   // v5.134: 行业板块行情表(东财t:2行业,名称→涨跌幅/主力净流入亿)——气泡标注+点击下钻用
   {
@@ -2419,7 +2430,7 @@ async function loadYidong(){
     const tmb=setTimeout(()=>{ if(!gb){ gb=true; renderYidong(); } },6000);
     window[cbB]=(d)=>{ if(gb) return; gb=true; clearTimeout(tmb); try{
       const arr=d&&d.data&&d.data.diff;
-      if(arr&&arr.length){ const m={}; arr.forEach(x=>{ m[String(x.f14)]={c:String(x.f12),pct:+x.f3,mf:(+x.f62||0)/1e8}; }); YD.bkmap=m; }
+      if(arr&&arr.length){ const m={}; arr.forEach(x=>{ m[String(x.f14).replace(/[ⅠⅡⅢ]+$/,'')]={c:String(x.f12),pct:+x.f3,mf:(+x.f62||0)/1e8}; }); YD.bkmap=m; }
     }catch(e){} try{ delete window[cbB]; }catch(e2){} renderYidong(); };
     const sb2=document.createElement('script');
     sb2.src='https://push2.eastmoney.com/api/qt/clist/get?fid=f3&po=1&pz=100&pn=1&np=1&fltt=2&invt=2&fs=m:90+t:2&fields=f12,f14,f3,f62&cb='+cbB+'&_='+Date.now();
@@ -2667,7 +2678,7 @@ function renderYidong(){
       const main=series[0];
       cands.forEach((b,i)=>{ let x=XT(b.min); if(x<PL+AW+4||x>W-PR-8) return;
         let yv=zeroY; for(let j=0;j<main.pts.length;j++){ if(main.pts[j][0]===b.min){ yv=YT(main.pts[j][1]); break; } }
-        const bki=YD.bkmap&&YD.bkmap[b.hy]; // v5.134: 气泡带板块涨跌幅+点击下钻
+        const bki=YD.bkmap&&YD.bkmap[String(b.hy).replace(/[ⅠⅡⅢ]+$/,'')]; // v5.134: 气泡带板块涨跌幅+点击下钻; v5.135: 剥ⅠⅡⅢ后缀对齐板块表
         const pTxt=bki&&bki.pct!=null?((bki.pct>=0?'+':'')+bki.pct.toFixed(1)+'%'):'';
         const label=b.hy+pTxt;
         const tw=b.hy.length*9+pTxt.length*5.5+12;
@@ -2702,17 +2713,19 @@ function renderYidong(){
       +'收 '+lp.toFixed(2)+' ('+(lp>=pre?'+':'')+pctp(lp).toFixed(2)+'%)'
       +(series.length>1?' <span style="color:#4a9eff">—上证</span><span style="color:#e8b64c">—均价</span>'+(series.length>2?'<span style="color:#c98cff">—权重50</span>':''):'');
     // v5.133: 资金幅图(分钟主力净流入柱+累计线,与分时同时间轴XT,钱看得清清楚楚)
+    // v5.135: 东财f52本身=当日截至该分钟累计值(K站0906已踩过二次累加的坑)——柱=相邻累计差分,线=累计原值
     if(YD.mf&&YD.mf.length>5){
       const H2=46, PT2=4, PB2=4;
-      const mxt=Math.max.apply(null,YD.mf.map(m=>Math.abs(m[1])))||0.01;
-      let cum=0; const cums=YD.mf.map(m=>{ cum+=m[1]; return cum; });
+      const deltas=YD.mf.map((m,i)=>i? m[1]-YD.mf[i-1][1] : m[1]);
+      const mxt=Math.max.apply(null,deltas.map(d2=>Math.abs(d2)))||0.01;
+      const cums=YD.mf.map(m=>m[1]);
       const mxc=Math.max.apply(null,cums.map(c2=>Math.abs(c2)))||0.01;
       const YB=v=>PT2+(mxt-v)/(2*mxt)*(H2-PT2-PB2);
       const YC=v=>PT2+(mxc-v)/(2*mxc)*(H2-PT2-PB2);
       const bw=Math.max(1,(W-PL-PR-AW)/242-0.4);
       let bars='';
-      YD.mf.forEach(m=>{ const xx=XT(m[0]); if(xx<PL+AW-1||xx>W-PR) return;
-        bars+='<rect x="'+(xx-bw/2).toFixed(1)+'" y="'+Math.min(YB(0),YB(m[1])).toFixed(1)+'" width="'+bw.toFixed(1)+'" height="'+Math.max(0.6,Math.abs(YB(m[1])-YB(0))).toFixed(1)+'" fill="'+(m[1]>=0?'rgba(244,101,95,.85)':'rgba(46,189,127,.85)')+'"><title>'+m[0].slice(0,2)+':'+m[0].slice(2)+' 主力'+(m[1]>=0?'+':'')+m[1].toFixed(2)+'亿</title></rect>'; });
+      YD.mf.forEach((m,i)=>{ const xx=XT(m[0]); if(xx<PL+AW-1||xx>W-PR) return; const d2=deltas[i];
+        bars+='<rect x="'+(xx-bw/2).toFixed(1)+'" y="'+Math.min(YB(0),YB(d2)).toFixed(1)+'" width="'+bw.toFixed(1)+'" height="'+Math.max(0.6,Math.abs(YB(d2)-YB(0))).toFixed(1)+'" fill="'+(d2>=0?'rgba(244,101,95,.85)':'rgba(46,189,127,.85)')+'"><title>'+m[0].slice(0,2)+':'+m[0].slice(2)+' 该分钟'+(d2>=0?'+':'')+d2.toFixed(2)+'亿 · 累计'+(m[1]>=0?'+':'')+m[1].toFixed(1)+'亿</title></rect>'; });
       const cpl=YD.mf.map((m,i)=>XT(m[0]).toFixed(1)+','+YC(cums[i]).toFixed(1)).join(' ');
       const cumEnd=cums[cums.length-1];
       mfsvg='<svg viewBox="0 0 '+W+' '+H2+'" style="width:100%;display:block;margin-top:2px">'
