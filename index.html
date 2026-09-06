@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#0b0e12">
-<title>我的持仓 · 行情 v5.136 · 0907-0735构建</title>
+<title>我的持仓 · 行情 v5.137 · 0907-0755构建</title>
 <style>
 /* v5.46 完整版换肤:暗色行情终端。只动皮肤——所有类名/布局/交互结构原样,计算逻辑零改动。
    调色板: 底#0b0e12 卡#14181e 描边#232a33 主文#dde3ec 次文#b0bac7 涨#f4655f 跌#2ebd7f 强调#4c8dff */
@@ -326,7 +326,7 @@ details.fold:not([open]) > summary { margin-bottom:0; }
 </head>
 <body>
 <div class="top">
-  <h1>我的持仓 · 行情 <span style="font-size:10px;color:#8d97a6;font-weight:400">v5.136·0907-0735</span></h1>
+  <h1>我的持仓 · 行情 <span style="font-size:10px;color:#8d97a6;font-weight:400">v5.137·0907-0755</span></h1>
   <div class="btns"><button class="ed" id="ntfyBtn" onclick="toggleNtfy()">提醒</button><button class="ed" id="edBtn" onclick="setView('holds');document.getElementById('holds').style.display='';toggleEdit()">编辑</button><button class="rf" onclick="refresh(1)">刷新</button></div>
 </div>
 <div class="navSticky" id="navSticky">
@@ -396,10 +396,12 @@ details.fold:not([open]) > summary { margin-bottom:0; }
 
 <div class="ovcard" id="zbBox" style="display:none">
   <div class="ovt"><span>📰 交易线索 <span class="ovtabs" id="zbTabs"><b data-w="zao" class="on" onclick="setZbW('zao')">早报</b><b data-w="wan" onclick="setZbW('wan')">晚报</b></span><span class="ovtm" id="zbTm"></span></span>
-  <span><a id="zbFull" href="zaobao/latest.html" target="_blank" style="font-size:11px;color:#4a9eff;text-decoration:none">全屏⤢</a></span></div>
+  <span><span id="zbColl" onclick="zbToggle()" style="cursor:pointer;font-size:11px;color:#7e8798;margin-right:9px">收起▴</span><a id="zbFull" href="zaobao/latest.html" target="_blank" style="font-size:11px;color:#4a9eff;text-decoration:none">全屏⤢</a></span></div>
+  <div id="zbBody">
   <iframe id="zbFrame" src="zaobao/latest.html" style="width:100%;border:0;display:block;background:#0a0a0c;border-radius:0 0 10px 10px" scrolling="no" title="交易线索早报晚报"></iframe>
   <div id="zbEmpty" style="display:none;padding:14px 12px;font-size:12px;color:#7e8798;line-height:1.8"></div>
-  <div class="ovfoot">定时任务自动生成 · 交易日 8:12 早报(盘前线索) / 16:12 晚报(全天总结+线索应验检验) · 打开页面即读最新一期</div>
+  <div class="ovfoot">联网信息定时推送 · 交易日 8:12 早报(盘前线索) / 16:12 晚报(全天总结+线索应验检验) · 打开页面即读最新一期</div>
+  </div>
 </div>
 </div>
 </div>
@@ -1817,9 +1819,19 @@ function loadWTrend(done){
   }
   const codes=[...PF.holds.map(h=>h.code), ...PF.watch.map(w=>w.code)];
   const out={}, osig={}, odt={}, oext={}, olv={}, oposn={}, obt={}, odtri={}; let left=codes.length, finished=false;
+  const okC={}; // v5.137: 成功抓到的票才更新——失败票保留上次值,不再整体替换(WT=...)导致徽章一会儿有一会儿没
   const closesMap={};
   const fin=()=>{ if(finished) return; finished=true;
-    if(Object.keys(out).length){ WT=out; WSIG=osig; DT=odt; EXT=oext; LV=olv; DTRI=odtri; WT_DATE=today(); lsSet(WTK, JSON.stringify({date:WT_DATE, wt:WT, wsig:WSIG, dt:DT, ext:EXT, lv:LV, dtri:DTRI})); }
+    const _ks=Object.keys(okC);
+    if(_ks.length){ _ks.forEach(c=>{
+        if(out[c]!=null) WT[c]=out[c]; else delete WT[c];
+        if(odt[c]!=null) DT[c]=odt[c]; else delete DT[c];
+        if(oext[c]!=null) EXT[c]=oext[c]; else delete EXT[c];
+        if(olv[c]!=null) LV[c]=olv[c]; else delete LV[c];
+        if(osig[c]!=null) WSIG[c]=osig[c]; else delete WSIG[c];
+        if(odtri[c]!=null) DTRI[c]=odtri[c]; else delete DTRI[c];
+      });
+      WT_DATE=today(); lsSet(WTK, JSON.stringify({date:WT_DATE, wt:WT, wsig:WSIG, dt:DT, ext:EXT, lv:LV, dtri:DTRI})); }
     if(Object.keys(oposn).length){ DPOS=oposn; try{ localStorage.setItem(DPOSK,JSON.stringify({date:today(),pos:DPOS})); }catch(e){} }
     if(Object.keys(obt).length){ BT=obt; try{ localStorage.setItem(BTK,JSON.stringify({date:today(),bt:BT})); }catch(e){} }
     computeLink(closesMap);
@@ -1830,7 +1842,7 @@ function loadWTrend(done){
   codes.forEach(c=>{
     PHTRY[c]=1; // 试过就记账:整批重抓很贵,不能让一只永远算不出的票每20秒拖着全体重跑
     let got=false;
-    const tick=(val,dv,ev,lv)=>{ if(got) return; got=true; if(val!=null) out[c]=val; if(dv!=null) odt[c]=dv; if(ev!=null) oext[c]=ev; if(lv!=null) olv[c]=lv; if(--left===0) fin(); };
+    const tick=(val,dv,ev,lv,ok)=>{ if(got) return; got=true; if(ok){ okC[c]=1; if(val!=null) out[c]=val; if(dv!=null) odt[c]=dv; if(ev!=null) oext[c]=ev; if(lv!=null) olv[c]=lv; } if(--left===0) fin(); };
     const ctrl=new AbortController(); const tm=setTimeout(()=>ctrl.abort(), 6000);
     kfetch('/appstock/app/fqkline/get?param='+c+',day,,,640,qfq', {signal:ctrl.signal})
       .then(r=>r.json()).then(d=>{
@@ -1883,7 +1895,7 @@ function loadWTrend(done){
           if(dev<=-2||rsi<=30) ev={dir:-1, dev:+dev.toFixed(1), rsi:Math.round(rsi), stab:lo3>=loPrev};
           else if(dev>=2||rsi>=70) ev={dir:1, dev:+dev.toFixed(1), rsi:Math.round(rsi), stab:hi3<=hiPrev};
         }catch(e2){}
-        tick(last>e*1.02?1:(last<e*0.98?-1:0), dlast>de*1.01?1:(dlast<de*0.99?-1:0), ev, {we:+e.toFixed(2), de:+de.toFixed(2)});
+        tick(last>e*1.02?1:(last<e*0.98?-1:0), dlast>de*1.01?1:(dlast<de*0.99?-1:0), ev, {we:+e.toFixed(2), de:+de.toFixed(2)}, true);
       })
       .catch(()=>{ clearTimeout(tm); tick(null); });
   });
@@ -2904,7 +2916,15 @@ function loadZaobao(re){
   fr.onerror=()=>{ fr.style.display='none'; emp.style.display='block';
     emp.textContent = ZB_W==='wan' ? '今日晚报将在收盘后由定时任务自动生成(约16:12推送)' : '今日早报暂未生成(交易日 8:12 定时任务推送)'; };
 }
-if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',()=>loadZaobao(0)); else loadZaobao(0);
+if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',()=>{ loadZaobao(0); zbApplyColl(); }); else { loadZaobao(0); zbApplyColl(); }
+// v5.137: 早报卡可伸缩折叠(状态记忆)
+function zbApplyColl(){
+  const c=(function(){ try{ return localStorage.getItem('hqm_zb_coll')==='1'; }catch(e){ return false; } })();
+  const body=document.getElementById('zbBody'), lbl=document.getElementById('zbColl');
+  if(body) body.style.display=c?'none':'';
+  if(lbl) lbl.textContent=c?'展开▾':'收起▴';
+}
+function zbToggle(){ try{ localStorage.setItem('hqm_zb_coll', localStorage.getItem('hqm_zb_coll')==='1'?'0':'1'); }catch(e){} zbApplyColl(); }
 // v5.90: 加载完成回调合并重绘——WT/ATR/M15同一帧内先后回来只render一次,手机端不掉帧
 let _rderT=0;
 function scheduleRender(){ if(_rderT) return; _rderT=setTimeout(()=>{ _rderT=0; render(); },120); }
