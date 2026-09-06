@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#0b0e12">
-<title>我的持仓 · 行情 v5.132 · 0907-0615构建</title>
+<title>我的持仓 · 行情 v5.133 · 0907-0635构建</title>
 <style>
 /* v5.46 完整版换肤:暗色行情终端。只动皮肤——所有类名/布局/交互结构原样,计算逻辑零改动。
    调色板: 底#0b0e12 卡#14181e 描边#232a33 主文#dde3ec 次文#b0bac7 涨#f4655f 跌#2ebd7f 强调#4c8dff */
@@ -326,7 +326,7 @@ details.fold:not([open]) > summary { margin-bottom:0; }
 </head>
 <body>
 <div class="top">
-  <h1>我的持仓 · 行情 <span style="font-size:10px;color:#8d97a6;font-weight:400">v5.132·0907-0615</span></h1>
+  <h1>我的持仓 · 行情 <span style="font-size:10px;color:#8d97a6;font-weight:400">v5.133·0907-0635</span></h1>
   <div class="btns"><button class="ed" id="ntfyBtn" onclick="toggleNtfy()">提醒</button><button class="ed" id="edBtn" onclick="setView('holds');document.getElementById('holds').style.display='';toggleEdit()">编辑</button><button class="rf" onclick="refresh(1)">刷新</button></div>
 </div>
 <div class="navSticky" id="navSticky">
@@ -368,16 +368,19 @@ details.fold:not([open]) > summary { margin-bottom:0; }
   <div class="ovfoot" id="mfFoot"></div>
 </div>
 
+<div id="sentiHomeSlot">
 <div class="ovcard" id="sentiBox" style="display:none">
   <div class="ovt"><span>大盘温度 · 情绪 <span class="ovtm" id="sentiTm"></span></span><span class="snow" id="sentiNow"></span></div>
   <div id="sentiChart"></div>
   <div class="ovfoot" id="sentiFoot"></div>
 </div>
+</div>
 
 <div id="ydHomeSlot">
 <div class="ovcard" id="ydBox" style="display:none">
   <div class="ovt"><span>大盘异动 · 上证分时 <span class="ovtm" id="ydTm"></span></span>
-  <span class="ovtabs" id="ydTabs"><b data-e="all" class="on" onclick="setYDTab('all')">事件流</b><b data-e="tail" onclick="setYDTab('tail')">尾盘掘金</b><b data-e="mine" onclick="setYDTab('mine')">持股异动</b><b data-e="zt" onclick="setYDTab('zt')">涨停榜</b></span></div>
+  <span><span class="ovtabs" id="ydVw"><b data-v="line" class="on" onclick="setYDVw('line')">分时</b><b data-v="k" onclick="setYDVw('k')">K线</b></span>
+  <span class="ovtabs" id="ydTabs"><b data-e="all" class="on" onclick="setYDTab('all')">事件流</b><b data-e="tail" onclick="setYDTab('tail')">尾盘掘金</b><b data-e="mine" onclick="setYDTab('mine')">持股异动</b><b data-e="zt" onclick="setYDTab('zt')">涨停榜</b></span></span></div>
   <div id="ydChart"></div>
   <div id="ydEv"></div>
   <div class="ovfoot" id="ydFoot"></div>
@@ -429,6 +432,7 @@ details.fold:not([open]) > summary { margin-bottom:0; }
   <div class="ovfoot">权重=股数×现价(缺行情按票数) · 行业=东财口径 · 右列=该行业持仓今日加权涨跌</div>
 </div>
 </div>
+<div id="sentiHoldsSlot" style="margin-bottom:10px"></div>
 <div id="holds" style="display:none"></div>
 <details class="fold" data-fk="mrg" open style="margin-bottom:10px">
 <summary class="sec"><span>合并总账 · 跨账户同票合一</span><span class="sub">买两次卖一次都并一笔 · 点行看分账户</span></summary>
@@ -2345,7 +2349,7 @@ function renderSenti(){
 }
 
 // ---- 模块4 v5.125: 大盘异动(分时+十字光标 / 事件流6类 / 尾盘掘金14:30后 / 我的自选过滤) ----
-let YD_TS=0, YD={line:null,bk:null,dt:'',ev:[],G:null,zt:null}, YD_TAB='all';
+let YD_TS=0, YD={line:null,bk:null,dt:'',ev:[],G:null,zt:null,mf:null}, YD_TAB='all';
 try{ YD_TAB=localStorage.getItem('hqm_yd_tab')||'all'; }catch(e){}
 const YD_TL={'8201':'火箭发射','8202':'快速反弹','8203':'大笔买入','8204':'封涨停','8205':'打开涨停','8206':'有大买盘','8207':'有大卖盘','8218':'加速下跌','8219':'高台跳水','8220':'大笔卖出','8221':'封跌停','8222':'打开跌停'};
 const YD_UPT={8201:1,8202:1,8203:1,8204:1,8206:1};
@@ -2379,6 +2383,19 @@ async function loadYidong(){
     sa.onload=()=>sa.remove(); sa.onerror=()=>{ sa.remove(); if(!ga){ ga=true; clearTimeout(tma); renderYidong(); } };
     document.body.appendChild(sa);
   });
+  // v5.133: 上证分钟级主力净流入(push2his fflow klt=1, f52=该分钟主力净额元)——分时图下方资金幅图数据源
+  {
+    const cbM='ydMfCb'; let gm=false;
+    const tmm=setTimeout(()=>{ if(!gm){ gm=true; renderYidong(); } },6000);
+    window[cbM]=(d)=>{ if(gm) return; gm=true; clearTimeout(tmm); try{
+      const kl=d&&d.data&&d.data.klines;
+      if(kl&&kl.length){ YD.mf=kl.map(s2=>{ const a=String(s2).split(','); return [a[0].slice(-5).replace(':',''), +a[1]/1e8]; }); } // [hhmm, 主力净流入亿]
+    }catch(e){} try{ delete window[cbM]; }catch(e2){} renderYidong(); };
+    const sm=document.createElement('script');
+    sm.src='https://push2his.eastmoney.com/api/qt/stock/fflow/kline/get?secid=1.000001&klt=1&lmt=260&fqt=0&fields1=f1,f2,f3,f7&fields2=f51,f52&ut=b2884a393a59ad64002292a3e90d46a5&cb='+cbM+'&_='+Date.now();
+    sm.onload=()=>sm.remove(); sm.onerror=()=>{ sm.remove(); if(!gm){ gm=true; clearTimeout(tmm); renderYidong(); } };
+    document.body.appendChild(sm);
+  }
   // 伪板块过滤: 东财异动TOP全是融资融券/股通/昨日XX等聚合板, 真行业(BK0420-0549)/地域(BK0150-0189)直通, 概念板过黑名单
   const JUNK=/融资融券|股通|昨日|MSCI|富时|标普|证金|重仓|QFII|次新|高送转|创业板综|央视|红利|小盘|大盘|中盘|低价|高价|破净|摘帽|壳资源|预增|预亏|预盈|扭亏|减亏|亏损|热股|ST股|AB股|含H股|含GDR|转债/;
   const evs=[], seen={};
@@ -2563,7 +2580,7 @@ function renderYidong(){
   if(!YD.line&&!YD.bk&&!(YD.ev&&YD.ev.length)&&!YD.zt){ box.style.display='none'; return; }
   box.style.display='';
   const W=340,H=120,PL=6,PR=40,PT=10,PB=15;
-  let svg='';
+  let svg='', mfsvg='';
   if(YD.line){
     const pts=YD.line.pts, pre=YD.line.pre, n=pts.length;
     // v5.126: 三线同图(%归一): 蓝=上证 黄=分时均价(东财trends2) 紫=上证50(权重股怎么走一眼对比)
@@ -2651,8 +2668,30 @@ function renderYidong(){
     document.getElementById('ydTm').innerHTML=(YD.line.date?YD.line.date.slice(4,6)+'/'+YD.line.date.slice(6)+' ':'')
       +'收 '+lp.toFixed(2)+' ('+(lp>=pre?'+':'')+pctp(lp).toFixed(2)+'%)'
       +(series.length>1?' <span style="color:#4a9eff">—上证</span><span style="color:#e8b64c">—均价</span>'+(series.length>2?'<span style="color:#c98cff">—权重50</span>':''):'');
+    // v5.133: 资金幅图(分钟主力净流入柱+累计线,与分时同时间轴XT,钱看得清清楚楚)
+    if(YD.mf&&YD.mf.length>5){
+      const H2=46, PT2=4, PB2=4;
+      const mxt=Math.max.apply(null,YD.mf.map(m=>Math.abs(m[1])))||0.01;
+      let cum=0; const cums=YD.mf.map(m=>{ cum+=m[1]; return cum; });
+      const mxc=Math.max.apply(null,cums.map(c2=>Math.abs(c2)))||0.01;
+      const YB=v=>PT2+(mxt-v)/(2*mxt)*(H2-PT2-PB2);
+      const YC=v=>PT2+(mxc-v)/(2*mxc)*(H2-PT2-PB2);
+      const bw=Math.max(1,(W-PL-PR-AW)/242-0.4);
+      let bars='';
+      YD.mf.forEach(m=>{ const xx=XT(m[0]); if(xx<PL+AW-1||xx>W-PR) return;
+        bars+='<rect x="'+(xx-bw/2).toFixed(1)+'" y="'+Math.min(YB(0),YB(m[1])).toFixed(1)+'" width="'+bw.toFixed(1)+'" height="'+Math.max(0.6,Math.abs(YB(m[1])-YB(0))).toFixed(1)+'" fill="'+(m[1]>=0?'rgba(244,101,95,.85)':'rgba(46,189,127,.85)')+'"><title>'+m[0].slice(0,2)+':'+m[0].slice(2)+' 主力'+(m[1]>=0?'+':'')+m[1].toFixed(2)+'亿</title></rect>'; });
+      const cpl=YD.mf.map((m,i)=>XT(m[0]).toFixed(1)+','+YC(cums[i]).toFixed(1)).join(' ');
+      const cumEnd=cums[cums.length-1];
+      mfsvg='<svg viewBox="0 0 '+W+' '+H2+'" style="width:100%;display:block;margin-top:2px">'
+        +'<line x1="'+PL+'" x2="'+(W-PR)+'" y1="'+YB(0)+'" y2="'+YB(0)+'" stroke="#3a4350" stroke-width="0.7"/>'
+        +bars
+        +'<polyline points="'+cpl+'" fill="none" stroke="#e8c568" stroke-width="1.1"/>'
+        +'<text x="'+(PL+AW+2)+'" y="'+(PT2+7)+'" font-size="8" fill="#8d97a6">主力净流入·分钟柱 <tspan fill="#e8c568">—累计</tspan></text>'
+        +'<text x="'+(W-2)+'" y="'+(PT2+7)+'" font-size="9.5" font-weight="700" fill="'+(cumEnd>=0?'#f4655f':'#2ebd7f')+'" text-anchor="end">累计'+(cumEnd>=0?'+':'')+cumEnd.toFixed(1)+'亿</text>'
+        +'</svg>';
+    }
   }
-  document.getElementById('ydChart').innerHTML=svg;
+  if(YD_VW==='line') document.getElementById('ydChart').innerHTML=svg+mfsvg; // v5.133: K线视图时iframe不被覆写
   // 事件流: all=全部最新12条 tail=14:30后(尾盘掘金,诚实口径:东财无专有尾盘接口) mine=命中持仓/观察票 zt=涨停池
   const evBox=document.getElementById('ydEv');
   if(YD_TAB==='zt'){ renderZtPool(evBox); }
@@ -4295,6 +4334,18 @@ function placeYd(){
   if(!home||!holds) return;
   const to=(VIEW==='holds')?holds:home;
   if(yd.parentNode!==to) to.appendChild(yd);
+  // v5.133: 大盘温度卡同规矩——持仓页也要看,跟着视图搬
+  const sb=document.getElementById('sentiBox'), sh=document.getElementById('sentiHomeSlot'), ss=document.getElementById('sentiHoldsSlot');
+  if(sb&&sh&&ss){ const to2=(VIEW==='holds')?ss:sh; if(sb.parentNode!==to2) to2.appendChild(sb); }
+}
+// v5.133: 异动卡视图切换——分时(默认) / 内嵌K站上证指数K线
+let YD_VW='line';
+function setYDVw(v){
+  YD_VW=v;
+  document.querySelectorAll('#ydVw b').forEach(b=>b.classList.toggle('on',b.dataset.v===v));
+  const ch=document.getElementById('ydChart');
+  if(v==='k'){ if(ch) ch.innerHTML='<iframe src="'+ksUrl('sh000001',true)+'" style="width:100%;height:320px;border:0;border-radius:8px;background:#0d1117"></iframe>'; }
+  else renderYidong();
 }
 function setView(v){
   if(v!=='detail'&&DETAIL_I!=null){ const host=document.getElementById('vDetailBody'); if(host) host.innerHTML=''; DETAIL_I=null; }
@@ -4436,6 +4487,48 @@ function renderWL(){
   box.querySelectorAll('canvas.wlmin').forEach(cv2=>{ cv2.addEventListener('click',ev=>{ ev.stopPropagation(); const cd2=cv2.getAttribute('data-min'); openChart(cd2,(WLTAB==='h'?PF.holds.map(h3=>h3.code):PF.watch.map(w=>w.code))); }); });
   drawWLMin();
   renderHyDist();
+  loadPfFlow();
+}
+// v5.133: 持仓资金流入角标——持仓股主力净流入合计(f62),点开看超大/大/中/小单拆分(f66/72/78/84),东财口径·全市场资金非你的成交
+let PFF={rows:null,sum:0,ts:0}, PFF_OPEN=false;
+function loadPfFlow(){
+  const box=document.getElementById('pfFlowBox'); if(!box) return;
+  if(!PF.holds.length){ box.style.display='none'; return; }
+  const n=Date.now(); if(n-PFF.ts<75*1000){ renderPfFlow(); return; } PFF.ts=n;
+  const codes=[]; PF.holds.forEach(h=>{ const s2=(h.code.indexOf('sh')===0?'1.':'0.')+h.code.slice(2); if(codes.indexOf(s2)<0) codes.push(s2); });
+  const cbN='pfFlowCb'; let got=false;
+  const tm=setTimeout(()=>{ if(!got){ got=true; } },6000);
+  window[cbN]=(d)=>{ if(got) return; got=true; clearTimeout(tm); try{
+    const arr=d&&d.data&&d.data.diff;
+    if(arr&&arr.length){ const rows={}; let sum=0;
+      arr.forEach(x=>{ const c6=String(x.f12); rows[c6]={name:String(x.f14||c6),z:+x.f62||0,super:+x.f66||0,big:+x.f72||0,mid:+x.f78||0,small:+x.f84||0}; sum+=+x.f62||0; });
+      PFF.rows=rows; PFF.sum=sum;
+    }
+  }catch(e){} try{ delete window[cbN]; }catch(e2){} renderPfFlow(); };
+  const s=document.createElement('script');
+  s.src='https://push2.eastmoney.com/api/qt/ulist.np/get?fltt=2&invt=2&fields=f12,f14,f62,f66,f72,f78,f84&secids='+codes.join(',')+'&cb='+cbN+'&_='+Date.now();
+  s.onload=()=>s.remove(); s.onerror=()=>{ s.remove(); if(!got){ got=true; clearTimeout(tm); } };
+  document.body.appendChild(s);
+}
+function pfFlowTg(){ PFF_OPEN=!PFF_OPEN; renderPfFlow(); }
+function renderPfFlow(){
+  const box=document.getElementById('pfFlowBox'), bd=document.getElementById('pfFlowBadge'), pn=document.getElementById('pfFlowPanel');
+  if(!box||!bd||!pn) return;
+  if(!PFF.rows){ box.style.display='none'; return; }
+  box.style.display='';
+  const s=PFF.sum, cc=s>=0?'#ff5f56':'#4fd79b';
+  bd.innerHTML='<span style="color:#8d97a6">持仓主力</span> <span style="color:'+cc+'">'+(s>=0?'+':'')+fmtY(s)+'</span> <span style="color:#5d6675;font-size:10px">'+(PFF_OPEN?'▾':'▸')+'</span>';
+  if(PFF_OPEN){
+    let h='<div style="color:#7e8798;padding-bottom:4px">个股主力净流入(全市场口径·非你的成交) · 超大/大/中/小单拆分</div>';
+    Object.keys(PFF.rows).sort((a,b)=>PFF.rows[b].z-PFF.rows[a].z).forEach(c6=>{
+      const r=PFF.rows[c6], zc=r.z>=0?'#ff5f56':'#4fd79b';
+      const f2=(v)=>'<span style="color:'+(v>=0?'#ff5f56':'#4fd79b')+'">'+fmtY(v)+'</span>';
+      h+='<div style="display:flex;justify-content:space-between;gap:8px;padding:2.5px 0;border-top:1px solid #1d232c">'
+        +'<span style="color:#c8d0dc">'+r.name+'</span><span style="color:'+zc+';font-weight:700">'+fmtY(r.z)+'</span></div>'
+        +'<div style="display:flex;justify-content:space-between;color:#5d6675;font-size:10px;padding-left:6px"><span>超大 '+f2(r.super)+' · 大 '+f2(r.big)+'</span><span>中 '+f2(r.mid)+' · 小 '+f2(r.small)+'</span></div>';
+    });
+    pn.innerHTML=h; pn.style.display='';
+  } else pn.style.display='none';
 }
 // v5.132: 持仓行业分布卡——按市值(股数×现价)聚合HY行业,右列=该行业今日加权涨跌;一眼看出仓位压在哪条线
 function renderHyDist(){
@@ -4518,6 +4611,15 @@ function drawWLMin(){
         c2.strokeStyle=brk2?'rgba(255,111,102,.9)':'rgba(53,217,154,.75)'; c2.lineWidth=1.1; c2.setLineDash([4,2]);
         c2.beginPath(); c2.moveTo(X2(tA2),Y2(arr[tA2])); c2.lineTo(W-2,Y2(lv2)); c2.stroke(); c2.setLineDash([]);
       } }
+    // v5.133: 实时回归趋势线(盘中分钟数据才有;最小二乘,斜率上=红/下=绿,虚线贯穿全天)
+    if(isMin&&arr.length>10){
+      const nn=arr.length; let sx=0,sy=0,sxy=0,sxx=0;
+      arr.forEach((v,i)=>{ sx+=i; sy+=v; sxy+=i*v; sxx+=i*i; });
+      const sl=(nn*sxy-sx*sy)/((nn*sxx-sx*sx)||1), ic=(sy-sl*sx)/nn;
+      const Yr=v=>Math.max(2,Math.min(H-2,3+(1-(v-mn)/rg)*(H-6)));
+      c2.strokeStyle=sl>=0?'rgba(244,101,95,.8)':'rgba(46,189,127,.8)'; c2.lineWidth=1; c2.setLineDash([5,3]);
+      c2.beginPath(); c2.moveTo(3,Yr(ic)); c2.lineTo(W-3,Yr(ic+sl*(nn-1))); c2.stroke(); c2.setLineDash([]);
+    }
   });
 }
 // v5.96: 合并总账——同一只票跨账户并成一笔: 总股数/加权成本/合计浮盈/今日合计/累计T净收益; 点行展开分账户明细, 右侧直达K线
@@ -5945,5 +6047,10 @@ function openWk(){
   m.style.display='block';
 }
 </script>
+<!-- v5.133: 持仓资金流入角标(右下角) —— 持仓股主力净流入合计(东财f62口径),点开看超大/大/中/小单拆分 -->
+<div id="pfFlowBox" style="display:none;position:fixed;right:8px;bottom:64px;z-index:60;max-width:86vw">
+  <div id="pfFlowBadge" onclick="pfFlowTg()" style="cursor:pointer;background:#161b22;border:1px solid #2a3442;border-radius:18px;padding:6px 12px;font-size:12px;font-weight:700;box-shadow:0 2px 10px rgba(0,0,0,.4)"></div>
+  <div id="pfFlowPanel" style="display:none;background:#12161c;border:1px solid #232a33;border-radius:10px;margin-bottom:6px;padding:8px 10px;font-size:11px;max-height:46vh;overflow-y:auto"></div>
+</div>
 </body>
 </html>
