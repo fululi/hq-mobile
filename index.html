@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#0b0e12">
-<title>我的持仓 · 行情 v5.135 · 0907-0715构建</title>
+<title>我的持仓 · 行情 v5.136 · 0907-0735构建</title>
 <style>
 /* v5.46 完整版换肤:暗色行情终端。只动皮肤——所有类名/布局/交互结构原样,计算逻辑零改动。
    调色板: 底#0b0e12 卡#14181e 描边#232a33 主文#dde3ec 次文#b0bac7 涨#f4655f 跌#2ebd7f 强调#4c8dff */
@@ -326,7 +326,7 @@ details.fold:not([open]) > summary { margin-bottom:0; }
 </head>
 <body>
 <div class="top">
-  <h1>我的持仓 · 行情 <span style="font-size:10px;color:#8d97a6;font-weight:400">v5.135·0907-0715</span></h1>
+  <h1>我的持仓 · 行情 <span style="font-size:10px;color:#8d97a6;font-weight:400">v5.136·0907-0735</span></h1>
   <div class="btns"><button class="ed" id="ntfyBtn" onclick="toggleNtfy()">提醒</button><button class="ed" id="edBtn" onclick="setView('holds');document.getElementById('holds').style.display='';toggleEdit()">编辑</button><button class="rf" onclick="refresh(1)">刷新</button></div>
 </div>
 <div class="navSticky" id="navSticky">
@@ -394,12 +394,13 @@ details.fold:not([open]) > summary { margin-bottom:0; }
   <div class="ovfoot">工作日 9:15~9:35 抓集合竞价快照(涨幅×竞价成交额,东财全A) · 窗口外只读当日缓存,过期隐藏 · 竞价强度高≠全天强,仅陈列事实</div>
 </div>
 
-<details class="fold" data-fk="sync" id="syncFold" style="display:none;margin-bottom:10px">
-<summary class="sec"><span>联动监控 · 指数带动谁</span><span class="sub" id="syncDate"></span></summary>
-<div class="card" id="syncCard" style="border:none;background:#12161c">
-  <div id="syncBody" style="font-size:13px;line-height:1.9"></div>
+<div class="ovcard" id="zbBox" style="display:none">
+  <div class="ovt"><span>📰 交易线索 <span class="ovtabs" id="zbTabs"><b data-w="zao" class="on" onclick="setZbW('zao')">早报</b><b data-w="wan" onclick="setZbW('wan')">晚报</b></span><span class="ovtm" id="zbTm"></span></span>
+  <span><a id="zbFull" href="zaobao/latest.html" target="_blank" style="font-size:11px;color:#4a9eff;text-decoration:none">全屏⤢</a></span></div>
+  <iframe id="zbFrame" src="zaobao/latest.html" style="width:100%;border:0;display:block;background:#0a0a0c;border-radius:0 0 10px 10px" scrolling="no" title="交易线索早报晚报"></iframe>
+  <div id="zbEmpty" style="display:none;padding:14px 12px;font-size:12px;color:#7e8798;line-height:1.8"></div>
+  <div class="ovfoot">定时任务自动生成 · 交易日 8:12 早报(盘前线索) / 16:12 晚报(全天总结+线索应验检验) · 打开页面即读最新一期</div>
 </div>
-</details>
 </div>
 </div>
 </div>
@@ -2873,6 +2874,37 @@ function loadSync(){
   html+='<div class="sub" style="margin-top:5px"><span class="qm" onclick="alert(\'β=该票在指数±2%日的历史放大倍数(250日)\\n该=指数今日×β\\nα=实际-理论\\nα≤-1.5 ⚠杀个股非杀大盘\\nα≥+1.5 ✦资金托\')">?</span> 指标说明点这</div>';
   bd.innerHTML=html;
 }
+// ---- v5.136: 交易线索早报/晚报卡——iframe 嵌入 zaobao|wanbao/latest.html(每日定时任务生成推送); 无文件/无标记则给提示 ----
+let ZB_W='zao';
+function zbUrl(w){ return (w==='wan'?'wanbao':'zaobao')+'/latest.html'; }
+function setZbW(w){ ZB_W=w; document.querySelectorAll('#zbTabs b').forEach(b=>b.classList.toggle('on',b.dataset.w===w)); loadZaobao(1); }
+function loadZaobao(re){
+  const box=document.getElementById('zbBox'), fr=document.getElementById('zbFrame'), emp=document.getElementById('zbEmpty');
+  if(!box||!fr||!emp) return;
+  const url=zbUrl(ZB_W);
+  box.style.display='block';
+  document.getElementById('zbFull').href=url;
+  fr.src=url+(re?(url.indexOf('?')>=0?'&':'?')+'_='+Date.now():'');
+  fr.onload=()=>{ try{
+    const doc=fr.contentDocument, root=doc&&doc.getElementById('zb-root');
+    if(!root) throw new Error('no zb-root');
+    emp.style.display='none'; fr.style.display='block';
+    const tm=doc.querySelector('[data-zbdate]'); if(tm) document.getElementById('zbTm').textContent=tm.textContent;
+    const fit=()=>{ try{ const d2=fr.contentDocument; if(!d2||d2.body.offsetWidth<100) return;
+      fr.style.height=Math.min(Math.max(d2.body.scrollHeight+8,260),4000)+'px'; }catch(e){} };
+    fit(); setTimeout(fit,700); setTimeout(fit,2000); // 总览视图后显示时宽度过0,需重fit
+    if(window.ResizeObserver){ new ResizeObserver(()=>{ if(box.offsetWidth>100) fit(); }).observe(box); } // 切回总览tab时自动重fit
+    doc.querySelectorAll('details').forEach(dd=>dd.addEventListener('toggle',()=>setTimeout(fit,60)));
+    doc.addEventListener('click',()=>setTimeout(fit,120)); // 全部展开/收起
+  }catch(e){
+    fr.style.display='none'; emp.style.display='block';
+    emp.textContent = ZB_W==='wan' ? '今日晚报将在收盘后由定时任务自动生成(约16:12推送),往期点右上角全屏看存档' : '今日早报暂未生成(交易日 8:12 定时任务推送)';
+    document.getElementById('zbTm').textContent='';
+  } };
+  fr.onerror=()=>{ fr.style.display='none'; emp.style.display='block';
+    emp.textContent = ZB_W==='wan' ? '今日晚报将在收盘后由定时任务自动生成(约16:12推送)' : '今日早报暂未生成(交易日 8:12 定时任务推送)'; };
+}
+if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',()=>loadZaobao(0)); else loadZaobao(0);
 // v5.90: 加载完成回调合并重绘——WT/ATR/M15同一帧内先后回来只render一次,手机端不掉帧
 let _rderT=0;
 function scheduleRender(){ if(_rderT) return; _rderT=setTimeout(()=>{ _rderT=0; render(); },120); }
@@ -2884,7 +2916,7 @@ function refresh(manual){
   const s=document.createElement('script');
   s.src='https://qt.gtimg.cn/q='+allCodes().join(',')+'&_='+Date.now();
   s.charset='GBK';
-  s.onload=()=>{ try{ const _q={}; allCodes().forEach(c=>{ if(window['v_'+c]) _q[c]=window['v_'+c]; }); lsSet('qc_v1',JSON.stringify({d:_q})); }catch(e){} render(); sweepPlans(); loadATR(scheduleRender); loadIdxHit(); loadWTrend(scheduleRender); loadM15(scheduleRender); loadWLMin(scheduleRender); maybeSync(); maybeFF(); maybeFFH(); maybeBKFlow(); loadSenti(); loadYidong(); loadAuct(); loadMflow(); s.remove(); done(); if(manual) toast('已刷新 · '+document.getElementById('time').textContent); };
+  s.onload=()=>{ try{ const _q={}; allCodes().forEach(c=>{ if(window['v_'+c]) _q[c]=window['v_'+c]; }); lsSet('qc_v1',JSON.stringify({d:_q})); }catch(e){} render(); sweepPlans(); loadATR(scheduleRender); loadIdxHit(); loadWTrend(scheduleRender); loadM15(scheduleRender); loadWLMin(scheduleRender); maybeSync(); loadZaobao(1); maybeFF(); maybeFFH(); maybeBKFlow(); loadSenti(); loadYidong(); loadAuct(); loadMflow(); s.remove(); done(); if(manual) toast('已刷新 · '+document.getElementById('time').textContent); };
   s.onerror=()=>{ render(); document.getElementById('time').textContent='实时接口被拦·显示缓存'; s.remove(); done(); if(manual) toast('行情接口被当前网络拦了(关代理/VPN试试),先显示缓存'); };
   document.body.appendChild(s);
 }
