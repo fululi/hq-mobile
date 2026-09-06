@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#0b0e12">
-<title>我的持仓 · 行情 v5.123 · 0907-0400构建</title>
+<title>我的持仓 · 行情 v5.124 · 0907-0330构建</title>
 <style>
 /* v5.46 完整版换肤:暗色行情终端。只动皮肤——所有类名/布局/交互结构原样,计算逻辑零改动。
    调色板: 底#0b0e12 卡#14181e 描边#232a33 主文#dde3ec 次文#b0bac7 涨#f4655f 跌#2ebd7f 强调#4c8dff */
@@ -310,7 +310,7 @@ details.fold:not([open]) > summary { margin-bottom:0; }
 </head>
 <body>
 <div class="top">
-  <h1>我的持仓 · 行情 <span style="font-size:10px;color:#8d97a6;font-weight:400">v5.123·0907-0400</span></h1>
+  <h1>我的持仓 · 行情 <span style="font-size:10px;color:#8d97a6;font-weight:400">v5.124·0907-0330</span></h1>
   <div class="btns"><button class="ed" id="ntfyBtn" onclick="toggleNtfy()">提醒</button><button class="ed" id="edBtn" onclick="setView('holds');document.getElementById('holds').style.display='';toggleEdit()">编辑</button><button class="rf" onclick="refresh(1)">刷新</button></div>
 </div>
 <div class="navSticky" id="navSticky">
@@ -378,7 +378,7 @@ details.fold:not([open]) > summary { margin-bottom:0; }
 <div class="view" id="v-pool" style="display:none">
 <div class="sec"><span>🐂 主力意图牛股池</span><span class="sub" id="poolDate"></span></div>
 <div class="card" style="padding:10px 12px;margin-bottom:10px">
-  <div style="font-size:12px;color:#7e8798;line-height:1.7">沪深300全成分 · 严选口径：控盘度≥100且10日上升（黄线在建）· 近10日≥4天缩量休整（洗盘）· 收盘&gt;EMA20且上行 · 60日区间20~60% —— 一只不符合就显示0，宁缺毋滥</div>
+  <div style="font-size:12px;color:#7e8798;line-height:1.7">全A五层：🔥刚启动 / 🚀主升 / 🔁二波 / 〰️趋势中 / ⚠️到顶风险 · 🎯信号池=形态+资金双确认（连2日主力净流入+10日≥5天流入）每日精选≤5只 · 龙头基因=近250日涨停次数 · 每日首开自动扫全天缓存，按钮手动重扫</div>
   <div style="display:flex;align-items:center;gap:10px;margin:9px 0 6px"><button class="add" id="poolBtn" onclick="poolScan(1)">⟳ 全A扫描（约3分钟）</button><span class="sub" id="poolProg"></span></div>
   <div style="height:6px;background:#1c232e;border-radius:3px;overflow:hidden"><i id="poolBar" style="display:block;height:100%;background:#4a9eff;width:0"></i></div>
   <div id="poolOut"></div>
@@ -3534,33 +3534,44 @@ let VIEW='home', DETAIL_I=null;
 try{ VIEW=localStorage.getItem('hqm_view_v1')||'home'; }catch(e){}
 // ===== v5.119: 主力意图牛股池 —— 沪深300严选扫描(浏览器端跑数, 口径=回测v2, 宁缺毋滥) =====
 const POOL_UNI = [["sh600000","浦发银行"],["sh600009","上海机场"],["sh600010","包钢股份"],["sh600011","华能国际"],["sh600015","华夏银行"],["sh600016","民生银行"],["sh600018","上港集团"],["sh600019","宝钢股份"],["sh600023","浙能电力"],["sh600025","华能水电"],["sh600028","中国石化"],["sh600029","南方航空"],["sh600030","中信证券"],["sh600031","三一重工"],["sh600036","招商银行"],["sh600039","四川路桥"],["sh600048","保利发展"],["sh600050","中国联通"],["sh600061","国投资本"],["sh600085","同仁堂"],["sh600089","特变电工"],["sh600104","上汽集团"],["sh600111","北方稀土"],["sh600115","中国东航"],["sh600132","重庆啤酒"],["sh600150","中国船舶"],["sh600176","中国巨石"],["sh600183","生益科技"],["sh600188","兖矿能源"],["sh600196","复星医药"],["sh600219","南山铝业"],["sh600233","圆通速递"],["sh600276","恒瑞医药"],["sh600309","万华化学"],["sh600332","白云山"],["sh600346","恒力石化"],["sh600362","江西铜业"],["sh600372","中航机载"],["sh600406","国电南瑞"],["sh600426","华鲁恒升"],["sh600436","片仔癀"],["sh600438","通威股份"],["sh600460","士兰微"],["sh600489","中金黄金"],["sh600515","海南机场"],["sh600519","贵州茅台"],["sh600547","山东黄金"],["sh600570","恒生电子"],["sh600584","长电科技"],["sh600585","海螺水泥"],["sh600588","用友网络"],["sh600600","青岛啤酒"],["sh600606","绿地控股"],["sh600660","福耀玻璃"],["sh600674","川投能源"],["sh600690","海尔智家"],["sh600732","爱旭股份"],["sh600741","华域汽车"],["sh600745","*ST闻泰"],["sh600754","锦江酒店"],["sh600760","中航沈飞"],["sh600795","国电电力"],["sh600803","新奥股份"],["sh600809","山西汾酒"],["sh600837","海通证券"],["sh600845","宝信软件"],["sh600875","东方电气"],["sh600886","国投电力"],["sh600887","伊利股份"],["sh600893","航发动力"],["sh600900","长江电力"],["sh600905","三峡能源"],["sh600918","中泰证券"],["sh600919","江苏银行"],["sh600926","杭州银行"],["sh600938","中国海油"],["sh600941","中国移动"],["sh600958","东方证券"],["sh600989","宝丰能源"],["sh600999","招商证券"],["sh601006","大秦铁路"],["sh601009","南京银行"],["sh601012","隆基绿能"],["sh601021","春秋航空"],["sh601059","信达证券"],["sh601066","中信建投"],["sh601088","中国神华"],["sh601100","恒立液压"],["sh601111","中国国航"],["sh601117","中国化学"],["sh601138","工业富联"],["sh601155","新城控股"],["sh601166","兴业银行"],["sh601169","北京银行"],["sh601186","中国铁建"],["sh601211","国泰海通"],["sh601225","陕西煤业"],["sh601229","上海银行"],["sh601236","红塔证券"],["sh601238","广汽集团"],["sh601288","农业银行"],["sh601318","中国平安"],["sh601319","中国人保"],["sh601328","交通银行"],["sh601336","新华保险"],["sh601360","三六零"],["sh601377","兴业证券"],["sh601390","中国中铁"],["sh601398","工商银行"],["sh601600","中国铝业"],["sh601601","中国太保"],["sh601607","上海医药"],["sh601615","明阳智能"],["sh601618","中国中冶"],["sh601628","中国人寿"],["sh601633","长城汽车"],["sh601658","邮储银行"],["sh601668","中国建筑"],["sh601669","中国电建"],["sh601688","华泰证券"],["sh601689","拓普集团"],["sh601698","中国卫通"],["sh601699","潞安环能"],["sh601728","中国电信"],["sh601766","中国中车"],["sh601788","光大证券"],["sh601799","星宇股份"],["sh601800","中国交建"],["sh601808","中海油服"],["sh601816","京沪高铁"],["sh601818","光大银行"],["sh601838","成都银行"],["sh601857","中国石油"],["sh601865","福莱特"],["sh601868","中国能建"],["sh601872","招商轮船"],["sh601877","正泰电器"],["sh601878","浙商证券"],["sh601881","中国银河"],["sh601888","中国中免"],["sh601898","中煤能源"],["sh601899","紫金矿业"],["sh601901","方正证券"],["sh601916","浙商银行"],["sh601919","中远海控"],["sh601939","建设银行"],["sh601985","中国核电"],["sh601988","中国银行"],["sh601989","中国重工"],["sh601995","中金公司"],["sh601998","中信银行"],["sh603019","中科曙光"],["sh603195","公牛集团"],["sh603259","XD药明康"],["sh603260","合盛硅业"],["sh603288","海天味业"],["sh603290","斯达半导"],["sh603369","今世缘"],["sh603392","万泰生物"],["sh603486","科沃斯"],["sh603501","豪威集团"],["sh603659","璞泰来"],["sh603799","华友钴业"],["sh603806","福斯特"],["sh603833","欧派家居"],["sh603899","晨光股份"],["sh603986","兆易创新"],["sh603993","洛阳钼业"],["sh605117","德业股份"],["sh605499","东鹏饮料"],["sh688008","澜起科技"],["sh688012","中微公司"],["sh688036","传音控股"],["sh688041","海光信息"],["sh688065","凯赛生物"],["sh688111","金山办公"],["sh688126","沪硅产业"],["sh688187","时代电气"],["sh688223","晶科能源"],["sh688256","寒武纪"],["sh688271","联影医疗"],["sh688303","大全能源"],["sh688363","华熙生物"],["sh688396","华润微"],["sh688561","奇安信"],["sh688599","天合光能"],["sh688981","中芯国际"],["sz000001","平安银行"],["sz000002","万 科Ａ"],["sz000063","中兴通讯"],["sz000069","华侨城Ａ"],["sz000100","TCL科技"],["sz000157","中联重科"],["sz000166","申万宏源"],["sz000301","东方盛虹"],["sz000333","美的集团"],["sz000338","潍柴动力"],["sz000408","藏格矿业"],["sz000425","徐工机械"],["sz000538","云南白药"],["sz000568","泸州老窖"],["sz000596","古井贡酒"],["sz000617","中油资本"],["sz000625","长安汽车"],["sz000651","格力电器"],["sz000661","长春高新"],["sz000708","中信特钢"],["sz000725","京东方Ａ"],["sz000733","振华科技"],["sz000768","中航西飞"],["sz000776","广发证券"],["sz000786","北新建材"],["sz000792","盐湖股份"],["sz000800","一汽解放"],["sz000858","五 粮 液"],["sz000876","新 希 望"],["sz000877","天山股份"],["sz000895","双汇发展"],["sz000938","紫光股份"],["sz000963","华东医药"],["sz000977","浪潮信息"],["sz000983","山西焦煤"],["sz000999","华润三九"],["sz001289","龙源电力"],["sz001979","招商蛇口"],["sz002001","新 和 成"],["sz002007","华兰生物"],["sz002027","分众传媒"],["sz002049","紫光国微"],["sz002050","三花智控"],["sz002074","国轩高科"],["sz002129","TCL中环"],["sz002142","宁波银行"],["sz002179","中航光电"],["sz002180","奔图科技"],["sz002202","金风科技"],["sz002230","科大讯飞"],["sz002236","大华股份"],["sz002241","歌尔股份"],["sz002252","上海莱士"],["sz002271","东方雨虹"],["sz002304","洋河股份"],["sz002311","海大集团"],["sz002352","顺丰控股"],["sz002371","北方华创"],["sz002410","广联达"],["sz002415","海康威视"],["sz002459","晶澳科技"],["sz002460","赣锋锂业"],["sz002466","天齐锂业"],["sz002475","立讯精密"],["sz002493","荣盛石化"],["sz002555","三七互娱"],["sz002594","比亚迪"],["sz002601","龙佰集团"],["sz002603","以岭药业"],["sz002648","卫星化学"],["sz002709","天赐材料"],["sz002714","牧原股份"],["sz002736","国信证券"],["sz002812","恩捷股份"],["sz002821","凯莱英"],["sz002841","视源股份"],["sz002916","深南电路"],["sz002920","德赛西威"],["sz002938","鹏鼎控股"],["sz003816","中国广核"],["sz300014","亿纬锂能"],["sz300015","爱尔眼科"],["sz300033","同花顺"],["sz300059","东方财富"],["sz300122","智飞生物"],["sz300124","汇川技术"],["sz300142","沃森生物"],["sz300223","君正股份"],["sz300274","阳光电源"],["sz300308","中际旭创"],["sz300316","晶盛机电"],["sz300347","泰格医药"],["sz300408","三环集团"],["sz300413","芒果超媒"],["sz300433","蓝思科技"],["sz300450","先导智能"],["sz300454","深信服"],["sz300496","中科创达"],["sz300498","温氏股份"],["sz300628","亿联网络"],["sz300661","圣邦股份"],["sz300750","宁德时代"],["sz300751","迈为股份"],["sz300759","康龙化成"],["sz300760","迈瑞医疗"],["sz300763","锦浪科技"],["sz300782","卓胜微"],["sz300896","爱美客"],["sz300919","中伟新材"],["sz300957","贝泰妮"],["sz300979","华利集团"],["sz300999","金龙鱼"],["sz301269","华大九天"]];
+// ===== v5.124: 牛股池五层卡片墙+双池+精选≤5只（形态全A + 东财fflow资金确认Top40） =====
+const POOL_LAYERS=[['start','🔥 刚启动','#ff9f6e'],['zs','🚀 主升','#ff5f56'],['eb','🔁 二波','#e8c568'],['trend','〰️ 趋势中','#4a9eff'],['top','⚠️ 到顶风险','#8d97a6']];
 let POOL_CACHE = null;
-try{ const _px = JSON.parse(localStorage.getItem('hqm_pool_v1')); if(_px && _px.date === today()) POOL_CACHE = _px; }catch(e){}
+try{ const _px = JSON.parse(localStorage.getItem('hqm_pool_v2')); if(_px && _px.date === today()) POOL_CACHE = _px; }catch(e){}
 function poolShow(){
   const d = document.getElementById('poolDate');
-  if(POOL_CACHE){ if(d) d.textContent = '数据截至' + POOL_CACHE.d0 + ' · 扫描于' + POOL_CACHE.ts + ' · ' + (POOL_CACHE.uni||300) + '只'; poolRender(POOL_CACHE.pool, POOL_CACHE.pre, POOL_CACHE.lt); }
+  if(POOL_CACHE){ if(d) d.textContent = '数据截至' + POOL_CACHE.d0 + ' · 扫描于' + POOL_CACHE.ts + ' · ' + POOL_CACHE.uni + '只'; poolRender(); }
   else poolScan();
 }
-function poolRender(pool, pre, lt){
-  const out = document.getElementById('poolOut'); if(!out) return;
-  const row = (x, tag) => `<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 2px;border-bottom:1px solid #1c232e;cursor:pointer;gap:8px" onclick="openK('${x.code}')">`
-    + '<span style="white-space:nowrap"><b>' + x.name + '</b> <span class="sub">' + x.code.replace(/^(sh|sz)/, '') + '</span>' + (tag || '') + '</span>'
-    + '<span class="sub" style="text-align:right">收' + x.close.toFixed(2) + ' · 控盘' + x.ctrl + ' · 区间' + Math.round(x.pos * 100) + '% · 缩量' + x.wash + '天</span></div>';
-  const ltRow = (x) => `<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 2px;border-bottom:1px solid #1c232e;cursor:pointer;gap:8px" onclick="openK('${x.code}')">`
-    + '<span style="white-space:nowrap"><b>' + x.name + '</b> <span class="sub">' + x.code.replace(/^(sh|sz)/, '') + '</span> <span style="color:#ff9f6e;font-size:11px">' + x.tag + '</span></span>'
-    + '<span class="sub" style="text-align:right">收' + x.close.toFixed(2) + '</span></div>';
-  let h = '<div style="margin:8px 0 4px;font-size:13px">严选池（控盘洗盘·低位）今日符合 <b style="color:' + (pool.length ? '#4fd79b' : '#7e8798') + ';font-size:16px">' + pool.length + ' 只</b>' + (pool.length ? '' : ' · 宁缺毋滥，空仓等信号') + '</div>';
-  h += pool.map(x => row(x)).join('');
-  if(pre && pre.length) h += '<div style="margin:12px 0 4px;font-size:12px;color:#7e8798">预备队（洗盘差1天，明日再缩量1天即符合）</div>' + pre.slice(0, 10).map(x => row(x, ' <span style="color:#e8c568;font-size:11px">预备</span>')).join('');
-  if(lt){
-    h += '<div style="margin:16px 0 4px;font-size:13px">龙头观察（涨停动量）<b style="color:#ff9f6e;font-size:16px"> ' + lt.length + ' 只</b></div>';
-    h += '<div style="font-size:11px;color:#8d97a6;margin:0 0 6px;line-height:1.6">⚠️ 回测无超额收益（全A抽样250日：启动+0.38% vs 基准+0.34%，主升/二波为负）——只看不追，买点必须等回踩确认</div>';
-    h += lt.slice(0, 30).map(ltRow).join('');
+function fmtY(v){ const a=Math.abs(v); return (v>=0?'+':'-')+(a>=1e8?(a/1e8).toFixed(1)+'亿':(a/1e4).toFixed(0)+'万'); }
+function poolCard(x, hot){
+  const up = x.pct >= 0;
+  const gene = x.gene >= 2 ? ' <span style="color:#e8c568;font-size:10px">基因×' + x.gene + '</span>' : '';
+  const ff = x.f10 !== undefined
+    ? '<div style="font-size:11px;color:#8d97a6;margin-top:2px">主力 当日<b style="color:' + (x.d0>=0?'#ff5f56':'#4fd79b') + '">' + fmtY(x.d0) + '</b> · 10日<b style="color:' + (x.f10>=0?'#ff5f56':'#4fd79b') + '">' + fmtY(x.f10) + '</b>(' + x.n10 + '天)' + (x.c2 ? ' · <b style="color:#ff9f6e">连2日转正</b>' : '') + '</div>'
+    : '';
+  return '<div style="padding:8px 10px;border:1px solid ' + (hot?'#e8c568':'#232a33') + ';border-radius:9px;margin:6px 0;cursor:pointer' + (hot?';background:#171a21':'') + '" onclick="openK(\'' + x.code + '\')">'
+    + '<div style="display:flex;justify-content:space-between;align-items:baseline">'
+    + '<span><b style="font-size:14px">' + x.name + '</b> <span class="sub">' + x.code.slice(2) + '</span>' + gene + '</span>'
+    + '<span><b style="color:' + (up?'#ff5f56':'#4fd79b') + ';font-size:14px">' + (up?'+':'') + x.pct + '%</b> <span class="sub">收' + x.close.toFixed(2) + '</span></span></div>'
+    + '<div style="font-size:11px;color:#8d97a6;margin-top:2px">控盘' + x.ctrl + ' · 区间' + Math.round(x.pos*100) + '% · 缩量' + x.wash + '天 · 20日' + (x.p20>=0?'+':'') + x.p20 + '%</div>' + ff + '</div>';
+}
+function poolRender(){
+  const out = document.getElementById('poolOut'); if(!out || !POOL_CACHE) return;
+  const sig = POOL_CACHE.sig || [], L = POOL_CACHE.L || {};
+  let h = '<div style="margin:10px 0 4px;font-size:13px">🎯 信号池 <span class="sub">精选≤5 · 连2日资金转正+10日≥5天流入</span></div>';
+  h += sig.length ? sig.map(x => poolCard(x, 1)).join('') : '<div class="sub" style="padding:6px 0">今日无符合 · 宁缺毋滥</div>';
+  h += '<div style="margin:14px 0 4px;font-size:13px">📡 监控池</div>';
+  for(const [k, label, color] of POOL_LAYERS){
+    const arr = L[k] || [];
+    h += '<details style="margin:4px 0"><summary style="cursor:pointer;font-size:12px;color:' + color + ';padding:4px 0">' + label + ' ' + arr.length + '只</summary>'
+      + arr.slice(0, 30).map(x => poolCard(x, 0)).join('')
+      + (arr.length > 30 ? '<div class="sub" style="padding:4px 0">…共' + arr.length + '只，仅示前30</div>' : '')
+      + '</details>';
   }
   out.innerHTML = h;
 }
 let POOL_RUN = false;
-// v5.121: 宇宙扩到全A(alla_universe.json 4599只, 腾讯rank接口落盘), 滤ST/退/PT; 失败回退内嵌沪深300
 let POOL_UNI_ALL = null;
 async function poolUni(){
   if(POOL_UNI_ALL) return POOL_UNI_ALL;
@@ -3569,70 +3580,10 @@ async function poolUni(){
   }catch(e){}
   return POOL_UNI;
 }
-// v5.121: 龙头观察轨(仅最新一日, 口径=longtou_bt回测v1; 回测无超额, 只看不追)
-function ltCheck(code, name, rows){
-  const kl = rows.map(x => ({ d: x[0], o: +x[1], c: +x[2], h: +x[3], l: +x[4], v: +x[5] }));
-  const n = kl.length; if(n < 130) return null;
-  const lim = (code.indexOf('sz300') === 0 || code.indexOf('sz301') === 0 || code.indexOf('sh688') === 0) ? 19.8 : 9.8;
-  const isLU = (j) => { const pct = (kl[j].c / kl[j - 1].c - 1) * 100; return pct >= lim - 0.3 && kl[j].l < kl[j].h; };
+function poolClassify(code, name, rows){
+  const kl = rows.map(x => ({ d: x[0], c: +x[2], h: +x[3], l: +x[4], v: +x[5] }));
+  const n = kl.length; if(n < 80) return null;
   const cs = kl.map(x => x.c);
-  const k2 = 2 / 21; let e = null; const e20 = new Array(n).fill(null);
-  for(let t = 0; t < n; t++){ e = e === null ? cs[t] : cs[t] * k2 + e * (1 - k2); e20[t] = e; }
-  const i = n - 1;
-  if(e20[i] === null || e20[i - 5] === null) return null;
-  const up = cs[i] > e20[i] && e20[i] > e20[i - 5];
-  let hi20 = -1e18, hi60 = -1e18, hiOld = -1e18, loNew = 1e18;
-  for(let j = i - 19; j <= i; j++){ if(kl[j].h > hi20) hi20 = kl[j].h; }
-  for(let j = i - 59; j <= i; j++){ if(kl[j].h > hi60) hi60 = kl[j].h; }
-  let lu5 = false, lu60 = false, cnt = 0, luOld = false;
-  for(let j = i - 4; j <= i; j++) if(isLU(j)) lu5 = true;
-  for(let j = i - 64; j <= i - 5; j++) if(j >= 1 && isLU(j)) lu60 = true;
-  for(let j = i - 19; j <= i; j++) if(isLU(j)) cnt++;
-  for(let j = i - 60; j <= i - 20; j++){ if(isLU(j)) luOld = true; if(kl[j].h > hiOld) hiOld = kl[j].h; }
-  for(let j = i - 19; j <= i; j++) if(kl[j].l < loNew) loNew = kl[j].l;
-  const pctI = (kl[i].c / kl[i - 1].c - 1) * 100;
-  const ma5v = (kl[i - 1].v + kl[i - 2].v + kl[i - 3].v + kl[i - 4].v + kl[i - 5].v) / 5;
-  const dd20 = (hi20 - cs[i]) / hi20;
-  const tags = [];
-  if(lu5 && !lu60 && up && dd20 <= 0.12) tags.push('启动');
-  if(cnt >= 2 && cs[i] >= hi60 * 0.98 && cs[i] > e20[i]) tags.push('主升');
-  if(luOld && loNew <= hiOld * 0.88 && pctI >= 2 && kl[i].v > ma5v * 1.5 && up) tags.push('二波');
-  if(!tags.length) return null;
-  return { code: code, name: name, close: cs[i], tag: tags.join('/') };
-}
-async function poolScan(manual){
-  if(POOL_RUN) return; POOL_RUN = true;
-  const prog = document.getElementById('poolProg'), bar = document.getElementById('poolBar');
-  const UNI = await poolUni();
-  const pool = [], pre = [], lt = []; let done = 0, fail = 0, d0 = '';
-  const upd = () => { if(prog) prog.textContent = done + '/' + UNI.length + (fail ? ' ·失败' + fail : ''); if(bar) bar.style.width = (done / UNI.length * 100) + '%'; };
-  let idx = 0;
-  async function worker(){
-    while(idx < UNI.length){
-      const i = idx++; const u = UNI[i], code = u[0], name = u[1];
-      try{
-        const r = await kfetch('/appstock/app/fqkline/get?param=' + code + ',day,,,500,qfq');
-        const d = await r.json(); const node = d.data[code], rows = node.qfqday || node.day;
-        if(rows && rows.length >= 120){ if(!d0) d0 = rows[rows.length - 1][0];
-          const hit = poolCheck(code, name, rows); if(hit) (hit.pre ? pre : pool).push(hit);
-          const lth = ltCheck(code, name, rows); if(lth) lt.push(lth);
-        }
-        else fail++;
-      }catch(e){ fail++; }
-      done++; if(done % 10 === 0 || done === UNI.length) upd();
-    }
-  }
-  await Promise.all([worker(), worker(), worker(), worker(), worker(), worker()]);
-  pool.sort((a, b) => b.ctrl - a.ctrl); pre.sort((a, b) => b.ctrl - a.ctrl);
-  POOL_CACHE = { date: today(), ts: new Date().toTimeString().slice(0, 5), d0: d0, uni: UNI.length, pool: pool, pre: pre, lt: lt };
-  try{ localStorage.setItem('hqm_pool_v1', JSON.stringify(POOL_CACHE)); }catch(e){}
-  poolRender(pool, pre, lt);
-  const d2 = document.getElementById('poolDate'); if(d2) d2.textContent = '数据截至' + d0 + ' · 扫描于' + POOL_CACHE.ts + ' · ' + UNI.length + '只';
-  POOL_RUN = false;
-}
-function poolCheck(code, name, rows){
-  const kl = rows.map(x => ({ d: x[0], o: +x[1], c: +x[2], h: +x[3], l: +x[4], v: +x[5] }));
-  const n = kl.length, cs = kl.map(x => x.c);
   const k2 = 2 / 21; let e = null; const e20 = new Array(n).fill(null);
   for(let i = 0; i < n; i++){ e = e === null ? cs[i] : cs[i] * k2 + e * (1 - k2); e20[i] = e; }
   let b2 = null, b4 = null, b5 = null; const ctrl = new Array(n).fill(null);
@@ -3644,21 +3595,93 @@ function poolCheck(code, name, rows){
     const b6 = (b5 + 100) - (b2 + 100); ctrl[i] = b6 > 1 ? Math.round((b6 - 1) * 2.5) : 0;
   }
   const i = n - 1;
-  if(ctrl[i] === null || ctrl[i - 10] === null) return null;
-  if(!(ctrl[i] >= 100 && ctrl[i] > ctrl[i - 10])) return null;
-  if(!(cs[i] > e20[i] && e20[i] > e20[i - 5])) return null;
-  let hi = -1e18, lo = 1e18;
-  for(let j = i - 59; j <= i; j++){ if(kl[j].h > hi) hi = kl[j].h; if(kl[j].l < lo) lo = kl[j].l; }
-  if(hi <= lo) return null;
-  const pos = (cs[i] - lo) / (hi - lo);
-  if(!(pos >= 0.2 && pos <= 0.6)) return null;
+  if(ctrl[i] === null) return null;
+  let hi = -1e18, lo = 1e18, mh60 = 0;
+  for(let j = Math.max(0, i - 59); j <= i; j++){ if(kl[j].h > hi) hi = kl[j].h; if(kl[j].l < lo) lo = kl[j].l; if(ctrl[j] !== null && ctrl[j] > mh60) mh60 = ctrl[j]; }
+  const pos = hi > lo ? (cs[i] - lo) / (hi - lo) : 0.5;
+  const p20 = i >= 20 ? (cs[i] / cs[i - 20] - 1) * 100 : 0;
+  const pct = (cs[i] / cs[i - 1] - 1) * 100;
   let wash = 0;
-  for(let j = i - 9; j <= i; j++){ const pct = (kl[j].c / kl[j - 1].c - 1) * 100;
-    const lb = kl[j].v / ((kl[j - 1].v + kl[j - 2].v + kl[j - 3].v + kl[j - 4].v + kl[j - 5].v) / 5);
-    if(pct >= -2.5 && pct <= 0.5 && lb < 0.85) wash++; }
-  if(wash >= 4) return { code: code, name: name, close: cs[i], ctrl: ctrl[i], pos: pos, wash: wash };
-  if(wash === 3) return { code: code, name: name, close: cs[i], ctrl: ctrl[i], pos: pos, wash: wash, pre: 1 };
-  return null;
+  for(let j = Math.max(6, i - 9); j <= i; j++){ const p = (kl[j].c / kl[j - 1].c - 1) * 100;
+    const lb = kl[j].v / ((kl[j - 5].v + kl[j - 4].v + kl[j - 3].v + kl[j - 2].v + kl[j - 1].v) / 5);
+    if(p >= -2.5 && p <= 0.5 && lb < 0.85) wash++; }
+  const dc5 = i >= 5 && ctrl[i - 5] !== null ? ctrl[i] - ctrl[i - 5] : 0;
+  const lim = (code.indexOf('sz300') === 0 || code.indexOf('sz301') === 0 || code.indexOf('sh688') === 0) ? 19.8 : 9.8;
+  let gene = 0;
+  for(let j = Math.max(1, n - 250); j < n; j++){ const p = (kl[j].c / kl[j - 1].c - 1) * 100; if(p >= lim - 0.3 && kl[j].l < kl[j].h) gene++; }
+  const up = cs[i] > e20[i];
+  let layer = null;
+  if(ctrl[i] >= 100 && pos >= 0.85 && pct < 0) layer = 'top';
+  else if(ctrl[i] >= 100 && up && p20 >= 15) layer = 'zs';
+  else if(mh60 >= 120 && ctrl[i] >= 50 && ctrl[i] < 120 && pos >= 0.3 && pos <= 0.65 && wash >= 4) layer = 'eb';
+  else if(dc5 > 30 && up && pos < 0.6 && p20 < 15) layer = 'start';
+  else if(up && ctrl[i] >= 50) layer = 'trend';
+  if(!layer) return null;
+  return { code: code, name: name, close: cs[i], pct: +pct.toFixed(2), ctrl: ctrl[i], pos: +pos.toFixed(2), wash: wash, p20: +p20.toFixed(1), gene: gene, layer: layer, d: kl[i].d };
+}
+function poolFF(list){
+  return new Promise(res => {
+    if(!list.length) return res();
+    let idx = 0, done = 0;
+    const prog = document.getElementById('poolProg');
+    async function one(x){
+      const cbN = '_pf' + Math.random().toString(36).slice(2);
+      await new Promise(r => {
+        let fin = false; const end = () => { if(!fin){ fin = true; r(); } };
+        const tm = setTimeout(end, 6000);
+        window[cbN] = d => { clearTimeout(tm); try{ delete window[cbN]; }catch(e){}
+          try{ const nets = d.data.klines.map(s2 => +(s2.split(',')[1]));
+            if(nets.length >= 2){ x.d0 = nets[nets.length-1];
+              x.f5 = nets.slice(-5).reduce((s3, v) => s3 + v, 0);
+              x.f10 = nets.reduce((s3, v) => s3 + v, 0);
+              x.n10 = nets.filter(v => v > 0).length;
+              x.c2 = (nets[nets.length-1] > 0 && nets[nets.length-2] > 0) ? 1 : 0; }
+          }catch(e){} end(); };
+        const sc = document.createElement('script');
+        sc.src = 'https://push2his.eastmoney.com/api/qt/stock/fflow/daykline/get?cb=' + cbN + '&lmt=10&klt=101&fields1=f1,f2,f3,f7&fields2=f51,f52&secid=' + (x.code.indexOf('sh') === 0 ? '1.' : '0.') + x.code.slice(2) + '&_=' + Date.now();
+        sc.onerror = () => { clearTimeout(tm); end(); };
+        sc.onload = () => sc.remove();
+        document.body.appendChild(sc);
+      });
+    }
+    async function worker(){ while(idx < list.length){ const x = list[idx++]; await one(x); done++; if(prog) prog.textContent = '资金确认 ' + done + '/' + list.length; } }
+    Promise.all([worker(), worker(), worker(), worker(), worker(), worker()]).then(res);
+  });
+}
+async function poolScan(manual){
+  if(POOL_RUN) return; POOL_RUN = true;
+  const prog = document.getElementById('poolProg'), bar = document.getElementById('poolBar');
+  const UNI = await poolUni();
+  const cand = []; let done = 0, fail = 0;
+  const upd = () => { if(prog) prog.textContent = done + '/' + UNI.length + (fail ? ' ·失败' + fail : ''); if(bar) bar.style.width = (done / UNI.length * 100) + '%'; };
+  let idx = 0;
+  async function worker(){
+    while(idx < UNI.length){
+      const k = idx++; const u = UNI[k], code = u[0], name = u[1];
+      try{
+        const r = await kfetch('/appstock/app/fqkline/get?param=' + code + ',day,,,500,qfq');
+        const d = await r.json(); const node = d.data[code], rows = node.qfqday || node.day;
+        if(rows && rows.length >= 120){ const hit = poolClassify(code, name, rows); if(hit) cand.push(hit); }
+        else fail++;
+      }catch(e){ fail++; }
+      done++; if(done % 10 === 0 || done === UNI.length) upd();
+    }
+  }
+  await Promise.all([worker(), worker(), worker(), worker(), worker(), worker()]);
+  const dc = {}; cand.forEach(x => dc[x.d] = (dc[x.d] || 0) + 1);
+  let d0 = '', mx = 0; for(const k in dc) if(dc[k] > mx){ mx = dc[k]; d0 = k; }
+  const fresh = cand.filter(x => x.d === d0);
+  const ffT = fresh.filter(x => x.layer === 'start' || x.layer === 'zs').sort((a2, b2) => b2.ctrl - a2.ctrl).slice(0, 40);
+  await poolFF(ffT);
+  const L = { start: [], zs: [], eb: [], trend: [], top: [] };
+  fresh.forEach(x => L[x.layer].push(x));
+  Object.values(L).forEach(arr => arr.sort((x, y) => ((y.f10 !== undefined) ? y.f10 : -1e18) - ((x.f10 !== undefined) ? x.f10 : -1e18)));
+  const sig = fresh.filter(x => (x.layer === 'start' || x.layer === 'zs') && x.c2 && x.f10 > 0 && x.n10 >= 5)
+    .sort((a2, b2) => b2.f10 - a2.f10).slice(0, 5);
+  POOL_CACHE = { date: today(), ts: new Date().toTimeString().slice(0, 5), d0: d0, uni: UNI.length, sig: sig, L: L };
+  try{ localStorage.setItem('hqm_pool_v2', JSON.stringify(POOL_CACHE)); }catch(e){}
+  poolRender();
+  POOL_RUN = false;
 }
 
 function applyView(){
