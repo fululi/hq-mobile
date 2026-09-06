@@ -292,7 +292,7 @@ details.fold:not([open]) > summary { margin-bottom:0; }
 </head>
 <body>
 <div class="top">
-  <h1>我的持仓 · 行情 <span style="font-size:10px;color:#8d97a6;font-weight:400">v5.114·0906-0600</span></h1>
+  <h1>我的持仓 · 行情 <span style="font-size:10px;color:#8d97a6;font-weight:400">v5.115·0906-1830</span></h1>
   <div class="btns"><button class="ed" id="ntfyBtn" onclick="toggleNtfy()">提醒</button><button class="ed" id="edBtn" onclick="setView('holds');document.getElementById('holds').style.display='';toggleEdit()">编辑</button><button class="rf" onclick="refresh(1)">刷新</button></div>
 </div>
 <div class="navSticky" id="navSticky">
@@ -3669,7 +3669,7 @@ function doRender(){
         let st='';
         const _dp=DPOS[h.code], _gk=Math.abs(o.x/_vw-1)*100;
         const _pr=(o.k==='s')?hitPr(_dp&&_dp.U,_gk):((o.k==='b')?hitPr(_dp&&_dp.D,_gk):null);
-        const _prS=(_pr!=null)?'<span class="pr'+(_pr>=50?' hi':(_pr<=20?' lo':''))+'">往绩'+_pr+'%</span> ':'';
+        const _prS=(_pr!=null)?'<span class="pr'+(_pr>=50?' hi':(_pr<=20?' lo':''))+'">触及'+_pr+'%</span> ':'';
         const _cx=(o.k==='s')?(p>=o.x):((o.k==='b')?(p<=o.x):false);
         const _touchok=mktLive()&&mktMin()>=5;
         const _ev=(_touchok&&(o.k==='s'||o.k==='b'))?touchCross(dst,o.t,p,o.x,o.k==='s'?'sell':'buy'):null;
@@ -3685,10 +3685,10 @@ function doRender(){
         if(o.k==='s'){
           const ev=touchSeen(dst,o.t,o.x), dayCross=hi!=null&&hi>=o.x;
           // v5.113: 休市后不撒"到过/未到"的谎(档位是下一交易日的,今日高低是昨天的)——只展示往绩触及率
-          st=_prS+(!mktLive()?'<span class="dim">休市·往绩=历史同幅度触及率</span>':(_cx?'<b style="color:#f4655f">现价越过</b>':(ev?'已记录触发':(dayCross?'<span style="color:#d99a2b">日高到过·时点未知</span>':'无触发记录'))));
+          st=_prS+(!mktLive()?'<span class="dim">休市·触及率=近一年同深度天数占比</span>':(_cx?'<b style="color:#f4655f">现价越过</b>':(ev?'已记录触发':(dayCross?'<span style="color:#d99a2b">日高到过·时点未知</span>':'无触发记录'))));
         } else if(o.k==='b'){
           const ev=touchSeen(dst,o.t,o.x), dayCross=lo!=null&&lo<=o.x;
-          st=_prS+(!mktLive()?'<span class="dim">休市·往绩=历史同幅度触及率</span>':(_cx?'<b style="color:#34c07c">现价越过</b>':(ev?'已记录触发':(dayCross?'<span style="color:#d99a2b">日低到过·时点未知</span>':'无触发记录'))));
+          st=_prS+(!mktLive()?'<span class="dim">休市·触及率=近一年同深度天数占比</span>':(_cx?'<b style="color:#34c07c">现价越过</b>':(ev?'已记录触发':(dayCross?'<span style="color:#d99a2b">日低到过·时点未知</span>':'无触发记录'))));
         }
         else if(o.k==='c'){ const pl=(p/h.cost-1)*100; st='<b class="'+cls(pl)+'">'+sg(pl.toFixed(1))+'%</b>'; }
         else st=dst.vw?(_vwok?'基准':'<span class="dim">锚'+(dst.vwAt?'于'+dst.vwAt.slice(11):'已锁定')+'</span>')
@@ -3806,7 +3806,7 @@ function doRender(){
       ${_pd?`<div style="margin:6px 0;padding:8px 12px;border-radius:9px;font-weight:800;font-size:13.5px;background:rgba(255,144,102,.12);color:#ff9066">🛑 恐慌下跌日 ${pct!=null?sg(pct.toFixed(1))+'%':''} · 先卖后买——先记一笔卖出,接回档才解锁 · 档位已按极端日放宽</div>`:(!_pd&&_soldT&&(pct!=null&&pct<=-3)?`<div style="margin:6px 0;padding:6px 12px;border-radius:9px;font-weight:700;font-size:12.5px;background:rgba(46,189,127,.10);color:#4fd79b">✓ 恐慌日·今天已先卖 · 接回档位已解锁,跌到位照常提示</div>`:'')}
       <details class="fold" data-fk="wb-${h.code}"><summary style="font-size:12px;color:#8d97a6;padding:4px 0;cursor:pointer">水位·档位明细(实时)</summary>${actBar}</details>
       ${(BATTLE[i]={code:h.code,buys:tr.buys,sells:tr.sells,preLo:preLo,preHi:preHi,cost:h.cost,p3:(p!=null&&p<10),lev:(lg&&lg.hi>0&&lg.lo>0)?{hi:lg.hi,lo:lg.lo}:null},'')}
-      <details class="fold" data-fk="ks-${i}" ontoggle="ksOpen(${i})" style="margin-top:6px;border-top:none;padding-top:0"><summary>盘中作战图 · 内嵌版（拖拽/双指缩放/十字线 · 1分K可切）</summary><iframe id="ksf_${i}" class="ksf"></iframe></details>
+      <details class="fold" data-fk="ks-${i}" ontoggle="ksOpen(${i})" style="margin-top:6px;border-top:none;padding-top:0"><summary>📈 作战图 ▾ <span class="dim" style="font-size:10px">内嵌K站·可拖可缩·1分K</span></summary><iframe id="ksf_${i}" class="ksf"></iframe></details>
       <a href="https://fululi.github.io/k-station/?code=${h.code}&simple=1&lines=${tr.buys.map(x=>'b'+x.toFixed(2)).concat(tr.sells.map(x=>'s'+x.toFixed(2))).join(',')}&trades=${encodeURIComponent(TLOG.filter(r=>r.code===h.code&&r.d===today()&&r.t).map(r=>{const a3=[];if(r.sell!=null)a3.push(r.d+' '+r.t+',s,'+r.sell);if(r.buy!=null)a3.push(r.d+' '+r.t+',b,'+r.buy);return a3.join(';');}).join(';'))}" target="_blank" style="display:block;text-align:right;margin-top:5px;color:#7aa8ff;text-decoration:none;font-size:12.5px">全屏看图 ↗</a>
       
       <div class="grid2">
