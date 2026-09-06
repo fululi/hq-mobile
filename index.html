@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#0b0e12">
-<title>我的持仓 · 行情 v5.117 · 0906-2025构建</title>
+<title>我的持仓 · 行情 v5.118 · 0906-2105构建</title>
 <style>
 /* v5.46 完整版换肤:暗色行情终端。只动皮肤——所有类名/布局/交互结构原样,计算逻辑零改动。
    调色板: 底#0b0e12 卡#14181e 描边#232a33 主文#dde3ec 次文#b0bac7 涨#f4655f 跌#2ebd7f 强调#4c8dff */
@@ -292,7 +292,7 @@ details.fold:not([open]) > summary { margin-bottom:0; }
 </head>
 <body>
 <div class="top">
-  <h1>我的持仓 · 行情 <span style="font-size:10px;color:#8d97a6;font-weight:400">v5.117·0906-2025</span></h1>
+  <h1>我的持仓 · 行情 <span style="font-size:10px;color:#8d97a6;font-weight:400">v5.118·0906-2105</span></h1>
   <div class="btns"><button class="ed" id="ntfyBtn" onclick="toggleNtfy()">提醒</button><button class="ed" id="edBtn" onclick="setView('holds');document.getElementById('holds').style.display='';toggleEdit()">编辑</button><button class="rf" onclick="refresh(1)">刷新</button></div>
 </div>
 <div class="navSticky" id="navSticky">
@@ -319,6 +319,7 @@ details.fold:not([open]) > summary { margin-bottom:0; }
 
 <div class="idx" id="idx"></div>
 <div class="mkt" id="mkt"></div>
+<div class="mkt" id="bkff" style="display:none;padding-bottom:42px"></div>
 
 <details class="fold" data-fk="sync" id="syncFold" style="display:none;margin-bottom:10px">
 <summary class="sec"><span>联动监控 · 指数带动谁</span><span class="sub" id="syncDate"></span></summary>
@@ -1889,6 +1890,33 @@ function ffhTxt(code){
   return `近5日主力 ${blocks} 净<b class="${cls(sum)}">${sum>=0?'+':''}${fmtAmt(sum)}</b>`;
 }
 
+// v5.118: 行业资金流(东财板块clist, 流入/流出各TOP4)——总览图一条带, 限流静默不显示
+let BKFF_TS=0;
+function maybeBKFF(){ const n=Date.now(); if(n-BKFF_TS>10*60*1000){ BKFF_TS=n; loadBKFF(); } }
+function loadBKFF(){
+  const out={up:null,dn:null}; let left=2;
+  const fin=()=>{ if(--left>0) return;
+    const e=document.getElementById('bkff'); if(!e) return;
+    if(!out.up&&!out.dn){ e.style.display='none'; return; }
+    const row=(arr,up)=>arr.map(r=>{ const hot=r.f14&&HOTBK[r.f14];
+      return `<span style="${hot?'font-weight:800':''}">${r.f14}<b class="${up?'up':'down'}">${up?'+':'-'}${fmtAmt(Math.abs(r.f62))}</b></span>`; }).join(' ');
+    e.innerHTML=`行业资金 ${out.up?'入▸'+row(out.up,true):''}${out.up&&out.dn?' · ':''}${out.dn?'出▸'+row(out.dn,false):''}`;
+    e.style.display=''; };
+  [['up','1'],['dn','0']].forEach(([k,po],i)=>{
+    const cbN='bkffCb'+i; let got=false;
+    const tm=setTimeout(()=>{ if(!got){ got=true; fin(); } }, 6000);
+    window[cbN]=(d)=>{ if(got) return; got=true; clearTimeout(tm); try{
+      const arr=d&&d.data&&d.data.diff; if(arr&&arr.length) out[k]=arr.slice(0,3);
+    }catch(e){} try{ delete window[cbN]; }catch(e2){} fin(); };
+    const sc=document.createElement('script');
+    sc.src='https://push2.eastmoney.com/api/qt/clist/get?fid=f62&po='+po+'&pz=3&pn=1&np=1&fltt=2&invt=2&fs=m:90+t:2&fields=f12,f14,f62&cb='+cbN+'&_='+Date.now();
+    sc.onload=()=>sc.remove(); sc.onerror=()=>{ sc.remove(); if(!got){ got=true; clearTimeout(tm); try{ delete window[cbN]; }catch(e2){} fin(); } };
+    document.body.appendChild(sc);
+  });
+}
+// 持仓/观察票所属行业(命中即加粗, 一眼看到"我的板块在进钱还是出钱")
+const HOTBK={'通信设备':1,'玻璃玻纤':1}; // 0906实测: 永鼎f127=通信设备, 巨石f127=玻璃玻纤
+
 // v5.117: 恐慌日资金事实行(东财主力净额+占成交, 腾讯量比字段49)——只陈列事实,不改任何规则
 // 回测0906: 双闸门"错杀解锁买侧"不通过(错杀组3/5日跑输锁定组); 唯一显著=主力净占比<=-15%次日胜率44% vs 58%
 function ffFact(code){
@@ -1960,7 +1988,7 @@ function refresh(manual){
   const s=document.createElement('script');
   s.src='https://qt.gtimg.cn/q='+allCodes().join(',')+'&_='+Date.now();
   s.charset='GBK';
-  s.onload=()=>{ try{ const _q={}; allCodes().forEach(c=>{ if(window['v_'+c]) _q[c]=window['v_'+c]; }); lsSet('qc_v1',JSON.stringify({d:_q})); }catch(e){} render(); sweepPlans(); loadATR(scheduleRender); loadIdxHit(); loadWTrend(scheduleRender); loadM15(scheduleRender); loadWLMin(scheduleRender); maybeSync(); maybeFF(); maybeFFH(); s.remove(); done(); if(manual) toast('已刷新 · '+document.getElementById('time').textContent); };
+  s.onload=()=>{ try{ const _q={}; allCodes().forEach(c=>{ if(window['v_'+c]) _q[c]=window['v_'+c]; }); lsSet('qc_v1',JSON.stringify({d:_q})); }catch(e){} render(); sweepPlans(); loadATR(scheduleRender); loadIdxHit(); loadWTrend(scheduleRender); loadM15(scheduleRender); loadWLMin(scheduleRender); maybeSync(); maybeFF(); maybeFFH(); maybeBKFF(); s.remove(); done(); if(manual) toast('已刷新 · '+document.getElementById('time').textContent); };
   s.onerror=()=>{ render(); document.getElementById('time').textContent='实时接口被拦·显示缓存'; s.remove(); done(); if(manual) toast('行情接口被当前网络拦了(关代理/VPN试试),先显示缓存'); };
   document.body.appendChild(s);
 }
