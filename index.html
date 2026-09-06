@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#0b0e12">
-<title>我的持仓 · 行情 v5.113 · 0906-0410构建</title>
+<title>我的持仓 · 行情 v5.117 · 0906-2025构建</title>
 <style>
 /* v5.46 完整版换肤:暗色行情终端。只动皮肤——所有类名/布局/交互结构原样,计算逻辑零改动。
    调色板: 底#0b0e12 卡#14181e 描边#232a33 主文#dde3ec 次文#b0bac7 涨#f4655f 跌#2ebd7f 强调#4c8dff */
@@ -292,7 +292,7 @@ details.fold:not([open]) > summary { margin-bottom:0; }
 </head>
 <body>
 <div class="top">
-  <h1>我的持仓 · 行情 <span style="font-size:10px;color:#8d97a6;font-weight:400">v5.116·0906-1950</span></h1>
+  <h1>我的持仓 · 行情 <span style="font-size:10px;color:#8d97a6;font-weight:400">v5.117·0906-2025</span></h1>
   <div class="btns"><button class="ed" id="ntfyBtn" onclick="toggleNtfy()">提醒</button><button class="ed" id="edBtn" onclick="setView('holds');document.getElementById('holds').style.display='';toggleEdit()">编辑</button><button class="rf" onclick="refresh(1)">刷新</button></div>
 </div>
 <div class="navSticky" id="navSticky">
@@ -1830,21 +1830,25 @@ function loadIdxHit(done){
 }
 
 // ---- 主力净流入(东财JSONP): 由打开页面的设备自己拉,电脑IP被限流时静默不显示 ----
-let FF={}, FF_TS=0;
+let FF={}, FF_TS=0, IDXFF={}; // v5.117: IDXFF=指数主力净额(东财ulist,成分股汇总口径,限流时静默不显示)
 function fmtAmt(v){ const a=Math.abs(v); return a>=1e8?(v/1e8).toFixed(2)+'亿':Math.round(v/1e4).toLocaleString()+'万'; }
 function maybeFF(){ const n=Date.now(); if(n-FF_TS>5*60*1000){ FF_TS=n; loadFF(); } }
 function loadFF(){
-  if(!PF.holds.length&&!PF.watch.length) return;
-  const secids=[...PF.holds,...PF.watch].map(h=>(h.code.indexOf('sh')===0?'1.':'0.')+h.code.slice(2)).join(',');
+  // v5.117: 指数主力净额一并拉; 带f13市场号防 平安sz000001/上证sh000001 撞码; 空持仓也照拉指数
+  const _sec=c=>(c.indexOf('sh')===0?'1.':'0.')+c.slice(2);
+  const secids=[...PF.holds,...PF.watch].map(h=>_sec(h.code)).concat(IDX.map(x=>_sec(x[0]))).join(',');
   window.ffCb=(d)=>{ try{
     let arr=d&&d.data&&(d.data.diff||d.data);
     if(arr&&!Array.isArray(arr)) arr=Object.values(arr);
-    (arr||[]).forEach(r=>{ const h=PF.holds.find(x=>x.code.slice(2)===String(r.f12))||PF.watch.find(x=>x.code.slice(2)===String(r.f12));
+    (arr||[]).forEach(r=>{ const _m=String(r.f13), _c=String(r.f12);
+      const _hit=x=>x.slice(2)===_c&&String(x.indexOf('sh')===0?1:0)===_m;
+      const ix=IDX.find(x=>_hit(x[0])); if(ix){ if(r.f62!=null) IDXFF[ix[0]]={amt:+r.f62,pct:(r.f184!=null?+r.f184:null)}; return; }
+      const h=PF.holds.find(x=>_hit(x.code))||PF.watch.find(x=>_hit(x.code));
       if(h&&r.f62!=null){ FF[h.code]={amt:+r.f62, pct:(r.f184!=null?+r.f184:null)}; if(h.addedFF==null){ h.addedFF=+r.f62; save(); } } });
     render();
   }catch(e){} };
   const s=document.createElement('script');
-  s.src='https://push2.eastmoney.com/api/qt/ulist.np/get?fltt=2&invt=2&fields=f12,f62,f184&secids='+secids+'&cb=ffCb&_='+Date.now();
+  s.src='https://push2.eastmoney.com/api/qt/ulist.np/get?fltt=2&invt=2&fields=f12,f13,f62,f184&secids='+secids+'&cb=ffCb&_='+Date.now();
   s.onload=()=>{ s.remove(); };
   s.onerror=()=>{ s.remove(); };
   document.body.appendChild(s);
@@ -1883,6 +1887,16 @@ function ffhTxt(code){
   const sum=a.reduce((s2,x)=>s2+x,0);
   const blocks=a.map(v=>`<span class="ffb" style="background:${v>=0?'#ff6059':'#2ebd7f'}"></span>`).join('');
   return `近5日主力 ${blocks} 净<b class="${cls(sum)}">${sum>=0?'+':''}${fmtAmt(sum)}</b>`;
+}
+
+// v5.117: 恐慌日资金事实行(东财主力净额+占成交, 腾讯量比字段49)——只陈列事实,不改任何规则
+// 回测0906: 双闸门"错杀解锁买侧"不通过(错杀组3/5日跑输锁定组); 唯一显著=主力净占比<=-15%次日胜率44% vs 58%
+function ffFact(code){
+  const t=[], ff=FF[code];
+  if(ff) t.push('主力'+(ff.amt>=0?'+':'')+fmtAmt(ff.amt)+(ff.pct!=null?'·占成交'+ff.pct.toFixed(1)+'%':''));
+  const f=GET(code), lb=f?F(f,49):null;
+  if(lb!=null&&lb>0) t.push('量比'+lb.toFixed(2));
+  return t.length?' · '+t.join(' · '):'';
 }
 
 // ---- 联动监控: 新浪5分钟K线(JSONP)算前两只持仓的分时同步率,量化联动的代理指标 ----
@@ -3432,7 +3446,9 @@ function doRender(){
     const iph=PREHIT[c], iku=(iph&&iph.kUp)||1, ikd=(iph&&iph.kDn)||1; // v5.45: 指数也用自己的实测系数
     const ipre=(iref!=null&&ia!=null)?(iref-ikd*ia).toFixed(0)+'~'+(iref+iku*ia).toFixed(0):'—';
     const ipos=(!inx&&p!=null&&iref!=null&&ia!=null)?(p>=iref+iku*ia?' <b class="up">▲破上沿</b>':(p<=iref-ikd*ia?' <b class="down">▼破下沿</b>':'')):'';
-    return `<div class="c" style="cursor:pointer" onclick="openChart('${c}',IDX.map(x=>x[0]))"><div class="n">${n}</div><div class="v ${cls(pct)}">${p!=null?p.toFixed(2):'—'}</div><div class="g ${cls(pct)}">${pct!=null?sg(pct.toFixed(2))+'%':''}</div><canvas class="ispk" data-ispk="${c}" width="260" height="68"></canvas><div class="g sub" style="font-weight:400">${inx?planLbl():'今日'}预判${ipre}${ipos}<span class="qm" onclick="event.stopPropagation();preWhy('${c}','${n}')">?</span>${iph?`<br><span style="font-size:9px;color:#7e8798">实测${iph.inr}%不出界</span>`:''}</div>${ifib}</div>`;
+    const iff=IDXFF[c], _idv=(pct!=null&&iff&&iff.amt!==0&&((pct>0&&iff.amt<0)||(pct<0&&iff.amt>0))); // v5.117: 价流背离=指数红盘主力净流出/绿盘主力净流入
+    const iffT=iff?`<div class="g sub" style="font-weight:400">主力 <b class="${cls(iff.amt)}">${iff.amt>=0?'+':''}${fmtAmt(iff.amt)}</b>${iff.pct!=null?' ('+iff.pct.toFixed(1)+'%)':''}${_idv?' <b style="color:#e8a13c">⚠价流背离</b>':''}</div>`:'';
+    return `<div class="c" style="cursor:pointer" onclick="openChart('${c}',IDX.map(x=>x[0]))"><div class="n">${n}</div><div class="v ${cls(pct)}">${p!=null?p.toFixed(2):'—'}</div><div class="g ${cls(pct)}">${pct!=null?sg(pct.toFixed(2))+'%':''}</div><canvas class="ispk" data-ispk="${c}" width="260" height="68"></canvas>${iffT}<div class="g sub" style="font-weight:400">${inx?planLbl():'今日'}预判${ipre}${ipos}<span class="qm" onclick="event.stopPropagation();preWhy('${c}','${n}')">?</span>${iph?`<br><span style="font-size:9px;color:#7e8798">实测${iph.inr}%不出界</span>`:''}</div>${ifib}</div>`;
   }).join('');
   drawSparks();
   const me=document.getElementById('mkt');
@@ -3803,7 +3819,7 @@ function doRender(){
         return `<div class="actnow wait">等 · ${bTxt} → ${sTxt}${roundS2}<small>${warn||'未到价·点价格直接填单'}</small></div>`;
       })()}
       ${((tf.lv>=2||(pct!=null&&Math.abs(pct)>=5))&&!_pd)?`<div style="margin:6px 0;padding:8px 12px;border-radius:9px;font-weight:800;font-size:14px;background:${(pct||0)>=0?'rgba(244,101,95,.15)':'rgba(46,189,127,.15)'};color:${(pct||0)>=0?'#ff8a80':'#4fd79b'}">⚡ 单边行情 ${pct!=null?sg(pct.toFixed(1))+'%':''} · ${tf.label||'极端波动'} · 档位已按极端日口径放宽,别按平常日的手感追</div>`:''}
-      ${_pd?`<div style="margin:6px 0;padding:8px 12px;border-radius:9px;font-weight:800;font-size:13.5px;background:rgba(255,144,102,.12);color:#ff9066">🛑 恐慌下跌日 ${pct!=null?sg(pct.toFixed(1))+'%':''} · 先卖后买——先记一笔卖出,接回档才解锁 · 档位已按极端日放宽</div>`:(!_pd&&_soldT&&(pct!=null&&pct<=-3)?`<div style="margin:6px 0;padding:6px 12px;border-radius:9px;font-weight:700;font-size:12.5px;background:rgba(46,189,127,.10);color:#4fd79b">✓ 恐慌日·今天已先卖 · 接回档位已解锁,跌到位照常提示</div>`:'')}
+      ${_pd?`<div style="margin:6px 0;padding:8px 12px;border-radius:9px;font-weight:800;font-size:13.5px;background:rgba(255,144,102,.12);color:#ff9066">🛑 恐慌下跌日 ${pct!=null?sg(pct.toFixed(1))+'%':''}${ffFact(h.code)} · 先卖后买——先记一笔卖出,接回档才解锁 · 档位已按极端日放宽</div>`:(!_pd&&_soldT&&(pct!=null&&pct<=-3)?`<div style="margin:6px 0;padding:6px 12px;border-radius:9px;font-weight:700;font-size:12.5px;background:rgba(46,189,127,.10);color:#4fd79b">✓ 恐慌日·今天已先卖 · 接回档位已解锁,跌到位照常提示</div>`:'')}
       <details class="fold" data-fk="wb-${h.code}"><summary style="font-size:12px;color:#8d97a6;padding:4px 0;cursor:pointer">水位·档位明细(实时)</summary>${actBar}</details>
       ${(BATTLE[i]={code:h.code,buys:tr.buys,sells:tr.sells,preLo:preLo,preHi:preHi,cost:h.cost,p3:(p!=null&&p<10),lev:(lg&&lg.hi>0&&lg.lo>0)?{hi:lg.hi,lo:lg.lo}:null},'')}
       <details class="fold" data-fk="ks-${i}" ontoggle="ksOpen(${i})" style="margin-top:6px;border-top:none;padding-top:0"><summary>📈 作战图 ▾</summary><iframe id="ksf_${i}" class="ksf"></iframe></details>
