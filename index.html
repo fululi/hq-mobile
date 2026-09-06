@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="我的持仓">
 <meta name="theme-color" content="#0b0e12">
-<title>我的持仓 · 行情 v5.130 · 0907-0525构建</title>
+<title>我的持仓 · 行情 v5.131 · 0907-0550构建</title>
 <style>
 /* v5.46 完整版换肤:暗色行情终端。只动皮肤——所有类名/布局/交互结构原样,计算逻辑零改动。
    调色板: 底#0b0e12 卡#14181e 描边#232a33 主文#dde3ec 次文#b0bac7 涨#f4655f 跌#2ebd7f 强调#4c8dff */
@@ -317,7 +317,7 @@ details.fold:not([open]) > summary { margin-bottom:0; }
 </head>
 <body>
 <div class="top">
-  <h1>我的持仓 · 行情 <span style="font-size:10px;color:#8d97a6;font-weight:400">v5.130·0907-0525</span></h1>
+  <h1>我的持仓 · 行情 <span style="font-size:10px;color:#8d97a6;font-weight:400">v5.131·0907-0550</span></h1>
   <div class="btns"><button class="ed" id="ntfyBtn" onclick="toggleNtfy()">提醒</button><button class="ed" id="edBtn" onclick="setView('holds');document.getElementById('holds').style.display='';toggleEdit()">编辑</button><button class="rf" onclick="refresh(1)">刷新</button></div>
 </div>
 <div class="navSticky" id="navSticky">
@@ -365,12 +365,14 @@ details.fold:not([open]) > summary { margin-bottom:0; }
   <div class="ovfoot" id="sentiFoot"></div>
 </div>
 
+<div id="ydHomeSlot">
 <div class="ovcard" id="ydBox" style="display:none">
   <div class="ovt"><span>大盘异动 · 上证分时 <span class="ovtm" id="ydTm"></span></span>
   <span class="ovtabs" id="ydTabs"><b data-e="all" class="on" onclick="setYDTab('all')">事件流</b><b data-e="tail" onclick="setYDTab('tail')">尾盘掘金</b><b data-e="mine" onclick="setYDTab('mine')">持股异动</b><b data-e="zt" onclick="setYDTab('zt')">涨停榜</b></span></div>
   <div id="ydChart"></div>
   <div id="ydEv"></div>
   <div class="ovfoot" id="ydFoot"></div>
+</div>
 </div>
 
 <div class="ovcard" id="auctBox" style="display:none">
@@ -410,6 +412,7 @@ details.fold:not([open]) > summary { margin-bottom:0; }
 <summary class="sec"><span>自选表 · 持仓/观察分组</span><span class="sub">点行展开卡片 · 点图直达K站</span></summary>
 <div id="wlBox" style="max-height:300px;overflow-y:auto;-webkit-overflow-scrolling:touch"></div>
 </details>
+<div id="ydHoldsSlot" style="margin-bottom:10px"></div>
 <div id="holds" style="display:none"></div>
 <details class="fold" data-fk="mrg" open style="margin-bottom:10px">
 <summary class="sec"><span>合并总账 · 跨账户同票合一</span><span class="sub">买两次卖一次都并一笔 · 点行看分账户</span></summary>
@@ -4171,7 +4174,16 @@ function applyView(){
   try{ localStorage.setItem('hqm_view_v1',VIEW); }catch(e){}
   document.querySelectorAll('.view').forEach(d=>{ d.style.display=(d.id==='v-'+VIEW)?'':'none'; });
   document.querySelectorAll('#navSticky button').forEach(b=>{ b.classList.toggle('active', b.getAttribute('data-v')===VIEW); });
+  placeYd();
   window.scrollTo(0,0);
+}
+// v5.131: 异动面板双位置——持仓页也能看(同一DOM搬过去,数据/监听/十字光标全保留,沿用openDetail搬卡片先例)
+function placeYd(){
+  const yd=document.getElementById('ydBox'); if(!yd) return;
+  const home=document.getElementById('ydHomeSlot'), holds=document.getElementById('ydHoldsSlot');
+  if(!home||!holds) return;
+  const to=(VIEW==='holds')?holds:home;
+  if(yd.parentNode!==to) to.appendChild(yd);
 }
 function setView(v){
   if(v!=='detail'&&DETAIL_I!=null){ const host=document.getElementById('vDetailBody'); if(host) host.innerHTML=''; DETAIL_I=null; }
