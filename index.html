@@ -4445,7 +4445,8 @@ function renderHyDist(){
   PF.holds.forEach(h=>{
     const f=GET(h.code);
     const nm=(h.name||'')+' '+String(F(f,58)||'');
-    const hy=HY[h.code]||(/etf|基金/i.test(nm)?'ETF基金':'未分组');
+    const isFund=/^(sh5[018]|sz1[56])/.test(h.code); // 沪51/58、深15/16=场内基金代码段
+    const hy=HY[h.code]||(isFund||/etf|基金/i.test(nm)?'ETF基金':'未分组');
     const p=F(f,3), pct=F(f,32);
     const mv=(h.shares>0&&p!=null)?h.shares*p:0;
     if(mv>0) hasMv=true;
