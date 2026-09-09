@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="金粼">
 <meta name="theme-color" content="#0b0e12">
-<title>金粼 · 持仓行情 v5.193 · 0910-0435构建</title>
+<title>金粼 · 持仓行情 v5.194 · 0910-0640构建</title>
 <style>
 /* v5.46 完整版换肤:暗色行情终端。只动皮肤——所有类名/布局/交互结构原样,计算逻辑零改动。
    调色板: 底#0b0e12 卡#14181e 描边#232a33 主文#dde3ec 次文#b0bac7 涨#f4655f 跌#2ebd7f 强调#4c8dff */
@@ -90,7 +90,7 @@ body { margin:0; padding:10px 12px 30px; background:#0b0e12; color:#dde3ec; over
 .sum { background:#14181e; border:1px solid #232a33; border-radius:12px; padding:14px 16px; margin-bottom:14px; display:flex; justify-content:space-between; }
 .sum .b .k { font-size:11px; color:#b0bac7; letter-spacing:.08em; } .sum .b .v { font-size:24px; font-weight:760; font-variant-numeric:tabular-nums; margin-top:3px; letter-spacing:.01em; }
 .idx { display:grid; grid-template-columns:repeat(2,1fr); gap:8px; margin-bottom:16px; }
-.idx .c { background:#14181e; border:1px solid #232a33; border-radius:10px; padding:10px 8px; text-align:center; }
+.idx .c { background:#14181e; border:1px solid #232a33; border-radius:10px; padding:10px 8px; text-align:center; min-width:0; overflow:hidden; } /* v5.194: grid子项默认min-width:auto被长内容撑破→整页右偏(H16,房主手机实锤) */
 .idx .c .n { font-size:11px; color:#b0bac7; margin-bottom:3px; letter-spacing:.08em; }
 .idx .c .v { font-size:17px; font-weight:720; font-variant-numeric:tabular-nums; }
 .idx .c .g { font-size:11.5px; font-weight:600; margin-top:1px; font-variant-numeric:tabular-nums; }
@@ -315,6 +315,10 @@ td { border-top:1px solid #1d232c; }
 .qf { font-size:12px; color:#b6bfcc; margin-top:4px; padding-top:3px; border-top:1px solid #1d232c; font-variant-numeric:tabular-nums; }
 .ixrow { display:flex; gap:8px; flex-wrap:wrap; font-size:12px; font-variant-numeric:tabular-nums; margin-bottom:5px; }
 .ispk { display:block; width:100%; height:52px; margin:4px 0 2px; }
+.hdot { display:inline-block; width:9px; height:9px; border-radius:50%; margin-left:6px; vertical-align:1px; cursor:pointer; box-shadow:0 0 5px rgba(0,0,0,.35); }
+#healthPanel { position:fixed; top:52px; right:10px; z-index:98; background:rgba(16,20,26,.97); border:1px solid #232a33; border-radius:10px; padding:9px 11px; font-size:11.5px; color:#c6cfda; min-width:210px; box-shadow:0 6px 22px rgba(0,0,0,.5); }
+#healthPanel .r { display:flex; align-items:center; gap:6px; padding:2.5px 0; }
+#healthPanel .d { width:8px; height:8px; border-radius:50%; flex:none; }
 .cline { display:flex; gap:10px; flex-wrap:wrap; align-items:baseline; font-size:12.5px; margin-top:4px; padding-top:3px; border-top:1px dashed #1d242e; }
 .ixrow span { color:#b0bac7; }
 .ixrow b { margin-left:3px; font-size:12.5px; }
@@ -374,11 +378,12 @@ details.fold:not([open]) > summary { margin-bottom:0; }
 <body>
 <canvas id="bgwave" aria-hidden="true"></canvas>
 <div class="top">
-  <h1><span class="logoNm">金粼</span><span class="logoSub"><span class="cn">持仓行情</span><span class="en">JINLIN CAPITAL</span></span><span class="ver">v5.193·0910-0435</span></h1>
+  <h1><span class="logoNm">金粼</span><span class="logoSub"><span class="cn">持仓行情</span><span class="en">JINLIN CAPITAL</span></span><span class="ver">v5.194·0910-0640</span><span id="healthDot" class="hdot" style="background:#5d6675" title="数据健康" onclick="healthToggle()"></span></h1>
   <div class="btns"><button class="ed" id="ntfyBtn" onclick="toggleNtfy()">提醒</button><button class="ed" id="edBtn" onclick="setView('holds');document.getElementById('holds').style.display='';toggleEdit()">编辑</button><button class="rf" onclick="refresh(1)">刷新</button></div>
 </div>
 <div class="navSticky" id="navSticky">
   <button data-v="home" onclick="setView('home');ovShow()">总览</button>
+  <button data-v="news" onclick="setView('news');newsShow()">新闻</button>
   <button data-v="pool" onclick="setView('pool');poolShow()">金龙池</button>
   <button data-v="holds" onclick="setView('holds')">持仓</button>
   <button data-v="t" onclick="setView('t');openTForm()">做T</button>
@@ -397,7 +402,7 @@ details.fold:not([open]) > summary { margin-bottom:0; }
 <div class="idx" id="idx"></div>
 <div class="ovcard" id="holdTempBox" style="display:none">
   <div class="ovt"><span>🌡 持仓温度 · 今日预判 <span class="ovtm" id="holdTempTm"></span></span>
-  <span class="qm" onclick="alert('今日预判=昨收±ATR(近14日平均真实波幅)×盘中纠偏系数\n现价位置=现价在预判低~高之间的位置\n>85%=高位防回调 · <15%=低位看支撑')">?</span></div>
+  <span class="qm" onclick="alert('日内尺: 预判低~高=昨收±ATR×盘中纠偏 · 白点=现价位置\n右端红晕=高位区(>85%防回调) · 左端绿晕=低位区(<15%看支撑)\n金▼=今日到过的最高位置 · 绿▲=到过的最低位置(当日常驻不撤)\n金▼停在红区而白点退回中段=冲过高位现已回撤——这时买=买在回撤,不是买在启动\n点行右「⇄波段」切波段尺: 腿=本波起点 顶=目标位\n刻度: 红=清仓线 橙=守(破止盈) 白虚=回撤落点0.382 金=攻(等幅目标)')">?</span></div>
   <div id="holdTemp"></div>
 </div>
 <div class="ovcard" id="bkflowBox" style="display:none">
@@ -467,6 +472,15 @@ details.fold:not([open]) > summary { margin-bottom:0; }
 </div>
 </div>
 
+<div class="view" id="v-news" style="display:none">
+<div class="ovcard" style="margin-top:8px">
+  <div class="ovt"><span>📰 交易线索 <span class="ovtabs" id="newsTabs"><b data-w="zao" class="on" onclick="setNewsW('zao')">早报</b><b data-w="wan" onclick="setNewsW('wan')">晚报</b></span><span class="ovtm" id="newsTm"></span></span>
+  <a id="newsFull" href="zaobao/latest.html" target="_blank" style="font-size:11px;color:#4a9eff;text-decoration:none">全屏⤢</a></div>
+  <div id="newsMine" style="font-size:11px;color:#8d97a6;padding:2px 2px 6px"></div>
+  <iframe id="newsFrame" style="width:100%;border:0;display:block;background:#0a0a0c;border-radius:0 0 10px 10px" scrolling="no" title="交易线索早报晚报"></iframe>
+  <div id="newsEmpty" style="display:none;padding:14px 12px;font-size:12px;color:#7e8798;line-height:1.8"></div>
+</div>
+</div>
 <div class="view" id="v-pool" style="display:none">
 <div class="sec"><span>🐉 金龙池 · 主力严选</span><span class="sub" id="poolDate"></span></div>
 <div class="card" style="padding:10px 12px;margin-bottom:10px">
@@ -2496,7 +2510,7 @@ function bkDrill(code,name){
 // 数据=东财ulist一次拉三块(f3涨跌幅/f62主力净流入),60秒节流,挂refresh链与ovShow,失败读当日缓存,还没有才整块隐藏
 const INDMF_BK=[['BK0448','通信设备'],['BK1036','半导体'],['BK0546','玻璃玻纤']];
 // 行业归属兜底硬编码(0909东财f100实测: 永鼎股份=通信设备, 中国巨石=玻璃玻纤, 通信ETF国泰f100为空→按跟踪指数归通信设备); HY缓存(f100)有值时以HY为准
-const INDMF_FIX={'sh600105':'通信设备','sh600176':'玻璃玻纤','sh515880':'通信设备'};
+const INDMF_FIX={'sh600105':'通信设备','sh600176':'玻璃玻纤','sh515880':'通信设备','sh603986':'半导体'}; // v5.194: 补兆易创新(房主0910买入)
 function indOf(c){ return HY[c]||INDMF_FIX[c]||''; }
 let INDMF={}, INDMF_TS=0;
 function maybeIndMF(force){ const n=Date.now(); if(!force&&n-INDMF_TS<60*1000) return; INDMF_TS=n; loadIndMF(); }
@@ -2815,24 +2829,44 @@ function renderHoldTemp(){
       else if(pos>=0.85) temp='<b style="color:#ff8a80">高位·防回调</b>';
       else if(pos<=0.15) temp='<b style="color:#4fd79b">低位·看支撑</b>';
       else temp='<span class="dim">中段</span>'; }
-    // v5.193: "到过"标记(房主0910:不要主动提醒,到过了就标个简称)——今高/今低触碰预判带即当日常驻,反复磨不撤; LuxAlgo式小胶囊
+    // v5.194: "到过"图形化+温度计双尺(房主0910:不要通篇文字;最高到过吗>85%;下午跳水游标不撤,忙完一眼看出买在回撤;波段尺点切换)
     const dH=F(f,33), dL=F(f,34);
-    let tch='';
-    if(dH!=null&&dH>=hi) tch+='<span style="font-size:9.5px;color:#e8c568;border:1px solid rgba(232,197,104,.45);border-radius:8px;padding:0 5px;margin-right:4px">到过高</span>';
-    if(dL!=null&&dL<=lo) tch+='<span style="font-size:9.5px;color:#4fd79b;border:1px solid rgba(79,215,155,.45);border-radius:8px;padding:0 5px;margin-right:4px">到过低</span>';
+    const _sw=(typeof swingState==='function')?swingState(code,p):null;
+    const _swTop=(_sw&&_sw.L1!=null)?(_sw.tgt2||_sw.H1):null;
+    const _swOK=!!(_sw&&_sw.L1!=null&&_swTop&&_swTop>_sw.L1);
+    const _ttm=(_swOK&&typeof TT_MODE!=='undefined'&&TT_MODE[code]==='sw')?'sw':'day';
+    let bLo=lo, bHi=hi, lLab='低 '+P(lo), lC='#4fd79b', rLab='高 '+P(hi), rC='#ff8a80';
+    if(_ttm==='sw'){ bLo=_sw.L1; bHi=_swTop; lLab='腿 '+P(bLo); rLab='顶 '+P(bHi); rC='#e8a13c'; }
+    const bRng=bHi-bLo, bx=v=>(2+Math.max(0,Math.min(1,(v-bLo)/bRng))*296);
+    const pos2=(p!=null&&bRng>0)?Math.max(0,Math.min(1,(p-bLo)/bRng)):null;
+    const nx2=(2+(pos2||0)*296).toFixed(1);
+    let ticks='';
+    if(_ttm==='day'){
+      if(dH!=null) ticks+='<path d="M'+(bx(dH)-4).toFixed(1)+' 19 L'+(bx(dH)+4).toFixed(1)+' 19 L'+bx(dH).toFixed(1)+' 26.5 Z" fill="#e8c568"'+(dH>bHi?' stroke="#fff" stroke-width=".8"':'')+'/>'; // 金▼=今日到过的最高位置(当日常驻)
+      if(dL!=null) ticks+='<path d="M'+(bx(dL)-4).toFixed(1)+' 33 L'+(bx(dL)+4).toFixed(1)+' 33 L'+bx(dL).toFixed(1)+' 25.5 Z" fill="#4fd79b"/>'; // 绿▲=今日到过的最低位置
+    } else {
+      const vl=(v,c,dash)=>'<line x1="'+bx(v).toFixed(1)+'" y1="19" x2="'+bx(v).toFixed(1)+'" y2="33" stroke="'+c+'" stroke-width="1.6"'+(dash?' stroke-dasharray="2,2"':'')+'/>';
+      if(_sw.stopC!=null) ticks+=vl(_sw.stopC,'#ff5f56');       // 清仓=MA20/50%回撤
+      if(_sw.stopT!=null) ticks+=vl(_sw.stopT,'#e8a13c');       // 守=MA10/38.2%回撤
+      ticks+=vl(bHi-0.382*(bHi-bLo),'#dfe5ec',1);               // 回撤落点(波段卡同口径: 顶-0.382×(顶-腿))
+      if(_sw.tgt1!=null) ticks+=vl(_sw.tgt1,'#e8c568');         // 攻=等幅目标
+    }
+    const ttChip=_swOK?'<span style="font-size:9.5px;color:#7e8798;border:1px solid #2a323d;border-radius:8px;padding:0 5px;margin-right:4px;cursor:pointer" onclick="event.stopPropagation();ttTgl(\''+code+'\')">'+(_ttm==='sw'?'⇄日内':'⇄波段')+'</span>':'';
     // v5.193: 观察行给✕(房主0910:"也不能删,搞一个x号")——点两下确认,删完温度卡/观察区同一份PF.watch联动消失
     const xBtn=wx?'<span style="color:#5d6675;font-size:12px;padding:0 2px 0 6px;cursor:pointer" title="点两下删除" onclick="event.stopPropagation();wlDel(\''+code+'\',\''+name+'\',this)">✕</span>':'';
     const _pff=(typeof PFF!=='undefined'&&PFF.rows)?PFF.rows[code.slice(2)]:null;
     const mfT=_pff?'主力 <b style="color:'+(_pff.z>=0?'#ff5f56':'#4fd79b')+'">'+fmtY(_pff.z)+'</b>':'';
     return '<div style="padding:7px 0 3px;border-bottom:1px dashed #232a33;cursor:pointer" onclick="'+clickAct+'">'
-      +'<div style="display:flex;justify-content:space-between;align-items:baseline"><span><b style="font-size:14px">'+name+'</b> <b style="color:'+(pc!=null&&pc>=0?'#ff5f56':'#4fd79b')+';font-size:14px">'+(p!=null?P(p):'—')+'</b> <span style="font-size:11.5px;color:'+(pc!=null&&pc>=0?'#ff5f56':'#4fd79b')+'">'+(pc!=null?sg(pc.toFixed(2))+'%':'')+'</span></span><span style="font-size:11.5px;white-space:nowrap">'+tch+temp+xBtn+'</span></div>'
+      +'<div style="display:flex;justify-content:space-between;align-items:baseline"><span><b style="font-size:14px">'+name+'</b> <b style="color:'+(pc!=null&&pc>=0?'#ff5f56':'#4fd79b')+';font-size:14px">'+(p!=null?P(p):'—')+'</b> <span style="font-size:11.5px;color:'+(pc!=null&&pc>=0?'#ff5f56':'#4fd79b')+'">'+(pc!=null?sg(pc.toFixed(2))+'%':'')+'</span></span><span style="font-size:11.5px;white-space:nowrap">'+ttChip+temp+xBtn+'</span></div>'
       +(mfT?'<div style="font-size:10.5px;color:#8d97a6;padding:1px 0 0">'+mfT+'</div>':'')
       +'<svg viewBox="0 0 300 46" style="width:100%;display:block;margin:1px 0 0">'
       +'<defs><linearGradient id="'+gid+'" x1="0" x2="1"><stop offset="0" stop-color="#2ebd7f"/><stop offset=".5" stop-color="#e8b64c"/><stop offset="1" stop-color="#f4655f"/></linearGradient></defs>'
       +'<rect x="2" y="18" width="296" height="16" rx="8" fill="url(#'+gid+')" opacity=".9"/>'
-      +(pos!=null?'<circle cx="'+nx+'" cy="26" r="6.5" fill="#f4f7fb" stroke="#0d1117" stroke-width="1.6"/><text x="'+nx+'" y="44" font-size="11.5" fill="#dfe5ec" text-anchor="middle">位置 '+Math.round(pos*100)+'%</text>':'')
-      +'<text x="2" y="12" font-size="13.5" fill="#4fd79b" font-weight="800">低 '+P(lo)+'</text>'
-      +'<text x="298" y="12" font-size="13.5" fill="#ff8a80" font-weight="800" text-anchor="end">高 '+P(hi)+'</text>'
+      +(_ttm==='day'?'<rect x="2" y="18" width="44.4" height="16" rx="8" fill="#2ebd7f" opacity=".30"/><rect x="253.6" y="18" width="44.4" height="16" rx="8" fill="#f4655f" opacity=".30"/>':'') // v5.194: 左15%低位区绿晕/右15%高位区红晕(LuxAlgo premium/discount)
+      +ticks
+      +(pos2!=null?'<circle cx="'+nx2+'" cy="26" r="6.5" fill="#f4f7fb" stroke="#0d1117" stroke-width="1.6"/><text x="'+nx2+'" y="44" font-size="11.5" fill="#dfe5ec" text-anchor="middle">位置 '+Math.round(pos2*100)+'%</text>':'')
+      +'<text x="2" y="12" font-size="13.5" fill="'+lC+'" font-weight="800">'+lLab+'</text>'
+      +'<text x="298" y="12" font-size="13.5" fill="'+rC+'" font-weight="800" text-anchor="end">'+rLab+'</text>'
       +'</svg></div>';
   };
   let h='';
@@ -3429,6 +3463,7 @@ function loadZaobao(re){
     if(!root) throw new Error('no zb-root');
     emp.style.display='none'; fr.style.display='block';
     const tm=doc.querySelector('[data-zbdate]'); if(tm) document.getElementById('zbTm').textContent=tm.textContent;
+    zbFixLinks(doc); // v5.194: 早报内链接补 target=_blank(房主:链接打不开)
     const fit=()=>{ try{ const d2=fr.contentDocument; if(!d2||d2.body.offsetWidth<100) return;
       fr.style.height=Math.min(Math.max(d2.body.scrollHeight+8,260),4000)+'px'; }catch(e){} };
     fit(); setTimeout(fit,700); setTimeout(fit,2000); // 总览视图后显示时宽度过0,需重fit
@@ -3926,6 +3961,7 @@ function fullBackup(){
   const ta=document.getElementById('bakTa');
   if(ta){ ta.value=s; try{ta.focus();ta.select();}catch(e){} }
   if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(s).catch(()=>{}); }
+  try{ localStorage.setItem('hqm_backup_v1', JSON.stringify({date:today(), n:(typeof TLOG!=='undefined'&&TLOG)?TLOG.length:0})); }catch(e){} // v5.194: 备份提醒用
   toast(dl?'✓ 备份文件已下载·存好它':'备份文字在文本框里·手动复制保存');
 }
 function restoreFromText(txt){
@@ -4550,6 +4586,7 @@ function backupJSON(){
   const a=document.createElement('a');
   a.href=URL.createObjectURL(new Blob([JSON.stringify(data,null,1)],{type:'application/json'}));
   a.download='hq备份_'+today()+'.json'; a.click();
+  try{ localStorage.setItem('hqm_backup_v1', JSON.stringify({date:today(), n:TLOG.length})); }catch(e){} // v5.194: 备份提醒用
   toast('已备份: 持仓'+PF.holds.length+' 台账'+TLOG.length+'条 · 预测'+FCAST.length+'场 · 模拟仓'+PAPER.length+'笔');
 }
 // v5.14: 恢复备份原来是整体覆盖——多设备各自录台账时,谁后恢复谁就把对方独有的记录冲掉。
@@ -5888,10 +5925,18 @@ function drawWLMin(){
       const y0=3+(1-(prev-mn)/rg)*(H-6);
       c2.strokeStyle='#39424f'; c2.setLineDash([3,3]); c2.beginPath(); c2.moveTo(0,y0); c2.lineTo(W,y0); c2.stroke(); c2.setLineDash([]);
     }
-    c2.strokeStyle=col; c2.lineWidth=1.4; c2.beginPath();
-    arr.forEach((v,i)=>{ const x=i/(arr.length-1)*(W-6)+3, y=3+(1-(v-mn)/rg)*(H-6); if(!i) c2.moveTo(x,y); else c2.lineTo(x,y); });
+    // v5.194: 对标指数卡精致度(房主:持仓/观察小图线没有上证小图精致)——渐变面积+圆角线段+末端光晕
+    c2.lineJoin='round'; c2.lineCap='round';
+    const PX=i=>i/(arr.length-1)*(W-6)+3, PY=v=>3+(1-(v-mn)/rg)*(H-6);
+    const grd=c2.createLinearGradient(0,0,0,H);
+    grd.addColorStop(0, up?'rgba(255,111,102,.20)':'rgba(53,217,154,.20)'); grd.addColorStop(1,'rgba(0,0,0,0)');
+    c2.beginPath(); arr.forEach((v,i)=>{ if(!i) c2.moveTo(PX(i),PY(v)); else c2.lineTo(PX(i),PY(v)); });
+    c2.lineTo(PX(arr.length-1),H-1); c2.lineTo(PX(0),H-1); c2.closePath(); c2.fillStyle=grd; c2.fill();
+    c2.strokeStyle=col; c2.lineWidth=1.6; c2.beginPath();
+    arr.forEach((v,i)=>{ if(!i) c2.moveTo(PX(i),PY(v)); else c2.lineTo(PX(i),PY(v)); });
     c2.stroke();
-    const ly=3+(1-(last-mn)/rg)*(H-6);
+    const ly=PY(last);
+    c2.fillStyle=up?'rgba(255,111,102,.28)':'rgba(53,217,154,.28)'; c2.beginPath(); c2.arc(W-3,ly,4.6,0,7); c2.fill();
     c2.fillStyle=col; c2.beginPath(); c2.arc(W-3,ly,2.2,0,7); c2.fill();
     // v5.113: 上升腿趋势线(与指数卡同口径), 跌破变红
     const pv4=[]; for(let i4=3;i4<arr.length-3;i4++){ let ok2=true; for(let k6=i4-3;k6<=i4+3;k6++){ if(arr[k6]<arr[i4]){ ok2=false; break; } } if(ok2) pv4.push(i4); }
@@ -7567,6 +7612,136 @@ window.addEventListener('resize', fixSticky);
 window.addEventListener('orientationchange', function(){ setTimeout(fixSticky,300); });
 window.addEventListener('load', fixSticky);
 fixSticky(); setTimeout(fixSticky,400); setTimeout(fixSticky,1500);
+</script>
+<script>
+// ===== v5.194: 温度卡双尺切换(日内⇄波段), 记忆每票选择 =====
+let TT_MODE={}; try{ TT_MODE=JSON.parse(localStorage.getItem('hqm_ttm_v1')||'{}')||{}; }catch(e){ TT_MODE={}; }
+function ttTgl(code){ TT_MODE[code]=(TT_MODE[code]==='sw')?'day':'sw'; try{ localStorage.setItem('hqm_ttm_v1',JSON.stringify(TT_MODE)); }catch(e){} renderHoldTemp(); }
+// ===== v5.194: 新闻独立一栏 + 持仓行业联动 + 早报链接修复 =====
+let NEWS_W='zao', NEWS_ONLY=false, NEWS_SRC='';
+function zbFixLinks(doc){ try{ doc.querySelectorAll('a[href]').forEach(a=>{ if(!a.target){ a.target='_blank'; a.rel='noopener'; } }); }catch(e){} }
+// v5.194b: 行业别名——早报写"光通信/超节点"而持仓行业叫"通信设备", 纯字符串匹配会漏(房主:持仓关联光通讯,新闻就要链过来)
+const IND_ALIAS={'通信设备':['光通信','光通讯','光模块','CPO','光纤','超节点'],'半导体':['半导体','芯片','存储','DRAM','HBM','先进封装'],'玻璃玻纤':['玻纤','电子布','覆铜板','玻璃纤维']};
+function newsKw(){
+  const kw={}, out=[];
+  const add=w=>{ if(w&&!kw[w]){ kw[w]=1; out.push(w); } };
+  (PF.holds||[]).concat(PF.watch||[]).forEach(h=>{
+    if(h.name&&String(h.name).length>=2) add(h.name);
+    const ind=(typeof indOf==='function')?indOf(h.code):''; if(ind){ add(ind); (IND_ALIAS[ind]||[]).forEach(add); }
+  });
+  return out;
+}
+function newsShow(){
+  const fr=document.getElementById('newsFrame'); if(!fr) return;
+  const url=(NEWS_W==='wan'?'wanbao':'zaobao')+'/latest.html';
+  const full=document.getElementById('newsFull'); if(full) full.href=url;
+  if(NEWS_SRC!==url){ NEWS_SRC=url; fr.src=url+'?_='+Date.now(); }
+  fr.onload=()=>{ try{
+    const doc=fr.contentDocument; if(!doc||!doc.getElementById('zb-root')) throw 0;
+    document.getElementById('newsEmpty').style.display='none'; fr.style.display='block';
+    zbFixLinks(doc); newsDecorate(doc);
+    const tm=doc.querySelector('[data-zbdate]'); if(tm) document.getElementById('newsTm').textContent=tm.textContent;
+    const fit=()=>{ try{ const d2=fr.contentDocument; if(!d2||d2.body.offsetWidth<100) return; fr.style.height=Math.min(Math.max(d2.body.scrollHeight+8,300),6000)+'px'; }catch(e){} };
+    fit(); setTimeout(fit,700); setTimeout(fit,2000);
+    doc.querySelectorAll('details').forEach(dd=>dd.addEventListener('toggle',()=>setTimeout(fit,60)));
+    doc.addEventListener('click',()=>setTimeout(fit,120));
+  }catch(e){ fr.style.display='none'; const emp=document.getElementById('newsEmpty'); emp.style.display='block';
+    emp.textContent = NEWS_W==='wan' ? '今日晚报将在收盘后由定时任务自动生成(约16:12推送)' : '今日早报暂未生成(交易日 8:12 定时任务推送)'; } };
+}
+function setNewsW(w){ NEWS_W=w; document.querySelectorAll('#newsTabs b').forEach(b=>b.classList.toggle('on',b.dataset.w===w)); NEWS_SRC=''; newsShow(); }
+function newsTgl(){ NEWS_ONLY=!NEWS_ONLY;
+  const fr=document.getElementById('newsFrame'), doc=fr&&fr.contentDocument;
+  if(doc){ doc.querySelectorAll('[data-nm]').forEach(li=>{ li.style.display=(NEWS_ONLY&&li.getAttribute('data-nm')!=='1')?'none':''; });
+    const b=document.getElementById('newsOnlyB'); if(b) b.textContent=NEWS_ONLY?'看全部':'只看相关';
+    try{ fr.style.height=Math.min(Math.max(doc.body.scrollHeight+8,300),6000)+'px'; }catch(e){} }
+}
+function newsDecorate(doc){
+  const kws=newsKw(); let hits=0; const hitKw={};
+  doc.querySelectorAll('li, tr, .bkchip').forEach(li=>{ // v5.194b: 不止新闻li——持仓表tr/板块chip也纳入联动扫描
+    const t=li.textContent||''; const hit=kws.filter(k=>t.indexOf(k)>=0);
+    li.setAttribute('data-nm', hit.length?'1':'0');
+    if(hit.length){ hits++; hit.forEach(k=>hitKw[k]=1);
+      li.style.background='rgba(232,197,104,.13)'; li.style.borderRadius='6px'; }
+    li.style.display=(NEWS_ONLY&&li.getAttribute('data-nm')!=='1')?'none':'';
+  });
+  const mine=document.getElementById('newsMine');
+  if(mine) mine.innerHTML = !kws.length ? '' :
+    (hits ? '🔗 本期 <b style="color:#e8c568">'+hits+'</b> 条点到你的持仓/行业 <span class="dim">'+Object.keys(hitKw).join(' / ')+'</span>'
+          : '本期没直接点到你的持仓/行业 <span class="dim">(盯: '+kws.slice(0,6).join('·')+')</span>')
+    +' · <b id="newsOnlyB" style="color:#4a9eff;cursor:pointer" onclick="newsTgl()">'+(NEWS_ONLY?'看全部':'只看相关')+'</b>';
+}
+// ===== v5.194: 数据健康灯——终榜/PE带/早报/晚报/ATR缓存 五源新鲜度; 绿=当日 黄=隔1~2交易日 红=停更/取不到(房主:管道再停更一眼能看到) =====
+let HEALTH={pool:'',pe:'',atr:'',zao:null,wan:null}; // null=读取中
+function hNormD(s){ s=String(s||'').slice(0,10); if(/^\d{8}$/.test(s)) s=s.slice(0,4)+'-'+s.slice(4,6)+'-'+s.slice(6,8); return /^\d{4}-\d{2}-\d{2}$/.test(s)?s:''; }
+function prevTradeDay(){ const d=new Date(); do{ d.setDate(d.getDate()-1); }while(d.getDay()===0||d.getDay()===6); return ymd(d); }
+function tradeGap(a,b){ if(!a||!b) return 99; const pa=Date.parse(a), pb=Date.parse(b); if(isNaN(pa)||isNaN(pb)) return 99; if(pa>=pb) return 0;
+  let n=0; const d=new Date(pa); while(ymd(d)<b&&n<60){ d.setDate(d.getDate()+1); if(d.getDay()!==0&&d.getDay()!==6) n++; } return n; }
+function healthRows(){
+  const ltd=lastTradeDay(), now=new Date(), hm=now.getHours()*100+now.getMinutes();
+  const zExp=(hm>=820)?ltd:prevTradeDay(), wExp=(hm>=1615)?ltd:prevTradeDay();
+  return [['金龙池终榜',HEALTH.pool,ltd],['PE估值带',HEALTH.pe,ltd],['早报',HEALTH.zao,zExp],['晚报',HEALTH.wan,wExp],['ATR波动缓存',HEALTH.atr,ltd]]
+    .map(r=>{
+      if(r[1]===null) return {name:r[0], dt:'读取中…', st:1, word:'读取中', pend:1};
+      const g=tradeGap(r[1], r[2]);
+      const st=(r[1]&&g===0)?0:((r[1]&&g<=2)?1:3);
+      return {name:r[0], dt:r[1]||'—', st:st, word:!r[1]?'取不到':(st===0?'正常':(st===1?'隔'+g+'个交易日':'停更'+g+'个交易日'))};
+    });
+}
+function healthCheck(){
+  try{ const pc=JSON.parse(localStorage.getItem('hqm_pool_v3')||'null'); HEALTH.pool=hNormD(pc&&(pc.d0||pc.date)); }catch(e){ HEALTH.pool=''; }
+  HEALTH.pe=hNormD(window.PEBAND&&PEBAND.gen);
+  try{ HEALTH.atr=hNormD((JSON.parse(localStorage.getItem('atr14_v6')||'null')||{}).date); }catch(e){ HEALTH.atr=''; }
+  healthPaint();
+  if(HEALTH.zao===null){ ['zao','wan'].forEach(k=>{
+    fetch((k==='wan'?'wanbao':'zaobao')+'/latest.html?_='+Date.now()).then(r=>r.text()).then(t=>{
+      const m=t.match(/(\d{4})-(\d{2})-(\d{2})/); HEALTH[k]=m?m[0]:''; healthPaint();
+    }).catch(()=>{ HEALTH[k]=''; healthPaint(); }); });
+  }
+}
+function healthPaint(){
+  const dot=document.getElementById('healthDot'); if(!dot) return;
+  const rows=healthRows();
+  const worst=rows.reduce((a,r)=>Math.max(a, r.pend?0:r.st), 0);
+  dot.style.background=worst>=3?'#ff5f56':(worst>=1?'#e8a13c':'#35d99a');
+  dot.title='数据健康: '+rows.map(r=>r.name+' '+r.word).join(' · ');
+  const p=document.getElementById('healthPanel');
+  if(p&&p.style.display==='block') p.innerHTML=healthHtml(rows);
+}
+function healthHtml(rows){
+  const col={0:'#35d99a',1:'#e8a13c',3:'#ff5f56'};
+  return '<div style="font-weight:700;color:#e8c568;margin-bottom:4px">数据管道新鲜度</div>'
+    + rows.map(r=>{ const c=r.pend?'#5d6675':col[r.st];
+        return '<div class="r"><span class="d" style="background:'+c+'"></span><span style="flex:1">'+r.name+'</span><span style="color:#8d97a6">'+r.dt+'</span> <b style="color:'+c+';font-weight:600">'+r.word+'</b></div>'; }).join('')
+    + '<div style="margin-top:5px;font-size:10.5px;color:#5d6675">绿=当日 · 黄=隔1~2个交易日 · 红=停更 · 数据源日期一一列明</div>';
+}
+function healthToggle(){
+  let p=document.getElementById('healthPanel');
+  if(!p){ p=document.createElement('div'); p.id='healthPanel'; document.body.appendChild(p);
+    document.addEventListener('click',ev=>{ if(p.style.display==='block'&&!p.contains(ev.target)&&ev.target.id!=='healthDot') p.style.display='none'; }); }
+  if(p.style.display==='block'){ p.style.display='none'; return; }
+  healthCheck(); p.innerHTML=healthHtml(healthRows()); p.style.display='block';
+}
+// ===== v5.194: 备份提醒——台账较上次备份+20条 / 超7天没备份 / 从未备份, 每天首次打开toast提一次 =====
+function backupNudge(){
+  try{
+    if(localStorage.getItem('hqm_baktip_v1')===today()) return;
+    const b=JSON.parse(localStorage.getItem('hqm_backup_v1')||'null');
+    const n=(typeof TLOG!=='undefined'&&TLOG)?TLOG.length:0;
+    let why='';
+    if(!b) why='还没备份过';
+    else{
+      const days=Math.round((Date.parse(today())-Date.parse(b.date))/864e5);
+      const add=n-(b.n||0);
+      if(days>7) why=days+' 天没备份';
+      else if(add>=20) why='台账比上次备份多 '+add+' 条';
+    }
+    if(!why) return;
+    localStorage.setItem('hqm_baktip_v1', today());
+    toast('💾 '+why+' · 台账页→全量备份 存一份防丢', 6500);
+  }catch(e){}
+}
+try{ healthCheck(); }catch(e){}
+try{ setTimeout(backupNudge, 2600); }catch(e){}
 </script>
 </body>
 </html>
