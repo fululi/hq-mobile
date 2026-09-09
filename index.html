@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="金粼">
 <meta name="theme-color" content="#0b0e12">
-<title>金粼 · 持仓行情 v5.191 · 0910-0145构建</title>
+<title>金粼 · 持仓行情 v5.192 · 0910-0220构建</title>
 <style>
 /* v5.46 完整版换肤:暗色行情终端。只动皮肤——所有类名/布局/交互结构原样,计算逻辑零改动。
    调色板: 底#0b0e12 卡#14181e 描边#232a33 主文#dde3ec 次文#b0bac7 涨#f4655f 跌#2ebd7f 强调#4c8dff */
@@ -374,7 +374,7 @@ details.fold:not([open]) > summary { margin-bottom:0; }
 <body>
 <canvas id="bgwave" aria-hidden="true"></canvas>
 <div class="top">
-  <h1><span class="logoNm">金粼</span><span class="logoSub"><span class="cn">持仓行情</span><span class="en">JINLIN CAPITAL</span></span><span class="ver">v5.191·0910-0145</span></h1>
+  <h1><span class="logoNm">金粼</span><span class="logoSub"><span class="cn">持仓行情</span><span class="en">JINLIN CAPITAL</span></span><span class="ver">v5.192·0910-0220</span></h1>
   <div class="btns"><button class="ed" id="ntfyBtn" onclick="toggleNtfy()">提醒</button><button class="ed" id="edBtn" onclick="setView('holds');document.getElementById('holds').style.display='';toggleEdit()">编辑</button><button class="rf" onclick="refresh(1)">刷新</button></div>
 </div>
 <div class="navSticky" id="navSticky">
@@ -1021,10 +1021,10 @@ function legFibOf(code,p){
   const rpct=Math.round(Math.max(ret,0)*100);
   let txt,c;
   if(p<lg.lo){ txt='已破基点'; c='#ff7a72'; }              // 红: 结构破坏条呼应
-  else if(ret>0.786){ txt='回撤'+rpct+'%·逼近基点'; c='#e8a13c'; }  // 橙
-  else if(ret>0.55){ txt='回撤'+rpct+'%·深'; c='#e8c568'; }          // 黄
-  else if(ret>0.40){ txt='回撤'+rpct+'%·中'; c='#4fd79b'; }          // 绿
-  else { txt='回撤'+rpct+'%·浅'; c='#4fd79b'; }                      // 绿
+  else if(ret>0.786){ txt='回吐涨幅'+rpct+'%·逼近基点'; c='#e8a13c'; }  // 橙; v5.192: "回撤"改"回吐涨幅"——腿内回吐比例与"自高回落%"(今日价)撞词,房主0910被绕晕
+  else if(ret>0.55){ txt='回吐涨幅'+rpct+'%·深'; c='#e8c568'; }          // 黄
+  else if(ret>0.40){ txt='回吐涨幅'+rpct+'%·中'; c='#4fd79b'; }          // 绿
+  else { txt='回吐涨幅'+rpct+'%·浅'; c='#4fd79b'; }                      // 绿
   return {lg:lg, ret:ret, txt:txt, color:c};
 }
 function legFibTxt(code,p){ const o=legFibOf(code,p); if(!o) return '';
@@ -2042,7 +2042,7 @@ function m15LegLine(lg,p){
   const tm=s=>String(s||'').slice(5,16);
   const near=v=>(p!=null&&v>0&&Math.abs(p/v-1)<=0.004)?'<b style="color:#d99a2b">'+P(v)+'👈</b>':P(v);
   return '<div class="atrnote">🦵 小腿15分 '+(lg.dir>0?'↑':'↓')+P(lg.a)+'('+tm(lg.aT)+')→'+P(lg.b)+'('+tm(lg.bT)+'·在跑)'
-    +' · '+(lg.dir>0?'回撤':'反弹')+' '+lg.lv.map(x=>x[0]+'='+near(x[1])).join(' · ')+'</div>';
+    +' · '+lg.lv.map(x=>x[0]+'='+near(x[1])).join(' · ')+'</div>';
 }
 // 15分钟数据统一成 [时间,开,高,低,收]；腾讯原始顺序是 [时间,开,收,高,低]。
 function normM15Time(v){
@@ -4930,13 +4930,15 @@ function wlAdvice(code,name,brief){
     else if(b0!=null) bTxt='<span style="color:#4fd79b">接 <b>'+P(b0)+'</b> '+sg(((b0/p-1)*100).toFixed(1))+'%</span>';
     // v5.174: 破位抑制期——旧买点作废,建议行买侧不喊接; v5.177: 明细降第二行,主结论见第一行
     const _ba=buyArmOf(code,p);
-    if(_ba.st==='sup') bTxt='<span class="dim">破段基点'+P(_ba.base)+' · 旧买点作废'+((_ba.refH>0)?' · 收复 '+P(_ba.refH)+' 解锁':'')+'</span>';
+    if(_ba.st==='sup') bTxt='<span class="dim">破段基点'+P(_ba.base)+' · 波段买档暂停'+((_ba.refH>0)?' · 收复 '+P(_ba.refH)+' 解锁':'')+'</span>'; // v5.192: "旧买点作废"改"波段买档暂停"——日内T仓档照出,两回事不混
     else if(_ba.st==='nodata') bTxt='<span class="dim">腿数据缺失 · 买档暂停催买</span>'; // v5.177 雷2: nodata不催买
     if(sBrk) sTxt=old+'抛 '+P(s0)+'</span>'+(sNxt!=null
       ? '<span style="color:#ff8a80">→看 <b>'+P(sNxt)+'</b> +'+((sNxt/p-1)*100).toFixed(1)+'%</span>'
       : '<span style="color:#e8c568"> 已越顶·'+(sExt?'延伸抛 <b>'+P(sExt)+'</b> +'+((sExt/p-1)*100).toFixed(1)+'%':'移动止盈')+'</span>');
     else if(s0!=null) sTxt='<span style="color:#ff8a80">抛 <b>'+P(s0)+'</b> +'+((s0/p-1)*100).toFixed(1)+'%</span>';
     if(b0!=null&&s0!=null&&s0>b0&&!_pd&&!sBrk&&!bBrk) sTxt='<span style="color:#e8c568">↗</span> '+sTxt; // 接→抛之间插上涨箭头
+    // v5.192: sup态日内T档照出+标"T仓"——"别加仓"管的是波段买档,日内做T的接/抛价必须有(0910兆易卡:房主成本在下方,光喊别接不给日内档=扯淡)
+    if(_ba.st==='sup'&&s0!=null&&!sBrk) sTxt=(b0!=null?'<span style="color:#4fd79b">B <b>'+P(b0)+'</b></span> ':'')+'<span style="color:#ff8a80">S <b>'+P(s0)+'</b> +'+((s0/p-1)*100).toFixed(1)+'%</span><span class="dim" style="font-size:10px">(T仓做T·非清仓)</span>';
     let _net=null, _fee=null; // v5.178: 净额存一份,拼进第一行大字; v5.184: 费也存一份,数据带悬停提示用
     const gap=(b0!=null&&s0!=null&&s0>b0&&!_pd&&!sBrk&&!bBrk)?(function(){ const _f=feeOf(s0,b0,100,100,code).fee; _fee=Math.round(_f); _net=Math.round((s0-b0)*100-_f); return '<span class="dim" title="净额已扣双边费'+_fee+'元">来回'+((s0/b0-1)*100).toFixed(1)+'点·100股净<b style="color:#e8c568">'+_net+'元</b></span>'; })():''; // v5.144: 每股毛改100股净额(已扣费),不用心算; v5.184: 费收悬停,不占版面
     // v5.145: 趋势日接管话术——趋势日不喊抛,趋势下跌不喊接(档位仍算,话术让位)
@@ -4945,7 +4947,7 @@ function wlAdvice(code,name,brief){
     // v5.177: 建议区两行制——第一行大字色块一眼结论(emoji+动作+最关键一个数),
     //         第二行小字dim保留全部细节(基点/旧买点/来回点数/净额费用,不删信息只调层级)。无折叠、无交互门。
     let head;
-    if(_ba.st==='sup') head=['#ff8f5e','⛔ 别接 · 等收复 '+P((_ba.refH>0)?_ba.refH:_ba.base)];
+    if(_ba.st==='sup') head=['#ff8f5e','⛔ 等收复 '+P((_ba.refH>0)?_ba.refH:_ba.base)+' · 底仓别清']; // v5.192c: 精简——"等收复"已含别加仓;恐慌全清=09-04永鼎实案(全清当日即被收回)
     else if(_ba.st==='nodata') head=['#8d97a6','⏸ 没数据 · 别动'];
     else if(_ba.st==='rearm') head=['#4fd79b','✅ 新腿武装 · 买档恢复'];
     else if(_pd) head=['#ff9066','🛑 恐慌日 · 先卖后买'];
@@ -4958,12 +4960,23 @@ function wlAdvice(code,name,brief){
     else head=['#4fd79b','✅ 接 '+(b0!=null?P(b0):'—')+' / 抛 '+(s0!=null?P(s0):'—')+(_net!=null?' · 净+'+_net+'元':'')];
     const detail=[];
     if(_pd){ detail.push(sTxt,bTxt); }
-    else if(_sw){ // v5.164: 波段中——止盈/清仓线=均线与Fib回撤取严;目标位按上一波等幅/1.618扩展
-      detail.push('<span style="color:#8d97a6">止盈 <b>'+P(_sw.stopT)+'</b>('+_sw.stopTSrc+') · 清仓 <b>'+P(_sw.stopC)+'</b>('+_sw.stopCSrc+')</span>'
-        +(_sw.anchor?'<span style="color:#5d6675;font-size:11px">口径:本波 '+_sw.anchor+' 的回撤位'+(_sw.bigUp?' · 大级别低点抬高,结构未坏=回撤≠见顶':' · 大级别低点未抬高,回撤要当回事')+'</span>':'')
-        +(_sw.tgt1?'<span style="color:#e8c568">本波目标 <b>'+P(_sw.tgt1)+'</b>(等幅) · <b>'+P(_sw.tgt2)+'</b>(1.618)</span>':'')
-        +'<span style="color:#4fd79b">T仓回踩MA5 <b>'+P(_sw.ma5)+'</b>可接</span>'
-        +(_td==='dn'?'<span style="color:#ff9066;font-weight:700">⚠️ 今日急跌破清仓线·收盘收不回就减半</span>':'')); }
+    else if(_ba.st==='sup'){ // v5.192: 破位悬停给完整答案——买侧不接盘(bTxt)、底仓别恐慌全清、反弹到抛档分批减(sTxt);实案教训入卡
+      detail.push(bTxt, sTxt, '<span style="color:#e8a13c;font-size:11px">恐慌全清=09-04永鼎当日被收回 · 放量破位另判</span>'); }
+    else if(_sw){ // v5.192d 房主定稿: 波段守/攻一行 + 顶预警一行 + 日内T行(接/抛/100股净/先后/已触价)——数字直给,不写小作文
+      detail.push('<span style="color:#8d97a6">守 <b>'+P(_sw.stopT)+'</b>/<b>'+P(_sw.stopC)+'</b></span>'
+        +(_sw.tgt1?' <span style="color:#e8c568">攻 <b>'+P(_sw.tgt1)+'</b>→'+P(_sw.tgt2)+'</span>':'')
+        +(_td==='dn'?' <span style="color:#ff9066;font-weight:700">⚠️ 破清仓线收不回减半</span>':''));
+      if(_sw.tgt2&&_sw.L1!=null){
+        const _top=_sw.tgt2, _f38=_top-0.382*(_top-_sw.L1);
+        const _dist=(p!=null&&p>0)?(p/_top-1)*100:null;
+        const _near=(_dist!=null&&_dist>=-2);
+        detail.push('<span style="color:'+(_near?'#ff5f56':'#e8a13c')+';font-weight:700">🚨 顶 <b>'+P(_top)+'</b> · 距今 '+(_dist!=null?sg(_dist.toFixed(1))+'%':'—')+' · 回撤落点 <b>'+P(_f38)+'</b></span>'
+          +' <span class="dim" style="font-size:10px">触顶回测: 9成10日内回撤≥4%(0909)</span>'); }
+      const _evs=(DANCH[code]&&DANCH[code].events)||[];
+      const _evT=_evs.length?(' <span class="dim" style="font-size:10px">已触 '+_evs.map(e=>e.t+' '+P(e.level)+'@'+String(e.at||'').slice(-5)).join(' · ')+'</span>'):'';
+      if(b0!=null&&s0!=null) detail.push('<span style="color:#4fd79b">B <b>'+P(b0)+'</b></span> <span style="color:#ff8a80">S <b>'+P(s0)+'</b></span>'
+        +(_net!=null?' <span style="color:#e8c568">100股净<b>'+_net+'</b>元</span>':'')
+        +(pct!=null?' <span style="color:#cfd6e0">'+(pct>0?'先抛后接':'先接后抛')+'</span>':'')+_evT); }
     else if(_td==='up'){ detail.push(bTxt); }
     else if(_td==='dn'){ detail.push(sTxt); }
     else if(sBrk){ detail.push(sTxt,bTxt); }
@@ -4972,19 +4985,16 @@ function wlAdvice(code,name,brief){
     else { detail.push(bTxt,sTxt); }
     if(gap&&!_td&&!_sw) detail.push(gap);
     if(_ba.st==='rearm'&&_ba.why) detail.push('<span class="dim">'+_ba.why+'</span>');
-    // v5.180: 腿+Fib回撤位——sup态也显示,就是要在"等新腿"时知道跌到fib哪了;腿数据缺失自动不显示
-    const _lfT=legFibTxt(code,p); if(_lfT) detail.push('<span class="dim">'+_lfT+'</span>');
+    // v5.192: 腿+Fib回吐行从持仓卡撤下(房主0910:看不懂,不挂持仓卡)——腿锚点信息已由波段卡"顶/回撤落点"和sup卡"破段基点"各自承担;legFibTxt 保留给 brief 模式
     // v5.180: 今日从高点回落直给——今高+回落%,数学不好不用心算
     if(hi!=null&&hi>0&&p>0&&p<hi) detail.push('<span class="dim">今高 '+P(hi)+' · 自高回落 '+((hi-p)/hi*100).toFixed(1)+'%</span>');
     // v5.182: brief模式——折叠持仓卡一行答案制: 头结论+接/抛价+fib位, 不要解释小字
     // v5.184: 小灰字收成一条数据带——净额/回落/今高固定槽位竖线分隔,10.5px单行不换行,费收悬停title
     if(brief){
-      const _lf=legFibOf(code,p);
-      const fibS=_lf?(' <b style="color:'+_lf.color+'">'+_lf.txt+'</b>'):'';
       let ans='';
-      if(_ba.st==='sup') ans='';
+      if(_ba.st==='sup') ans=(b0!=null&&s0!=null)?'B <b>'+P(b0)+'</b> / S <b>'+P(s0)+'</b>':''; // v5.192: sup不再空白——日内T档照出(B/S),波段口径在头部(等收复)
       else if(_ba.st==='nodata') ans='';
-      else if(_sw) ans='止盈 <b>'+P(_sw.stopT)+'</b> · 清仓 <b>'+P(_sw.stopC)+'</b>'+(_sw.tgt1?' · 目标 <b>'+P(_sw.tgt1)+'</b>':'');
+      else if(_sw) ans='止盈 <b>'+P(_sw.stopT)+'</b> · 清仓 <b>'+P(_sw.stopC)+'</b>'+(_sw.tgt1?' · 目标 <b>'+P(_sw.tgt1)+'</b>':'')+(_sw.tgt2?' · 顶 <b style="color:#e8a13c">'+P(_sw.tgt2)+'</b>':'')+((b0!=null&&s0!=null)?' · B <b>'+P(b0)+'</b>/S <b>'+P(s0)+'</b>'+(_net!=null?' 净<b style="color:#e8c568">'+_net+'</b>元':''):'')+(pct!=null?' · '+(pct>0?'先抛后接':'先接后抛'):''); // v5.192d: 波段行带日内B/S+100股净额(房主要的"买和卖+每100股多少钱");fib回吐badge已撤
       else if(_pd) ans=sTxt+' '+bTxt;
       else if(_td==='up') ans=(!bBrk&&b0!=null?'回踩接 <b style="color:#4fd79b">'+P(b0)+'</b>':'拿住');
       else if(_td==='dn') ans=(!sBrk&&s0!=null?'反弹抛 <b style="color:#ff8a80">'+P(s0)+'</b>':'');
@@ -4994,7 +5004,7 @@ function wlAdvice(code,name,brief){
       if(hi!=null&&hi>0&&p>0&&p<hi) _band.push('回落 '+((hi-p)/hi*100).toFixed(1)+'%');
       if(hi!=null&&hi>0) _band.push('今高 '+P(hi));
       const bandS=_band.length?'<div style="width:100%;font-size:10.5px;color:#7c8694;line-height:1.5;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"'+(_fee!=null?' title="100股口径·净额已扣双边费'+_fee+'元"':'')+'>'+_band.join('<span style="color:#3d4654"> ｜ </span>')+'</div>':'';
-      const line2=(ans+fibS).trim();
+      const line2=ans.trim();
       return '<div style="width:100%;font-size:14.5px;font-weight:800;line-height:1.4;color:'+head[0]+'">'+head[1]+'</div>'
         +(line2?'<div style="width:100%;font-size:12.5px;font-weight:600;color:#dde3ec;line-height:1.5;margin-top:2px">'+line2+'</div>':'')
         +bandS;
@@ -5674,7 +5684,7 @@ function renderDetailHead(){
     +'<b class="'+cls(pct)+'" style="font-size:22px">'+(p!=null?P(p):'—')+'</b>'
     +'<b class="'+cls(pct)+'" style="font-size:15px">'+(pct!=null?sg(pct.toFixed(2))+'%':'')+'</b>'
     +'<div class="wladv" style="font-size:12px">'+wlAdvice(h.code,h.name)+'</div></div>'
-    +(function(){ const _sw2=swingState(h.code,p); if(_sw2) return '<div style="font-size:12px;font-weight:700;color:#c9a86a;margin-top:4px">🌊 波段中·第'+_sw2.days+'天 · 底仓拿住 · 止盈 '+P(_sw2.stopT)+' · 清仓 '+P(_sw2.stopC)+(_sw2.tgt1?' · 目标 '+P(_sw2.tgt1):'')+(_sw2.bigUp?' <span style="font-weight:400;color:#5d6675;font-size:10.5px">大级别未坏·本波口径</span>':'')+'</div>'; const _td2=trendDay(h.code,p,pct); if(!_td2) return ''; return '<div style="font-size:12px;font-weight:700;color:'+(_td2==='up'?'#ff9f6e':'#e8a13c')+';margin-top:4px">'+(_td2==='up'?'🔥 趋势日 · '+sg(pct.toFixed(1))+'% 站上MA20 · 别高抛,拿着':'⚠️ 趋势下跌 · '+sg(pct.toFixed(1))+'% 破MA20 · 别接飞刀')+'</div>'; })()
+    +(function(){ const _sw2=swingState(h.code,p); if(_sw2) return '<div style="font-size:12px;font-weight:700;color:#c9a86a;margin-top:4px">🌊 波段中·第'+_sw2.days+'天 · 底仓拿住 · 止盈 '+P(_sw2.stopT)+' · 清仓 '+P(_sw2.stopC)+(_sw2.tgt1?' · 目标 '+P(_sw2.tgt1):'')+(_sw2.tgt2?' · <span style="color:#e8a13c">顶 '+P(_sw2.tgt2)+'</span>':'')+(_sw2.bigUp?' <span style="font-weight:400;color:#5d6675;font-size:10.5px">大级别未坏</span>':'')+'</div>'; const _td2=trendDay(h.code,p,pct); if(!_td2) return ''; return '<div style="font-size:12px;font-weight:700;color:'+(_td2==='up'?'#ff9f6e':'#e8a13c')+';margin-top:4px">'+(_td2==='up'?'🔥 趋势日 · '+sg(pct.toFixed(1))+'% 站上MA20 · 别高抛,拿着':'⚠️ 趋势下跌 · '+sg(pct.toFixed(1))+'% 破MA20 · 别接飞刀')+'</div>'; })()
     +'<div style="display:flex;gap:8px;margin-top:7px">'
     +(_pd2
       ?'<button style="flex:1;border:1px solid #3a2a22;background:#1a1512;color:#e8a13c;border-radius:10px;padding:9px 0;font-size:14px;font-weight:700" onclick="quickDeal('+i+',\'buy\')">接 '+(_bE!=null?P(_bE):'—')+' ·100股<small style="display:block;font-size:10px;font-weight:400">恐慌日·先卖后买更稳</small></button>'
@@ -6949,7 +6959,7 @@ function m15FibLine(f,p,code){
     +(f.triKind==='fib-confirmed'?'·<b>三角已破</b>':'');
 
   return '<div class="atrnote">'+statusLine+'<br>'
-    +(f.dir>0?'↑ ':'↓ ')+abc+'·回撤'+Math.round(f.retrace*100)+'%<br>'
+    +(f.dir>0?'↑ ':'↓ ')+abc+'<br>'
     +'目标1.0='+mark(f.t1)+'·1.618='+mark(f.t1618)+'·2.618='+mark(f.t2618)+'<br>'
     +(f.dir>0?'支撑C='+P(f.c)+' / 跌破A='+P(f.a)+'失效':'压力C='+P(f.c)+' / 升破A='+P(f.a)+'失效')
     +triTxt
