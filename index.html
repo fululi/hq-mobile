@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="金粼">
 <meta name="theme-color" content="#0b0e12">
-<title>金粼 · 持仓行情 v5.196 · 0910-1348构建</title>
+<title>金粼 · 持仓行情 v5.196 · 0910-1405构建</title>
 <style>
 /* v5.46 完整版换肤:暗色行情终端。只动皮肤——所有类名/布局/交互结构原样,计算逻辑零改动。
    调色板: 底#0b0e12 卡#14181e 描边#232a33 主文#dde3ec 次文#b0bac7 涨#f4655f 跌#2ebd7f 强调#4c8dff */
@@ -379,7 +379,7 @@ details.fold:not([open]) > summary { margin-bottom:0; }
 <body>
 <canvas id="bgwave" aria-hidden="true"></canvas>
 <div class="top">
-  <h1><span class="logoNm">金粼</span><span class="logoSub"><span class="cn">持仓行情</span><span class="en">JINLIN CAPITAL</span></span><span class="ver">v5.196·0910-1348</span><span id="healthDot" class="hdot" style="background:#5d6675" title="数据健康" onclick="healthToggle()"></span></h1>
+  <h1><span class="logoNm">金粼</span><span class="logoSub"><span class="cn">持仓行情</span><span class="en">JINLIN CAPITAL</span></span><span class="ver">v5.196·0910-1405</span><span id="healthDot" class="hdot" style="background:#5d6675" title="数据健康" onclick="healthToggle()"></span></h1>
   <div class="btns"><button class="ed" id="ntfyBtn" onclick="toggleNtfy()">提醒</button><button class="ed" id="edBtn" onclick="setView('holds');document.getElementById('holds').style.display='';toggleEdit()">编辑</button><button class="rf" onclick="refresh(1)">刷新</button></div>
 </div>
 <div class="navSticky" id="navSticky">
@@ -6243,9 +6243,9 @@ function doRender(){
     const wsgH=WSIG[h.code], wsgTxtH=wsgH?`<span class="badge ${wsgH>0?'up':'down'}">△周线破三角${wsgH>0?'上沿':'下沿'}${sigCtx(wsgH, DT[h.code], '日线')}</span>`:'';
     const m15H=MSIG[h.code], m15Badge=m15H?`<span class="badge ${m15H>0?'up':'down'}">△15分破三角${m15H>0?'上沿':'下沿'}${sigCtx(m15H, DT[h.code], '日线')}</span>`:'';
     // v5.196: 三角徽章三合一(房主:箭头太多)——△15分/周线/日线合成一条紧凑签,同向反向细节在15分fib行里
+    const dth=DT[h.code], dtCh=dth>0?'up':(dth<0?'down':'flat');
     const _triP=[m15H?('15分'+(m15H>0?'↑':'↓')):'', wsgH?('周线'+(wsgH>0?'↑':'↓')):'', (dth!=null&&dth!==0)?('日线'+(dth>0?'↑':'↓')):''].filter(x=>x);
     const triBadgeAll=_triP.length?('<span class="badge '+((_triP.join('').indexOf('↓')>=0)?'down':'up')+'">△'+_triP.join('·')+'</span>'):'';
-    const dth=DT[h.code], dtCh=dth>0?'up':(dth<0?'down':'flat');
     const dtBadgeH=dth!=null?`<span class="badge ${dtCh}">${dtTxt(h.code)}</span>`:'';
     const gzH=(wth!=null&&dth!=null&&wth===dth&&wth!==0)?'<span class="badge flat">周日同向</span>':'';
     const extH=EXT[h.code], extBadge=extH?`<span class="badge flat">${extTxt(h.code)}</span>`:'';
