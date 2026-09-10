@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="金粼">
 <meta name="theme-color" content="#0b0e12">
-<title>金粼 · 持仓行情 v5.196 · 0910-1405构建</title>
+<title>金粼 · 持仓行情 v5.197 · 0910-1735构建</title>
 <style>
 /* v5.46 完整版换肤:暗色行情终端。只动皮肤——所有类名/布局/交互结构原样,计算逻辑零改动。
    调色板: 底#0b0e12 卡#14181e 描边#232a33 主文#dde3ec 次文#b0bac7 涨#f4655f 跌#2ebd7f 强调#4c8dff */
@@ -379,7 +379,7 @@ details.fold:not([open]) > summary { margin-bottom:0; }
 <body>
 <canvas id="bgwave" aria-hidden="true"></canvas>
 <div class="top">
-  <h1><span class="logoNm">金粼</span><span class="logoSub"><span class="cn">持仓行情</span><span class="en">JINLIN CAPITAL</span></span><span class="ver">v5.196·0910-1405</span><span id="healthDot" class="hdot" style="background:#5d6675" title="数据健康" onclick="healthToggle()"></span></h1>
+  <h1><span class="logoNm">金粼</span><span class="logoSub"><span class="cn">持仓行情</span><span class="en">JINLIN CAPITAL</span></span><span class="ver">v5.197·0910-1735</span><span id="healthDot" class="hdot" style="background:#5d6675" title="数据健康" onclick="healthToggle()"></span></h1>
   <div class="btns"><button class="ed" id="ntfyBtn" onclick="toggleNtfy()">提醒</button><button class="ed" id="edBtn" onclick="setView('holds');document.getElementById('holds').style.display='';toggleEdit()">编辑</button><button class="rf" onclick="refresh(1)">刷新</button></div>
 </div>
 <div class="navSticky" id="navSticky">
@@ -701,6 +701,7 @@ const DEFAULT = {
   watch:[]
 };
 const K_UP=0.3, K_DN=0.5, ATR_FLOOR=0.75;
+const GRID_FIX={sh600176:1}; // v5.197: 整数关磁吸格距分票标定——巨石1元格(0910傍晚房主拍板"巨石就加一其他0.5":0.5格太密,把S1~S4延全吸成x.00/x.50),其余票维持0.5/0.05/0.005;liveMags/btMags都读它=实盘回测同口径
 const LS='portfolio_v2', LOG='tlog_v2', ATRK='atr14_v6', FEEK='fee_v1'; // v5.106: v4新增ma20(跌透判断),旧缓存作废重抓; v5.147: v5新增cl25; v5.164: v6新增zz(ZigZag拐点·上一波结构),旧缓存作废重抓
 let PF, editMode=false, MKT=null, ATR={}, ATR_DATE='', ATR_FAIL=false;
 let FEE={comm:0.025, stamp:0.05, min:5}; // 佣金万2.5、印花税0.05%(卖出)、最低佣金5元(ETF不适用)
@@ -989,18 +990,18 @@ function liveMags(code,anchor){
   if(lg&&lg.hi>0&&lg.lo>0){
     m.push({v:lg.hi,pri:2},{v:lg.lo,pri:2});
   }
-  if(anchor>0){ const st=anchor>=10?0.5:anchor>=1?0.05:0.005;
+  if(anchor>0){ const st=GRID_FIX[code]||(anchor>=10?0.5:anchor>=1?0.05:0.005);
     for(let v=Math.ceil((anchor-2.5)/st)*st; v<=anchor+2.5; v+=st) m.push({v:+v.toFixed(3),pri:1}); }
   return m;
 }
-function btMags(rows,i,prev,legHi,legLo){
+function btMags(rows,i,prev,legHi,legLo,code){
   const m=[];
   const ma=n=>{ if(i-n<0) return null; let t=0; for(let j=i-n;j<i;j++) t+=rows[j][4]; return t/n; };
   [5,10,20].forEach(n=>{ const v=ma(n); if(v>0) m.push({v:v,pri:2}); });
   m.push({v:rows[i-1][2],pri:2},{v:rows[i-1][3],pri:2}); // 昨高昨低也是磁吸位
   // v5.190 T2对齐: 补 ZigZag 段高/低磁吸位(对齐 liveMags v5.163,由 btT 算好传入,只用 ≤i-1 数据)
   if(legHi!=null&&legLo!=null&&legHi>0&&legLo>0){ m.push({v:legHi,pri:2},{v:legLo,pri:2}); }
-  if(prev>0){ const st=prev>=10?0.5:prev>=1?0.05:0.005;
+  if(prev>0){ const st=GRID_FIX[code]||(prev>=10?0.5:prev>=1?0.05:0.005);
     for(let v=Math.ceil((prev-2.5)/st)*st; v<=prev+2.5; v+=st) m.push({v:+v.toFixed(3),pri:1}); }
   return m;
 }
@@ -1184,7 +1185,7 @@ function btT(code,name,rows,K,i0,i1,mode){
     { const zz=[]; for(let j=0;j<i;j++) zz.push([rows[j][0],rows[j][1],rows[j][4],rows[j][2],rows[j][3]]);
       const baseD=zigzagSegStart(zz,ZZ_TH);
       for(let j=0;j<zz.length;j++){ if(String(zz[j][0])>=baseD){ const h2=zz[j][3],l2=zz[j][4]; if(_lhi==null||h2>_lhi)_lhi=h2; if(_llo==null||l2<_llo)_llo=l2; } } }
-    const T=tiers(anch,base,prev,lv,code,name,prev,btMags(rows,i,prev,_lhi,_llo),atr); // v5.163: 历史ATR传入,回测与实盘同一套自适应档数
+    const T=tiers(anch,base,prev,lv,code,name,prev,btMags(rows,i,prev,_lhi,_llo,code),atr); // v5.163: 历史ATR传入,回测与实盘同一套自适应档数
     if(!T.sells.length||!T.buys.length) continue;
     let s=T.sells[0], b=T.buys[0];
     if(mode==='trend'){   // 趋势过滤: 价在MA20上方且MA20上行 → 禁止高抛,只低吸

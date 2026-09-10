@@ -273,6 +273,9 @@ console.log('— meta —');
 {
   const m = SRC.match(/ATR_FLOOR=([\d.]+)/);
   eq(m && +m[1], 0.75, 'ATR_FLOOR=0.75(C6已拍板0.9待交棒——落地时把本断言改0.9)');
+  const g=SRC.match(/GRID_FIX=\{([^}]*)\}/);
+  ok(g && /sh600176:1(?!\d)/.test(g[1]), 'GRID_FIX 巨石sh600176=1元格(房主0910傍晚拍板:巨石就加一其他0.5,改格距先改这里)');
+  ok(SRC.indexOf('GRID_FIX[code]||(anchor>=10?0.5')>=0 && SRC.indexOf('GRID_FIX[code]||(prev>=10?0.5')>=0, 'liveMags/btMags 均走 GRID_FIX(回测同口径铁律)');
   ok(FNS.every(n => bundle.indexOf('function ' + n) >= 0), '16个目标函数全部抽取成功');
 }
 
