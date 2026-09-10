@@ -6,3 +6,5 @@ _seed*.html
 *backup*.json
 _b*.py
 .DS_Store
+__pycache__/
+_EDITING.lock
