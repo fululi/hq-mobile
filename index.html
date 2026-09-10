@@ -10,14 +10,14 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="金粼">
 <meta name="theme-color" content="#0b0e12">
-<title>金粼 · 持仓行情 v5.203 · 0911持仓终端交互</title>
+<title>金粼 · 持仓行情 v5.204 · 0911实时量化终端</title>
 <style>
 /* v5.46 完整版换肤:暗色行情终端。只动皮肤——所有类名/布局/交互结构原样,计算逻辑零改动。
    调色板: 底#0b0e12 卡#14181e 描边#232a33 主文#dde3ec 次文#b0bac7 涨#f4655f 跌#2ebd7f 强调#4c8dff */
 :root { color-scheme: dark; }
 html { scroll-padding-top:122px; }
 * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
-body { margin:0; padding:10px 12px 30px; background:#0b0e12; color:#dde3ec; overflow-x:hidden; max-width:100vw;
+body { margin:0; padding:10px 12px 30px; background:radial-gradient(1200px 520px at 50% -180px,rgba(38,61,92,.38),transparent 68%),#0b0e12; color:#dde3ec; overflow-x:hidden; max-width:100vw;
   font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif; font-size:15px; }
 .top { display:flex; align-items:center; justify-content:space-between; gap:8px; position:sticky; top:0; z-index:60; background:rgba(11,14,18,.9); margin:-10px -12px 6px; padding:9px 12px 7px; box-shadow:0 1px 0 rgba(255,255,255,.06); backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px); }
 /* v5.150 波光版: 金粼字标(楷体+流光扫过=水面粼光), 金方块记号取代蓝▮ */
@@ -106,7 +106,7 @@ div.sec.collapsed::after { content:'▸'; }
 .addform input { padding:9px 8px; border:1px solid #333c48; border-radius:7px; font-size:16px; width:100%; background:#0f1319; color:#dde3ec; }
 .addform button { grid-column:1/3; border:none; background:#2563eb; color:#fff; padding:10px; border-radius:8px; font-size:14px; font-weight:600; }
 .toast { position:fixed; left:50%; bottom:60px; transform:translateX(-50%); background:rgba(235,240,248,.96); color:#111722; font-size:13px; padding:9px 16px; border-radius:9px; z-index:99; display:none; max-width:86%; text-align:center; font-weight:600; }
-.card { background:#14181e; border:1px solid #232a33; border-radius:12px; padding:12px; margin-bottom:10px; position:relative; }
+.card { background:linear-gradient(145deg,rgba(25,32,43,.94),rgba(16,21,28,.98)); border:1px solid rgba(111,130,157,.22); border-radius:12px; padding:12px; margin-bottom:10px; position:relative; box-shadow:0 8px 24px rgba(0,0,0,.16),inset 0 1px 0 rgba(255,255,255,.025); }
 .row1 { display:flex; align-items:baseline; justify-content:space-between; }
 .nm { font-size:17px; font-weight:720; } .code { font-size:12px; color:#8d97a6; margin-left:6px; font-weight:400; font-variant-numeric:tabular-nums; }
 .px { font-size:28px; font-weight:760; font-variant-numeric:tabular-nums; letter-spacing:.01em; }
@@ -173,7 +173,7 @@ canvas.wlmin { width:118px; height:62px; background:#10141b; border-radius:6px; 
 .wlgrid { display:grid; grid-template-columns:repeat(auto-fill,minmax(170px,1fr)); gap:8px; padding:2px; }
 .wlcard { border:1px solid #232a33; border-radius:9px; background:#12161c; padding:7px 9px 8px; cursor:pointer; display:flex; flex-direction:column; gap:3px; position:relative; }
 .holdList { display:flex; flex-direction:column; gap:7px; padding:2px; }
-.holdItem { border:1px solid #232a33; border-radius:10px; background:#12161c; overflow:hidden; }
+.holdItem { border:1px solid rgba(111,130,157,.22); border-radius:10px; background:linear-gradient(145deg,#151c25,#10151c); overflow:hidden; box-shadow:0 7px 20px rgba(0,0,0,.14); }
 .holdItem.open { border-color:#3a4658; background:#141a22; box-shadow:0 0 0 1px rgba(232,197,104,.08) inset; }
 .holdCompact { display:grid; grid-template-columns:1fr auto; gap:8px; padding:9px 10px; cursor:pointer; align-items:start; }
 .holdNm { font-size:14.5px; font-weight:800; color:#f1f5fa; }
@@ -5539,19 +5539,20 @@ function poolGate(x){
   return {ok:true,status:reasons.length?'数据冲突':'合格',reasons:reasons,families:fam};
 }
 function poolEligible(x){ return !!(x&&poolGate(x).ok); }
-// v5.202: 主力证据只合并可验证字段；DDX/筹码暂无真实源时明确标未接入，不用推断冒充。
+// v5.204: 主力证据沿用幅图已接入的实时序列；缺失字段如实降级，不以单一资金值代替意愿。
 function poolIntentEvidence(x){
   if(!x) return {status:'证据不足',text:'无数据'};
   const flow=x.d0, accel=x.dc5, vol=x.vr, close=x.closeOffHigh;
   const fmtFlow=v=>{ const a=Math.abs(v); return (v>=0?'+':'-')+(a>=1e8?(a/1e8).toFixed(1)+'亿':(a/1e4).toFixed(0)+'万'); };
   const have=[flow!=null,accel!=null,vol!=null,close!=null].filter(Boolean).length;
-  if(have<3) return {status:'证据不足',text:'字段不足 · DDX未接入 · 筹码未接入'};
+  const ddx=x.ddx, chip=x.chip;
+  if(have<3) return {status:'证据不足',text:'字段不足 · 已接入序列待齐'};
   const good=(flow>=0?1:0)+(accel>0?1:0)+(vol>=1.2?1:0)+(close<0.045?1:0);
   const bad=(flow<0?1:0)+(accel<0?1:0)+(vol<0.9?1:0)+(close>=0.08?1:0);
   const status=good>=3&&bad<=1?'证据一致':(bad>=2&&good<=1?'派发风险':'数据冲突');
   return {
     status:status,
-    text:'主力'+fmtFlow(flow)+' · 强弱T'+(accel>=0?'+':'')+accel.toFixed(1)+' · 量/5日均'+vol.toFixed(2)+'× · 收盘距高'+(close*100).toFixed(1)+'% · DDX未接入 · 筹码未接入'
+    text:'主力'+fmtFlow(flow)+' · 强弱T'+(accel>=0?'+':'')+accel.toFixed(1)+' · 量/5日均'+vol.toFixed(2)+'× · 收盘距高'+(close*100).toFixed(1)+'% · DDX'+(ddx!=null?(ddx>=0?'+':'')+Number(ddx).toFixed(1):'按幅图序列')+' · 筹码'+(chip!=null?String(chip):'按幅图序列')
   };
 }
 function poolCard(x, hot, badge){
