@@ -24,7 +24,7 @@ function extractFn(name) {
   }
   throw new Error('function ' + name + ' 花括号没配对完');
 }
-const FNS = ['today','ymd','lastTradeDay','poolFreshOK','cls','limitPct','tickOf','extTier',
+const FNS = ['today','ymd','lastTradeDay','poolFreshOK','poolCacheOK','cls','limitPct','tickOf','extTier','nextAbove','nextBelow',
              'trendFlag','snapLv','tiers','narrowBase','atrOf','ampBase','todayPnlOf','settledRows'];
 const bundle = FNS.map(extractFn).join('\n');
 
@@ -92,6 +92,39 @@ console.log('— extTier —');
   eq(f([36], 'buy', 40, 'sh600105', '永鼎', 0.5), null, '已贴跌停不外推(null)');
   eq(f([42, 43], 'sell', 0, 'sh600105', '永鼎'), null, '昨收缺失不出延伸');
   eq(f([], 'sell', 40, 'sh600105', '永鼎'), null, '空档数组不出延伸');
+}
+
+// ================= nextAbove / nextBelow 越档后下一目标(v5.195) =================
+console.log('— nextAbove/nextBelow —');
+{
+  const c = makeCtx([2026, 8, 10, 14, 0]);
+  const fa = vm.runInContext('nextAbove', c), fb = vm.runInContext('nextBelow', c);
+  eq(fa([42, 43], 43.6, 40, 'sh600105', '永鼎'), 44, '越过顶档→外推到44(真在现价上方)');
+  eq(fa([43.00, 43.50], 44.50, 42.67, 'sh600176', '中国巨石'), 45, '连穿外推档→再推到45(巨石实案:44.5穿S4延43.79,涨停46.94还有空间)');
+  eq(fa([42, 43], 44.5, 40, 'sh600105', '永鼎'), null, '现价44.5已超涨停44=不可能场景,外推不出→null');
+  eq(fa([43.5, 43.9], 43.95, 40, 'sh600105', '永鼎'), 44, '外推被clip到涨停44仍可用');
+  eq(fa([44], 43.5, 40, 'sh600105', '永鼎'), 44, '原档序列里还有没越过的直接用');
+  eq(fa([44], 44.5, 40, 'sh600105', '永鼎', 0.5), null, '贴涨停外推不出→null(直逼涨停)');
+  eq(fa(null, 43, 40, 'sh600105', '永鼎'), null, '空档数组null');
+  eq(fb([38, 37], 36.5, 40, 'sh600105', '永鼎'), 36, '买侧跌穿→外推到36');
+  eq(fb([36.5], 37, 40, 'sh600105', '永鼎'), 36.5, '买侧原档未越直接用');
+  eq(fb([36], 35.5, 40, 'sh600105', '永鼎', 0.5), null, '贴跌停外推不出→null(不接飞刀)');
+}
+
+// ================= poolCacheOK 金龙池缓存交易日口径(v5.195) =================
+console.log('— poolCacheOK —');
+{
+  const c1 = makeCtx([2026, 8, 10, 14, 0]); // 周四
+  const f1 = vm.runInContext('poolCacheOK', c1);
+  eq(f1('2026-09-10'), true, '当日池接着用');
+  eq(f1('2026-09-07'), true, '隔3个交易日接着用(停更期不白扫)');
+  eq(f1('2026-08-28'), false, '隔9个交易日太旧重扫');
+  eq(f1(''), false, '空不用'); eq(f1(null), false, 'null不用');
+  eq(f1('20260910'), true, 'yyyymmdd格式也认');
+  const c2 = makeCtx([2026, 8, 14, 8, 30]); // 周一早晨
+  eq(vm.runInContext('poolCacheOK', c2)('2026-09-11'), true, '周一早晨认周五的池子(核心修复)');
+  const c3 = makeCtx([2026, 9, 3, 10, 0]); // 国庆假期中(周六)
+  eq(vm.runInContext('poolCacheOK', c3)('2026-09-30'), true, '假期中不白扫(节前池子接着看)');
 }
 
 // ================= trendFlag 趋势升档 =================
