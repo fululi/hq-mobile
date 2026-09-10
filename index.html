@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="金粼">
 <meta name="theme-color" content="#0b0e12">
-<title>金粼 · 持仓行情 v5.197 · 0910-1735构建</title>
+<title>金粼 · 持仓行情 v5.198 · 0910-1830构建</title>
 <style>
 /* v5.46 完整版换肤:暗色行情终端。只动皮肤——所有类名/布局/交互结构原样,计算逻辑零改动。
    调色板: 底#0b0e12 卡#14181e 描边#232a33 主文#dde3ec 次文#b0bac7 涨#f4655f 跌#2ebd7f 强调#4c8dff */
@@ -379,7 +379,7 @@ details.fold:not([open]) > summary { margin-bottom:0; }
 <body>
 <canvas id="bgwave" aria-hidden="true"></canvas>
 <div class="top">
-  <h1><span class="logoNm">金粼</span><span class="logoSub"><span class="cn">持仓行情</span><span class="en">JINLIN CAPITAL</span></span><span class="ver">v5.197·0910-1735</span><span id="healthDot" class="hdot" style="background:#5d6675" title="数据健康" onclick="healthToggle()"></span></h1>
+  <h1><span class="logoNm">金粼</span><span class="logoSub"><span class="cn">持仓行情</span><span class="en">JINLIN CAPITAL</span></span><span class="ver">v5.198·0910-1830</span><span id="healthDot" class="hdot" style="background:#5d6675" title="数据健康" onclick="healthToggle()"></span></h1>
   <div class="btns"><button class="ed" id="ntfyBtn" onclick="toggleNtfy()">提醒</button><button class="ed" id="edBtn" onclick="setView('holds');document.getElementById('holds').style.display='';toggleEdit()">编辑</button><button class="rf" onclick="refresh(1)">刷新</button></div>
 </div>
 <div class="navSticky" id="navSticky">
@@ -700,7 +700,7 @@ const DEFAULT = {
   holds:[],
   watch:[]
 };
-const K_UP=0.3, K_DN=0.5, ATR_FLOOR=0.75;
+const K_UP=0.3, K_DN=0.5, ATR_FLOOR=0.9; // v5.198: ATR_FLOOR 0.75→0.9(C6房主已拍板,0910傍晚落地); K_DN=0.5 为通用档,分票标定值在脾气档案(巨石0.9449/永鼎0.9118)待第②步接线
 const GRID_FIX={sh600176:1}; // v5.197: 整数关磁吸格距分票标定——巨石1元格(0910傍晚房主拍板"巨石就加一其他0.5":0.5格太密,把S1~S4延全吸成x.00/x.50),其余票维持0.5/0.05/0.005;liveMags/btMags都读它=实盘回测同口径
 const LS='portfolio_v2', LOG='tlog_v2', ATRK='atr14_v6', FEEK='fee_v1'; // v5.106: v4新增ma20(跌透判断),旧缓存作废重抓; v5.147: v5新增cl25; v5.164: v6新增zz(ZigZag拐点·上一波结构),旧缓存作废重抓
 let PF, editMode=false, MKT=null, ATR={}, ATR_DATE='', ATR_FAIL=false;
@@ -1022,6 +1022,10 @@ function tiers(p,base,prev,lv,code,name,refFix,mags,atrOv){
   else if(_ap!=null&&_ap>=5-1e-9){ su=[0.3,0.6,0.95]; sd=[0.5,0.85,1.2]; }
   else if(_ap!=null&&_ap>=3-1e-9){ su=[0.3,0.6]; sd=[0.5,0.85]; }
   else { su=[0.3]; sd=[0.5]; }
+  // v5.198: 分票标定买档深度·平移保距(0910房主两轮明令定稿)——整梯锚点从通用0.5挪到标定值: 巨石0.9449/永鼎0.9118/兆易0.9329(源:bt_temper_profile_result.json bounce_all);
+  // 首档=标定值×base, 档距与通用梯完全一致(不深拉梯子,房主实锤"最低最高差太多"否掉等比方案); su卖侧不动; 未标定票维持通用; 中金黄金待补标定
+  const _kdf={sh600176:0.9449, sh600105:0.9118, sh603986:0.9329}[code];
+  if(_kdf) sd=sd.map(k=>+(k+_kdf-0.5).toFixed(4));
   let sells=su.map(k=>Math.min(cap,p+k*base));
   let buys=sd.map(k=>Math.max(floor,p-k*base));
   // v5.140: 吸附技术位（实盘自动取/回测传历史mags）
@@ -6263,8 +6267,8 @@ function doRender(){
       const hit=side==='buy'?(lo!=null&&lo<=x):(hi!=null&&hi>=x);
       let gapS='';
       if(p!=null&&p>0){ const g=(x/p-1)*100, ag=Math.abs(g).toFixed(1);
-        gapS=side==='buy'?(g<0?'<em>↓还差'+ag+'%</em>':'<em class="warn">⚠比现价高'+ag+'%</em>')
-          :(g>0?'<em>↑还差'+ag+'%</em>':'<em class="warn">⚠已越过'+ag+'%</em>'); } // v5.195: 卖档在现价下方=涨穿,不是跌破(巨石0910实锤)
+        gapS=side==='buy'?(g<0?'<em>还差'+ag+'%</em>':'<em class="warn">⚠比现价高'+ag+'%</em>')
+          :(g>0?'<em>还差'+ag+'%</em>':'<em class="warn">⚠已越过'+ag+'%</em>'); } // v5.195: 卖档在现价下方=涨穿,不是跌破(巨石0910实锤); v5.198: 价格右侧箭头撤下(房主0910第三次强调:买卖标记不要箭头,其余箭头一律不动)
       const amt=Math.round(x*100);
       const amtS=(side==='buy'?'花 ':'收 ')+amt.toLocaleString()+'元'; // v5.165: 100股直给金额
       const _dq=DPOS[h.code]; let prS='';

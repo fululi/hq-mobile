@@ -38,7 +38,7 @@ function makeCtx(fixed) { // fixed: [y,m,d,h,mi] 本地时间
   const ctx = {
     Date: FakeDate, Math, JSON, console,
     TLOG: [], ATR: {}, _planNext: false,
-    K_UP: 0.3, K_DN: 0.5, ATR_FLOOR: 0.75, // 与 index.html:710 一致(下方有 meta 断言盯住)
+    K_UP: 0.3, K_DN: 0.5, ATR_FLOOR: 0.9, // 与 index.html:703 一致(下方有 meta 断言盯住)
   };
   vm.createContext(ctx);
   vm.runInContext('function planNext(){ return _planNext; }', ctx);
@@ -216,7 +216,7 @@ console.log('— narrowBase —');
   eq(r.base, 0.7, '振幅打满base=max(0.6,0,0.7)=0.7');
   c._planNext = true;
   r = f('sh600105', 2, 1.8);
-  eq(r.narrow, false, '明日计划窄档重置'); eq(r.base, 1.5, '重置回ampBase=ATR×FLOOR=1.5(FLOOR=0.75)');
+  eq(r.narrow, false, '明日计划窄档重置'); eq(r.base, 1.8, '重置回ampBase=ATR×FLOOR=1.8(FLOOR=0.9)');
 }
 
 // ================= todayPnlOf 今日盈亏(现金流恒等式) =================
@@ -268,11 +268,26 @@ console.log('— poolFreshOK —');
   eq(vm.runInContext('poolFreshOK', c3)('2026-09-11'), false, '周一不认上周五');
 }
 
+// ================= tiers 分票标定·平移保距 =================
+console.log('— tiers 分票标定 —');
+{
+  const c = makeCtx([2026, 8, 10, 18, 30]); // 盘后→planNext, ref=今收
+  const f = vm.runInContext('tiers', c);
+  const r = f(43.46, 3.19, 43.46, 0, 'sh600176', '中国巨石', 43.46); // refFix传入→不走liveMags,纯数学
+  eq(r.buys.length, 1, '低波分支单买档');
+  eq(r.buys[0], 40.45, '巨石B1=43.46-0.9449×3.19≈40.45(平移保距,首档=标定值)');
+  eq(r.sells[0], 44.42, '卖侧不动 S1=43.46+0.3×3.19≈44.42');
+  const r2 = f(43.46, 3.19, 43.46, 0, 'sh601318', '中国平安', 43.46);
+  eq(r2.buys[0], 41.87, '未标定票维持通用0.5: B1=43.46-0.5×3.19≈41.87');
+}
+
 // ================= meta: 盯住全局口径常量 =================
 console.log('— meta —');
 {
+  ok(/_kdf-0\.5/.test(SRC), '分票标定=平移保距公式(k+_kdf-0.5),禁止改回等比拉长(房主否决"最低最高差太多")');
+  ok(/sh600176:0\.9449/.test(SRC) && /sh600105:0\.9118/.test(SRC) && /sh603986:0\.9329/.test(SRC), '三票标定值钉死: 巨石0.9449/永鼎0.9118/兆易0.9329');
   const m = SRC.match(/ATR_FLOOR=([\d.]+)/);
-  eq(m && +m[1], 0.75, 'ATR_FLOOR=0.75(C6已拍板0.9待交棒——落地时把本断言改0.9)');
+  eq(m && +m[1], 0.9, 'ATR_FLOOR=0.9(C6房主拍板,v5.198落地)');
   const g=SRC.match(/GRID_FIX=\{([^}]*)\}/);
   ok(g && /sh600176:1(?!\d)/.test(g[1]), 'GRID_FIX 巨石sh600176=1元格(房主0910傍晚拍板:巨石就加一其他0.5,改格距先改这里)');
   ok(SRC.indexOf('GRID_FIX[code]||(anchor>=10?0.5')>=0 && SRC.indexOf('GRID_FIX[code]||(prev>=10?0.5')>=0, 'liveMags/btMags 均走 GRID_FIX(回测同口径铁律)');
