@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="金粼">
 <meta name="theme-color" content="#0b0e12">
-<title>金粼 · 持仓行情 v5.195 · 0910-1215构建</title>
+<title>金粼 · 持仓行情 v5.196 · 0910-1348构建</title>
 <style>
 /* v5.46 完整版换肤:暗色行情终端。只动皮肤——所有类名/布局/交互结构原样,计算逻辑零改动。
    调色板: 底#0b0e12 卡#14181e 描边#232a33 主文#dde3ec 次文#b0bac7 涨#f4655f 跌#2ebd7f 强调#4c8dff */
@@ -379,7 +379,7 @@ details.fold:not([open]) > summary { margin-bottom:0; }
 <body>
 <canvas id="bgwave" aria-hidden="true"></canvas>
 <div class="top">
-  <h1><span class="logoNm">金粼</span><span class="logoSub"><span class="cn">持仓行情</span><span class="en">JINLIN CAPITAL</span></span><span class="ver">v5.195·0910-1215</span><span id="healthDot" class="hdot" style="background:#5d6675" title="数据健康" onclick="healthToggle()"></span></h1>
+  <h1><span class="logoNm">金粼</span><span class="logoSub"><span class="cn">持仓行情</span><span class="en">JINLIN CAPITAL</span></span><span class="ver">v5.196·0910-1348</span><span id="healthDot" class="hdot" style="background:#5d6675" title="数据健康" onclick="healthToggle()"></span></h1>
   <div class="btns"><button class="ed" id="ntfyBtn" onclick="toggleNtfy()">提醒</button><button class="ed" id="edBtn" onclick="setView('holds');document.getElementById('holds').style.display='';toggleEdit()">编辑</button><button class="rf" onclick="refresh(1)">刷新</button></div>
 </div>
 <div class="navSticky" id="navSticky">
@@ -938,6 +938,17 @@ function nextBelow(arr, p, prevClose, code, name, fb){
   const a=arr.slice();
   for(let k=0;k<4;k++){ const e=extTier(a,'buy',prevClose,code,name,fb); if(e==null) return null; if(e<p-1e-9) return e; a.push(e); }
   return null;
+}
+// v5.196: fib磁吸位——15分小腿的fib反弹位/段高里,现价上方最近一个。档全穿后真压力(巨石0910实案: S1~S4延全穿,0.786=45.10才是万人盯的磁吸位)
+function fibAboveOf(code, p){
+  if(p==null||!(p>0)) return null;
+  const lg=(typeof M15FIB!=='undefined'&&M15FIB[code]&&M15FIB[code].leg)||null;
+  if(!lg) return null;
+  const cands=[];
+  if(lg.dir<0){ (lg.lv||[]).forEach(x=>{ if(x[1]>0) cands.push({v:x[1],tag:x[0]}); }); if(lg.a>0) cands.push({v:lg.a,tag:'段高'}); }
+  else if(lg.dir>0){ if(lg.b>0) cands.push({v:lg.b,tag:'段高'}); }
+  const up=cands.filter(x=>x.v>p+1e-9).sort((a,b)=>a.v-b.v);
+  return up.length?up[0]:null;
 }
 
 // 趋势/异动判定: 结合个股涨跌%、振幅%、大盘(上证)涨跌%
@@ -4979,6 +4990,7 @@ function wlAdvice(code,name,brief){
     // v5.139: 越顶/全穿时给"延伸档"——按原档间距外推一格,让你始终知道下一格在哪; v5.191 T4: 改走 extTier 统一口径,clip 进涨跌停界内
     const sExt=nextAbove(tr.sells,p,prev,code,hh.name,nb&&nb.base?0.3*nb.base:0); // v5.195: 延伸档必须真在现价上方,不够就再推
     const bExt=nextBelow(tr.buys,p,prev,code,hh.name,nb&&nb.base?0.3*nb.base:0);
+    const _fU=fibAboveOf(code,p); // v5.196: fib磁吸位备用
     const old='<span style="color:#8a94a6;text-decoration:line-through">';
     let bTxt='', sTxt='';
     // v5.165: 恐慌日不再锁买档(09-07锁档丢反弹5点实证)——档位照给,文案讲清楚风险
@@ -4992,9 +5004,9 @@ function wlAdvice(code,name,brief){
     else if(_ba.st==='nodata') bTxt='<span class="dim">腿数据缺失 · 买档暂停催买</span>'; // v5.177 雷2: nodata不催买
     if(sBrk) sTxt=old+'抛 '+P(s0)+'</span>'+(sNxt!=null
       ? '<span style="color:#ff8a80">→看 <b>'+P(sNxt)+'</b> +'+((sNxt/p-1)*100).toFixed(1)+'%</span>'
-      : '<span style="color:#e8c568"> 已越顶·'+(sExt?'上看 <b>'+P(sExt)+'</b> +'+((sExt/p-1)*100).toFixed(1)+'%':'直逼涨停·移动止盈')+'</span>');
+      : '<span style="color:#e8c568"> 已越顶·'+(sExt?'上看 <b>'+P(sExt)+'</b> +'+((sExt/p-1)*100).toFixed(1)+'%'+(_fU&&_fU.v>sExt*1.001?' · 磁吸'+_fU.tag+'='+P(_fU.v):''):(_fU?'档全穿·上看 '+_fU.tag+' <b>'+P(_fU.v)+'</b>':'直逼涨停·移动止盈'))+'</span>');
     else if(s0!=null) sTxt='<span style="color:#ff8a80">抛 <b>'+P(s0)+'</b> +'+((s0/p-1)*100).toFixed(1)+'%</span>';
-    if(b0!=null&&s0!=null&&s0>b0&&!_pd&&!sBrk&&!bBrk) sTxt='<span style="color:#e8c568">↗</span> '+sTxt; // 接→抛之间插上涨箭头
+    // v5.196: ↗箭头撤下(房主:箭头太多)——接抛两档并排已够直给
     // v5.192: sup态日内T档照出+标"T仓"——"别加仓"管的是波段买档,日内做T的接/抛价必须有(0910兆易卡:房主成本在下方,光喊别接不给日内档=扯淡)
     if(_ba.st==='sup'&&s0!=null&&!sBrk) sTxt=(b0!=null?'<span style="color:#4fd79b">B <b>'+P(b0)+'</b></span> ':'')+'<span style="color:#ff8a80">S <b>'+P(s0)+'</b> +'+((s0/p-1)*100).toFixed(1)+'%</span><span class="dim" style="font-size:10px">(T仓做T·非清仓)</span>';
     let _net=null, _fee=null; // v5.178: 净额存一份,拼进第一行大字; v5.184: 费也存一份,数据带悬停提示用
@@ -6230,6 +6242,9 @@ function doRender(){
     const wtBadge = `<span class="badge ${wtCh}">${wtTxt(h.code)}</span>`;
     const wsgH=WSIG[h.code], wsgTxtH=wsgH?`<span class="badge ${wsgH>0?'up':'down'}">△周线破三角${wsgH>0?'上沿':'下沿'}${sigCtx(wsgH, DT[h.code], '日线')}</span>`:'';
     const m15H=MSIG[h.code], m15Badge=m15H?`<span class="badge ${m15H>0?'up':'down'}">△15分破三角${m15H>0?'上沿':'下沿'}${sigCtx(m15H, DT[h.code], '日线')}</span>`:'';
+    // v5.196: 三角徽章三合一(房主:箭头太多)——△15分/周线/日线合成一条紧凑签,同向反向细节在15分fib行里
+    const _triP=[m15H?('15分'+(m15H>0?'↑':'↓')):'', wsgH?('周线'+(wsgH>0?'↑':'↓')):'', (dth!=null&&dth!==0)?('日线'+(dth>0?'↑':'↓')):''].filter(x=>x);
+    const triBadgeAll=_triP.length?('<span class="badge '+((_triP.join('').indexOf('↓')>=0)?'down':'up')+'">△'+_triP.join('·')+'</span>'):'';
     const dth=DT[h.code], dtCh=dth>0?'up':(dth<0?'down':'flat');
     const dtBadgeH=dth!=null?`<span class="badge ${dtCh}">${dtTxt(h.code)}</span>`:'';
     const gzH=(wth!=null&&dth!=null&&wth===dth&&wth!==0)?'<span class="badge flat">周日同向</span>':'';
@@ -6273,7 +6288,8 @@ function doRender(){
     let buyExtX=null, sellExtX=null;
     if(tr.buys.length>1&&_stpX(tr.buys)&&_rch){ let _bx=Math.max(tr.buys[tr.buys.length-1]-_stpX(tr.buys), _rch*(1-_lpw2)); if(_bx<tr.buys[tr.buys.length-1]-0.001) buyExtX=_bx; }
     if(tr.sells.length>1&&_stpX(tr.sells)&&_rch){ let _sx=Math.min(tr.sells[tr.sells.length-1]+_stpX(tr.sells), _rch*(1+_lpw2)); if(_sx>tr.sells[tr.sells.length-1]+0.001) sellExtX=_sx; }
-    const ladS=(sellExtX!=null?ladRow(sellExtX,'sell','S'+(tr.sells.length+1)+'延',1):'') // 延伸档在最高处
+    const _fibU=fibAboveOf(h.code,p), _topS=Math.max(tr.sells.length?tr.sells[tr.sells.length-1]:0, sellExtX||0); // v5.196: fib磁吸位进操作梯
+    const ladS=(_fibU&&_fibU.v>_topS+0.001?ladRow(_fibU.v,'sell','F·'+_fibU.tag,1):'')+(sellExtX!=null?ladRow(sellExtX,'sell','S'+(tr.sells.length+1)+'延',1):'') // fib磁吸档最高,其下延伸档
       +(tr.sells.length?tr.sells.map((x,j)=>ladRow(x,'sell','S'+(j+1))).reverse().join(''):'<div class="lad ls"><i>S</i><b>'+P(projHi)+'</b></div>');
     // v5.174: 破位抑制条——买档上方明示"结构破坏·等新腿";重新武装当天给一条绿色确认
     // v5.183: 腿+回撤行归位进三层卡【波段·日线】层(常显),抑制条不再重复携带
@@ -6504,7 +6520,7 @@ function doRender(){
         +'<div class="qf"><span class="dim">档位价/触及率/净额见上方操作梯(同一套数据,不重复列)</span></div></div>';
     })();
     return `<div class="card" id="hcard_${i}"${cleared?' style="opacity:.55"':''}>${cleared?'<span class="badge flat" style="position:absolute;top:10px;right:78px">已清仓·沉底</span>':''}${delBtn}
-      <div class="row1"><div><span class="nm">${h.name}</span><span class="code">${h.code.replace(/^(sh|sz)/,'')}</span>${acctTag(h)}${badge}${wtBadge}${dtBadgeH}${wsgTxtH}${m15Badge}${gzH}${extBadge}${dkBadge}${(()=>{const _bwH=bigWarnOf(h.code,p);return _bwH?'<span class="badge" style="color:#e8a13c">⚠临近'+_bwH.lbl+' '+P(_bwH.px)+'(差'+_bwH.gapPct.toFixed(1)+'%)</span>':'';})()}</div>
+      <div class="row1"><div><span class="nm">${h.name}</span><span class="code">${h.code.replace(/^(sh|sz)/,'')}</span>${acctTag(h)}${badge}${wtBadge}${triBadgeAll}${extBadge}${dkBadge}${(()=>{const _bwH=bigWarnOf(h.code,p);return _bwH?'<span class="badge" style="color:#e8a13c">⚠临近'+_bwH.lbl+' '+P(_bwH.px)+'(差'+_bwH.gapPct.toFixed(1)+'%)</span>':'';})()}</div>
         <div class="pct ${cls(pct)}">${pct!=null?sg(pct.toFixed(2))+'%':''}<button class="ctog" onclick="togCard('${h.code}')">${COLL[h.code]==='open'?'▾':'▸'}</button></div></div>
       ${((COLL[h.code]!=='open')&&!editMode&&!cleared)?(()=>{ // v5.102: 折叠态=左傻瓜建议右实时分时图,不展开也能看图看价
         const b0c=((typeof _pd!=='undefined'&&_pd)||_ba.st==='sup'||_ba.st==='nodata')?null:tr.buys[0], s0c=tr.sells[0]; // v5.174: 破位抑制期折叠态也不亮"到接"; v5.177: nodata同样不亮
@@ -6576,9 +6592,10 @@ function doRender(){
           const gp=((s0/p-1)*100).toFixed(1);
           if(p<s0*1.005) return `<div class="actnow sell" onclick="fillT(${i},${s0},'sell')">现在抛 <b>${P(s0)}</b><small>${gp>=0?'+':''}${gp}% · ${warn||'到价了'}</small></div>`;
           const sNxt2=nextAbove(tr.sells,p,prev,h.code,h.name,nb&&nb.base?0.3*nb.base:0);
-          return sNxt2!=null
-            ?`<div class="actnow sell" onclick="fillT(${i},${sNxt2},'sell')">已过 ${P(s0)} · 延抛看 <b>${P(sNxt2)}</b><small>旧档已穿别按旧价抛 · 距现价+${((sNxt2/p-1)*100).toFixed(1)}%</small></div>`
-            :`<div class="actnow wait">已穿全部卖档 · 越顶移动止盈<small>直逼涨停 · 分批减不一次清</small></div>`;
+          const fU2=fibAboveOf(h.code,p); // v5.196: fib磁吸位——档全穿后的真压力
+          if(sNxt2!=null) return `<div class="actnow sell" onclick="fillT(${i},${sNxt2},'sell')">已过 ${P(s0)} · 延抛看 <b>${P(sNxt2)}</b><small>旧档已穿别按旧价抛 · 距现价+${((sNxt2/p-1)*100).toFixed(1)}%${fU2&&fU2.v>sNxt2*1.001?' · 磁吸'+fU2.tag+'='+P(fU2.v):''}</small></div>`;
+          if(fU2) return `<div class="actnow sell" onclick="fillT(${i},${fU2.v},'sell')">已穿全部卖档 · 上看 ${fU2.tag} <b>${P(fU2.v)}</b><small>fib磁吸位 · 距现价+${((fU2.v/p-1)*100).toFixed(1)}% · 别按旧档抛</small></div>`;
+          return `<div class="actnow wait">已穿全部卖档 · 越顶移动止盈<small>直逼涨停 · 分批减不一次清</small></div>`;
         }
         if(p!=null&&b0!=null&&p<=b0*1.002&&_ba.st!=='sup'&&_ba.st!=='nodata'){ // v5.177: sup/nodata 不亮"现在接"大按钮(不催买)
           const gp=((b0/p-1)*100).toFixed(1);
@@ -6596,7 +6613,7 @@ function doRender(){
         if(b0==null&&s0!=null) return `<div class="actnow wait">先抛 ${sTxt} · 接档今日算不出,等刷新<small>${warn||'恐慌/单边日规则'}</small></div>`; // v5.89: 恐慌日缺买腿时不显示断箭头
         return `<div class="actnow wait">等 · ${bTxt} → ${sTxt}<small>${warn||'未到价·点价格直接填单'}</small></div>`;
       })()}
-      ${((tf.lv>=2||(pct!=null&&Math.abs(pct)>=5))&&!_pd)?`<div style="margin:6px 0;padding:8px 12px;border-radius:9px;font-weight:800;font-size:14px;background:${(pct||0)>=0?'rgba(244,101,95,.15)':'rgba(46,189,127,.15)'};color:${(pct||0)>=0?'#ff8a80':'#4fd79b'}">⚡ 单边行情 ${pct!=null?sg(pct.toFixed(1))+'%':''} · ${tf.label||'极端波动'} · 档位已按极端日口径放宽,别按平常日的手感追</div>`:''}
+      <!-- v5.196: ⚡单边横幅撤下(房主:闪电什么鬼不要)——极端日信息已在徽章/恐慌条里,不重复堆 -->
       ${_pd?`<div style="margin:6px 0;padding:8px 12px;border-radius:9px;font-weight:800;font-size:13.5px;background:rgba(255,144,102,.12);color:#ff9066">🛑 恐慌下跌日 ${pct!=null?sg(pct.toFixed(1))+'%':''}${ffFact(h.code)} · 先卖后买更稳,接档照给不锁 · 档位已按极端日放宽</div>`:(!_pd&&_soldT&&(pct!=null&&pct<=-3)?`<div style="margin:6px 0;padding:6px 12px;border-radius:9px;font-weight:700;font-size:12.5px;background:rgba(46,189,127,.10);color:#4fd79b">✓ 恐慌日·今天已先卖 · 接回照常提示</div>`:'')}
       ${tradeZone}
       <details class="fold" data-fk="wb-${h.code}"><summary style="font-size:12px;color:#8d97a6;padding:4px 0;cursor:pointer">水位·波段明细(实时)</summary>${actBar}</details>
@@ -7648,7 +7665,7 @@ fixSticky(); setTimeout(fixSticky,400); setTimeout(fixSticky,1500);
 let TT_MODE={}; try{ TT_MODE=JSON.parse(localStorage.getItem('hqm_ttm_v1')||'{}')||{}; }catch(e){ TT_MODE={}; }
 function ttTgl(code){ TT_MODE[code]=(TT_MODE[code]==='sw')?'day':'sw'; try{ localStorage.setItem('hqm_ttm_v1',JSON.stringify(TT_MODE)); }catch(e){} renderHoldTemp(); }
 // ===== v5.194: 新闻独立一栏 + 持仓行业联动 + 早报链接修复 =====
-let NEWS_W='zao', NEWS_ONLY=false, NEWS_SRC='';
+let NEWS_W='zao', NEWS_ONLY=false, NEWS_SRC='', NEWS_TM=0;
 function zbFixLinks(doc){ try{ doc.querySelectorAll('a[href]').forEach(a=>{ if(!a.target){ a.target='_blank'; a.rel='noopener'; } }); }catch(e){} }
 // v5.194b: 行业别名——早报写"光通信/超节点"而持仓行业叫"通信设备", 纯字符串匹配会漏(房主:持仓关联光通讯,新闻就要链过来)
 const IND_ALIAS={'通信设备':['光通信','光通讯','光模块','CPO','光纤','超节点'],'半导体':['半导体','芯片','存储','DRAM','HBM','先进封装'],'玻璃玻纤':['玻纤','电子布','覆铜板','玻璃纤维']};
@@ -7665,7 +7682,7 @@ function newsShow(){
   const fr=document.getElementById('newsFrame'); if(!fr) return;
   const url=(NEWS_W==='wan'?'wanbao':'zaobao')+'/latest.html';
   const full=document.getElementById('newsFull'); if(full) full.href=url;
-  if(NEWS_SRC!==url){ NEWS_SRC=url; fr.src=url+'?_='+Date.now(); }
+  if(NEWS_SRC!==url||Date.now()-NEWS_TM>600000){ NEWS_SRC=url; NEWS_TM=Date.now(); fr.src=url+'?_='+Date.now(); } // v5.196: 进栏超10分钟强制重取——早报/晚报更新后不再看旧缓存
   fr.onload=()=>{ try{
     const doc=fr.contentDocument; if(!doc||!doc.getElementById('zb-root')) throw 0;
     document.getElementById('newsEmpty').style.display='none'; fr.style.display='block';
@@ -7695,10 +7712,11 @@ function newsDecorate(doc){
     li.style.display=(NEWS_ONLY&&li.getAttribute('data-nm')!=='1')?'none':'';
   });
   const mine=document.getElementById('newsMine');
-  if(mine) mine.innerHTML = !kws.length ? '' :
+  const _liveH=(PF.holds||[]).map(h=>h.name).join('·'); // v5.196: 实时持仓行——报告内持仓页是生成时点快照,这里给活的
+  if(mine) mine.innerHTML = (_liveH?'<div style="margin-bottom:3px;color:#c6cfda">📌 当前持仓(实时): <b>'+_liveH+'</b> <span class="dim">· 报告内持仓页=生成时点快照</span></div>':'') + (!kws.length ? '' :
     (hits ? '🔗 本期 <b style="color:#e8c568">'+hits+'</b> 条点到你的持仓/行业 <span class="dim">'+Object.keys(hitKw).join(' / ')+'</span>'
           : '本期没直接点到你的持仓/行业 <span class="dim">(盯: '+kws.slice(0,6).join('·')+')</span>')
-    +' · <b id="newsOnlyB" style="color:#4a9eff;cursor:pointer" onclick="newsTgl()">'+(NEWS_ONLY?'看全部':'只看相关')+'</b>';
+    +' · <b id="newsOnlyB" style="color:#4a9eff;cursor:pointer" onclick="newsTgl()">'+(NEWS_ONLY?'看全部':'只看相关')+'</b>');
 }
 // ===== v5.194: 数据健康灯——终榜/PE带/早报/晚报/ATR缓存 五源新鲜度; 绿=当日 黄=隔1~2交易日 红=停更/取不到(房主:管道再停更一眼能看到) =====
 let HEALTH={pool:'',pe:'',atr:'',zao:null,wan:null}; // null=读取中

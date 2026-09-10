@@ -25,7 +25,7 @@ function extractFn(name) {
   throw new Error('function ' + name + ' 花括号没配对完');
 }
 const FNS = ['today','ymd','lastTradeDay','poolFreshOK','poolCacheOK','cls','limitPct','tickOf','extTier','nextAbove','nextBelow',
-             'trendFlag','snapLv','tiers','narrowBase','atrOf','ampBase','todayPnlOf','settledRows'];
+             'trendFlag','snapLv','tiers','narrowBase','atrOf','ampBase','todayPnlOf','settledRows','fibAboveOf'];
 const bundle = FNS.map(extractFn).join('\n');
 
 // ---- 沙箱: 假 Date 可控时间; TLOG/ATR/planNext 可注入 ----
@@ -125,6 +125,26 @@ console.log('— poolCacheOK —');
   eq(vm.runInContext('poolCacheOK', c2)('2026-09-11'), true, '周一早晨认周五的池子(核心修复)');
   const c3 = makeCtx([2026, 9, 3, 10, 0]); // 国庆假期中(周六)
   eq(vm.runInContext('poolCacheOK', c3)('2026-09-30'), true, '假期中不白扫(节前池子接着看)');
+}
+
+// ================= fibAboveOf fib磁吸位(v5.196 巨石实案: 44.50上方最近=0.786@45.10) =================
+console.log('— fibAboveOf —');
+{
+  const c = makeCtx([2026, 8, 10, 14, 0]);
+  c.M15FIB = { sh600176: { leg: { dir: -1, a: 47.08, lv: [['0.382',41.37],['0.5',42.46],['0.618',43.55],['0.786',45.10]] } } };
+  const f = vm.runInContext('fibAboveOf', c);
+  let r = f('sh600176', 44.50);
+  eq(r && r.v, 45.10, '巨石实案: 44.50上方磁吸=0.786'); eq(r && r.tag, '0.786', '磁吸标签=0.786');
+  r = f('sh600176', 45.20);
+  eq(r && r.v, 47.08, '越过0.786后上看段高'); eq(r && r.tag, '段高', '段高标签');
+  eq(f('sh600176', 47.20), null, '段高之上无磁吸=null');
+  eq(f('sh600176', null), null, '价null=null'); eq(f('sh600176', 0), null, '价0=null');
+  c.M15FIB = { sh600176: { leg: { dir: 1, b: 50 } } }; // 上行腿
+  r = f('sh600176', 49); eq(r && r.v, 50, '上行腿看段高b');
+  eq(f('sh600176', 51), null, '上行腿段高之上=null');
+  c.M15FIB = {}; eq(f('sh600176', 44), null, '无缓存=null');
+  const c2 = makeCtx([2026, 8, 10, 14, 0]); // M15FIB 未定义(守卫)
+  eq(vm.runInContext('fibAboveOf', c2)('sh600176', 44), null, 'M15FIB未定义不炸=null');
 }
 
 // ================= trendFlag 趋势升档 =================
