@@ -25,7 +25,7 @@ function extractFn(name) {
   throw new Error('function ' + name + ' 花括号没配对完');
 }
 const FNS = ['today','ymd','lastTradeDay','poolFreshOK','poolCacheOK','cls','limitPct','tickOf','extTier','nextAbove','nextBelow',
-             'trendFlag','snapLv','tiers','narrowBase','atrOf','ampBase','todayPnlOf','settledRows','fibAboveOf'];
+             'trendFlag','snapLv','tiers','liveTiers','tierProfileLabel','narrowBase','atrOf','ampBase','poolEvidence','poolGate','poolEligible','poolAutoObserveEligible','poolDateText','poolCacheDecision','todayPnlOf','settledRows','fibAboveOf'];
 const bundle = FNS.map(extractFn).join('\n');
 
 // ---- 沙箱: 假 Date 可控时间; TLOG/ATR/planNext 可注入 ----
@@ -37,11 +37,12 @@ function makeCtx(fixed) { // fixed: [y,m,d,h,mi] 本地时间
   }
   const ctx = {
     Date: FakeDate, Math, JSON, console,
-    TLOG: [], ATR: {}, _planNext: false,
+    TLOG: [], ATR: {}, DANCH:{}, _planNext: false,
     K_UP: 0.3, K_DN: 0.5, ATR_FLOOR: 0.9, // 与 index.html:703 一致(下方有 meta 断言盯住)
   };
   vm.createContext(ctx);
   vm.runInContext('function planNext(){ return _planNext; }', ctx);
+  vm.runInContext('function dayState(c){ return DANCH[c]||(DANCH[c]={tierAnchorType:null,tierAnchorPrice:null,tierSells:[],tierBuys:[]}); } function saveDanch(){}', ctx);
   vm.runInContext(bundle, ctx);
   return ctx;
 }
@@ -202,7 +203,7 @@ console.log('— tiers —');
   ok(T(40, 2, 40, 0, 'sh600105', '永鼎', 40, [], 0.8).sells.every(v => v <= 44 + EPS), '卖档永不超过涨停');
 }
 
-// ================= narrowBase 窄档 =================
+// ================= narrowBase 禁止盘中内缩 =================
 console.log('— narrowBase —');
 {
   const c = makeCtx([2026, 8, 10, 14, 0]);
@@ -210,10 +211,10 @@ console.log('— narrowBase —');
   const f = vm.runInContext('narrowBase', c);
   let r = f('sh600105', 2, 1.0);
   eq(r.narrow, false, '振幅1.0<0.8×ATR不窄'); eq(r.base, 2, '不窄base原样');
-  r = f('sh600105', 2, 1.8); // rem=max(2.3-1.8,0)=0.5 → max(0.6,0.35,0.7)=0.7
-  eq(r.narrow, true, '振幅1.8≥80%ATR触发窄档'); eq(r.base, 0.7, '窄档base=max(ATR×0.3, rem×0.7, base×0.35)=0.7');
-  r = f('sh600105', 2, 2.4); // rem=0
-  eq(r.base, 0.7, '振幅打满base=max(0.6,0,0.7)=0.7');
+  r = f('sh600105', 2, 1.8);
+  eq(r.narrow, false, '振幅达到80%ATR仍禁止窄档'); eq(r.base, 2, '盘中振幅未超过base时保持原宽度');
+  r = f('sh600105', 2, 2.4);
+  eq(r.base, 2.4, '盘中振幅超过base只向外扩大');
   c._planNext = true;
   r = f('sh600105', 2, 1.8);
   eq(r.narrow, false, '明日计划窄档重置'); eq(r.base, 1.8, '重置回ampBase=ATR×FLOOR=1.8(FLOOR=0.9)');
@@ -268,30 +269,76 @@ console.log('— poolFreshOK —');
   eq(vm.runInContext('poolFreshOK', c3)('2026-09-11'), false, '周一不认上周五');
 }
 
-// ================= tiers 分票标定·平移保距 =================
-console.log('— tiers 分票标定 —');
+// ================= tiers 通用档与live ratchet =================
+console.log('— tiers/liveTiers —');
 {
   const c = makeCtx([2026, 8, 10, 18, 30]); // 盘后→planNext, ref=今收
   const f = vm.runInContext('tiers', c);
   const r = f(43.46, 3.19, 43.46, 0, 'sh600176', '中国巨石', 43.46); // refFix传入→不走liveMags,纯数学
   eq(r.buys.length, 1, '低波分支单买档');
-  eq(r.buys[0], 40.45, '巨石B1=43.46-0.9449×3.19≈40.45(平移保距,首档=标定值)');
+  eq(r.buys[0], 41.87, '巨石回退通用B1=43.46-0.5×3.19≈41.87');
   eq(r.sells[0], 44.42, '卖侧不动 S1=43.46+0.3×3.19≈44.42');
-  const r2 = f(43.46, 3.19, 43.46, 0, 'sh601318', '中国平安', 43.46);
-  eq(r2.buys[0], 41.87, '未标定票维持通用0.5: B1=43.46-0.5×3.19≈41.87');
+  eq(vm.runInContext('tierProfileLabel',c)('sh601995'),'通用档·未标定','无有效分票参数明示fallback');
+  c._planNext=false;
+  const live=vm.runInContext('liveTiers',c);
+  const a=live(40,2,40,2,'sh600105','永鼎',undefined,[],2.4);
+  const b=live(40,1,40,2,'sh600105','永鼎',undefined,[],2.4);
+  arrEq(b.sells,a.sells,'同锚S1/S2/S3不向内'); arrEq(b.buys,a.buys,'同锚B1/B2/B3不向内');
+  const c2=live(41,1,40,2,'sh600105','永鼎',undefined,[],2.4);
+  eq(c.DANCH.sh600105.tierAnchorPrice,41,'合法换锚重绑新锚');
+  arrEq(c2.sells,f(41,1,40,2,'sh600105','永鼎',undefined,[],2.4).sells,'换锚后卖梯按纯计算重新初始化');
+}
+
+console.log('— poolGate fixture —');
+{
+  const fx=JSON.parse(fs.readFileSync(path.join(__dirname,'fixtures/pool_gate_20260910.json'),'utf8'));
+  eq(vm.runInContext('poolGate',makeCtx([2026,8,7,14,0]))(fx.huanrui).status,'派发风险','欢瑞跨位置+量能族排除');
+  eq(vm.runInContext('poolGate',makeCtx([2026,8,10,14,0]))(fx.tianyu).status,'数据过期','天娱旧榜淘汰');
+  eq(vm.runInContext('poolGate',makeCtx([2026,8,4,14,0]))(fx.yongding).ok,true,'永鼎单一资金负不判跑路');
+  eq(vm.runInContext('poolGate',makeCtx([2026,8,10,14,0]))(fx.strong).ok,true,'正常强势正例保留');
+  const gate=vm.runInContext('poolGate',makeCtx([2026,8,10,14,0]));
+  eq(gate({...fx.strong,d:'2026-09-09'}).status,'数据过期','单票日K旧日期淘汰');
+  eq(gate({...fx.strong,d0Date:'2026-09-09'}).status,'数据过期','单票资金旧日期淘汰');
+  eq(gate({...fx.strong,d0:undefined,f10:undefined}).status,'证据不足','资金字段缺失降级');
+  eq(gate({...fx.strong,fundStatus:'接口断线',fundSourceValid:false}).status,'证据不足','资金断线降级');
+  eq(gate({...fx.strong,d0:-1,outStreak:1}).status,'数据冲突','单一资金负值只标数据冲突');
+  const auto=vm.runInContext('poolAutoObserveEligible',makeCtx([2026,8,10,14,0]));
+  eq(auto({days:2,inPx:100,lastPx:105},fx.strong),true,'在池两天且涨幅达到5%自动晋升');
+  eq(auto({days:2,inPx:100,lastPx:104.9},fx.strong),false,'涨幅不足5%不自动晋升');
+  eq(auto({days:2,inPx:100,lastPx:105,picked:true},fx.strong),false,'已晋升票不重复自动晋升');
+  eq(auto({days:2,inPx:100,lastPx:105},{...fx.strong,d:'2026-09-09'}),false,'自动晋升复用单票日K新鲜度门');
+  const cacheDecision=vm.runInContext('poolCacheDecision',makeCtx([2026,8,10,14,0]));
+  eq(vm.runInContext('poolDateText',makeCtx([2026,8,10,14,0]))('20260910'),'2026-09-10','八位日期统一为ISO日期');
+  eq(cacheDecision('2026-09-09','2026-09-09'),'drop','旧缓存直接丢弃');
+  eq(cacheDecision('2026-09-10','2026-09-10'),'show','已核验当日缓存可展示');
+  eq(cacheDecision('20260910','2026-09-10'),'show','八位当日缓存核验可展示');
+  eq(cacheDecision('2026-09-10',''),'verify','未核验当日缓存必须先核验');
 }
 
 // ================= meta: 盯住全局口径常量 =================
 console.log('— meta —');
 {
-  ok(/_kdf-0\.5/.test(SRC), '分票标定=平移保距公式(k+_kdf-0.5),禁止改回等比拉长(房主否决"最低最高差太多")');
-  ok(/sh600176:0\.9449/.test(SRC) && /sh600105:0\.9118/.test(SRC) && /sh603986:0\.9329/.test(SRC), '三票标定值钉死: 巨石0.9449/永鼎0.9118/兆易0.9329');
+  ok(!/_kdf\s*=|bounce_all.*sd/.test(SRC), '错误bounce_all→_kdf→sd映射消失');
+  ok(/function liveTiers/.test(SRC)&&/tierAnchorType/.test(SRC)&&/tierSells/.test(SRC), 'liveTiers绑定锚并持久化六档');
+  ok(/通用档·未标定/.test(SRC), 'fallback文案已落地');
+  ok(!/_manual|manualOverride/.test(SRC), '主推区不再引用未定义手动字段');
   const m = SRC.match(/ATR_FLOOR=([\d.]+)/);
   eq(m && +m[1], 0.9, 'ATR_FLOOR=0.9(C6房主拍板,v5.198落地)');
   const g=SRC.match(/GRID_FIX=\{([^}]*)\}/);
   ok(g && /sh600176:1(?!\d)/.test(g[1]), 'GRID_FIX 巨石sh600176=1元格(房主0910傍晚拍板:巨石就加一其他0.5,改格距先改这里)');
   ok(SRC.indexOf('GRID_FIX[code]||(anchor>=10?0.5')>=0 && SRC.indexOf('GRID_FIX[code]||(prev>=10?0.5')>=0, 'liveMags/btMags 均走 GRID_FIX(回测同口径铁律)');
-  ok(FNS.every(n => bundle.indexOf('function ' + n) >= 0), '16个目标函数全部抽取成功');
+  ok(FNS.every(n => bundle.indexOf('function ' + n) >= 0), '17个目标函数全部抽取成功');
+  const addWatchSrc=extractFn('poolAddWatch'), addAllSrc=extractFn('poolAddAll'), scanSrc=extractFn('poolScan');
+  ok(/poolEligible\(x\)/.test(SRC)&&/poolEligible\(poolFind\(p2\.code\)\)/.test(SRC), '今日推荐与留存主推均复用统一资格门');
+  ok(/poolGate\(gx\)/.test(addWatchSrc)&&/poolFreshOK\(POOL_CACHE\.d0\)/.test(addAllSrc)&&/poolEligible\(x\)/.test(addAllSrc), '单张观察与全入观察均重新过资格门');
+  ok(/rawL\s*=\s*POOL_CACHE\.L\s*\|\|\s*\{\}/.test(SRC)&&/filter\(x=>poolEligible\(x\)\)/.test(SRC), '池卡分层展示逐票复核资格门');
+  ok(/POOL_CACHE\s*=\s*\{[^\n]*L:\s*L/.test(scanSrc)&&/current\s*=\s*poolFind\(c\)/.test(scanSrc)&&/poolAutoObserveEligible\(hh2,current\)/.test(scanSrc), '涨5%自动晋升只读取本轮L与当前缓存');
+  ok(/if\(_px && poolFreshOK\(_px\.d0\)\)/.test(SRC)&&! /if\(_px && poolCacheOK\(_px\.d0\|\|_px\.date\)\)/.test(SRC), '旧缓存不能绕过单票今日新鲜度门');
+  ok(/function poolVerifyCache/.test(SRC)&&/poolHideCache\('池数据日期核验失败，未展示旧缓存'\)/.test(SRC)&&/poolVerifyCache\(cached\)\.then/.test(SRC), '缓存日期核验失败清除旧榜且不展示');
+  ok(/if\(fin\) return/.test(SRC), '资金超时后迟到回调不能覆盖失败状态');
+  ok(/tr0:null,tr0Reliable:false/.test(SRC)&&/换手数据缺失/.test(SRC), '未取得可靠换手时保持客观缺失降级');
+  ok(/今日无合格票/.test(SRC)&&/数据过期 '\+rs\.stale/.test(SRC), '空榜显示今日无合格票和三类统计');
+  ok(/资金源 /.test(SRC)&&/数据日 /.test(SRC), '龙头池卡片直接显示资金来源和数据时间');
 }
 
 console.log('\n=========================');

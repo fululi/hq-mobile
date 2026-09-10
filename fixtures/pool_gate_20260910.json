@@ -1,0 +1,7 @@
+{
+  "source": ["../alla_confirmed.json", "做T台账/金龙池事故-欢瑞0909.md", "做T台账/回测框架与档案.md"],
+  "huanrui": {"code":"sz000892","name":"欢瑞世纪","d":"2026-09-07","d0Date":"2026-09-07","f10":1502698239.25,"d0":-133600111.59,"outStreak":2,"pos":0.93,"p20":40.2,"volPct120":0.99,"tr0":44.5,"tr0Reliable":true,"upperShadow":0.3,"closeOffHigh":0.038,"cywTurnDown":true,"fundSource":"东财资金日K","fundSourceValid":true,"fundStatus":"实时/最近有效"},
+  "tianyu": {"code":"sz002354","name":"天娱数科","d":"2026-09-07","d0Date":"2026-09-07","f10":3975589345.44,"d0":438045722.81,"outStreak":0,"pos":0.58,"p20":0.7,"volPct120":0.7,"tr0":null,"tr0Reliable":false,"fundSource":"东财资金日K","fundSourceValid":true,"fundStatus":"实时/最近有效"},
+  "yongding": {"code":"sh600105","name":"永鼎股份","d":"2026-09-04","d0Date":"2026-09-04","f10":-752000000,"d0":-504000000,"outStreak":1,"pos":0.25,"p20":-0.9,"volPct120":0.7,"tr0":null,"tr0Reliable":false,"breakFail":false,"cywTurnDown":false,"fundSource":"东财资金日K","fundSourceValid":true,"fundStatus":"实时/最近有效"},
+  "strong": {"code":"sh600176","name":"中国巨石","d":"2026-09-10","d0Date":"2026-09-10","f10":120000000,"d0":30000000,"outStreak":0,"pos":0.72,"p20":18,"volPct120":0.8,"tr0":null,"tr0Reliable":false,"upperShadow":0.08,"closeOffHigh":0.02,"cywTurnDown":false,"fundSource":"东财资金日K","fundSourceValid":true,"fundStatus":"实时/最近有效"}
+}
