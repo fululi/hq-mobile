@@ -9,7 +9,7 @@
 3. 批量修改用一次性 `_bN.py` 精确字符串替换（每处 `assert count==1`），跑完即删。
 4. 校验：正则提取内联 `<script>` 到 /tmp 再 `node --check`。
 5. **口径回归：`node test_hq.js`（88 断言，从 index.html 抽 limitPct/tickOf/extTier/trendFlag/tiers/narrowBase/atrOf/ampBase/snapLv/todayPnlOf/settledRows/poolFreshOK 等真源码跑）。改上述计算口径前跑一遍，全绿再动手；口径有意变更先改断言并在 commit message 点名。ATR_FLOOR 拍板 0.9 落地时同步改 meta 断言。**
-6. 无头 Edge 截图：`--user-data-dir=/tmp/edgehsN --window-size=492,844 --virtual-time-budget=9000 --screenshot=...`，后台跑+轮询文件+pkill。无头环境 localStorage 为空，持仓为空属正常。
+6. 无头 Edge 截图：`--user-data-dir=/tmp/edgehsN --window-size=492,844 --virtual-time-budget=9000 --screenshot=...`，后台跑+轮询文件+pkill。**凡改动触碰持仓渲染路径（doRender/持仓卡/徽章/档位），空仓截图不算数**——必须另写一份种子 HTML（开头 `<script>` 预写 `portfolio_v2` 假持仓 2~3 只）+ 本地 `python3 -m http.server` 起服 + 种子脚本里 `setView('holds')` 切到持仓页再截图，并 grep console 日志确认零 Uncaught。反例实锤：0910 v5.196 首轮空仓截图没走到持仓路径，带 TDZ 雷（_triP 用未声明的 const dth）推了 bf0d13f0，补种数据实测才暴露。
 7. 推送：`git -c http.proxy=http://127.0.0.1:7897 push origin HEAD:main`；推后 sleep 45 再 curl 验证线上文案。
 8. 每次功能改动升 `<title>` 版本号。
 
