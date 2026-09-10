@@ -1,4 +1,4 @@
-// test_hq.js — hq-mobile 计算口径回归测试（房主 0910 拍板建立）
+// test_hq.js — hq-mobile 计算口径回归测试
 // 原则: 直接从 index.html 抽取真源码跑断言, 不是重新实现——口径改动当场现形。
 // 用法: node test_hq.js   （改任何计算口径前必跑, 见 AGENTS.md）
 // 注意: 期望值是手工独立核算的"钉"; 若口径有意变更, 先改断言再改代码, 并在 commit message 说明。
@@ -323,9 +323,9 @@ console.log('— meta —');
   ok(/通用档·未标定/.test(SRC), 'fallback文案已落地');
   ok(!/_manual|manualOverride/.test(SRC), '主推区不再引用未定义手动字段');
   const m = SRC.match(/ATR_FLOOR=([\d.]+)/);
-  eq(m && +m[1], 0.9, 'ATR_FLOOR=0.9(C6房主拍板,v5.198落地)');
+  eq(m && +m[1], 0.9, 'ATR_FLOOR=0.9(v5.198)');
   const g=SRC.match(/GRID_FIX=\{([^}]*)\}/);
-  ok(g && /sh600176:1(?!\d)/.test(g[1]), 'GRID_FIX 巨石sh600176=1元格(房主0910傍晚拍板:巨石就加一其他0.5,改格距先改这里)');
+  ok(g && /sh600176:1(?!\d)/.test(g[1]), 'GRID_FIX sh600176=1元格');
   ok(SRC.indexOf('GRID_FIX[code]||(anchor>=10?0.5')>=0 && SRC.indexOf('GRID_FIX[code]||(prev>=10?0.5')>=0, 'liveMags/btMags 均走 GRID_FIX(回测同口径铁律)');
   ok(FNS.every(n => bundle.indexOf('function ' + n) >= 0), '17个目标函数全部抽取成功');
   const addWatchSrc=extractFn('poolAddWatch'), addAllSrc=extractFn('poolAddAll'), scanSrc=extractFn('poolScan');
