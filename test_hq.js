@@ -25,7 +25,7 @@ function extractFn(name) {
   throw new Error('function ' + name + ' 花括号没配对完');
 }
 const FNS = ['today','ymd','lastTradeDay','poolFreshOK','poolCacheOK','cls','limitPct','tickOf','extTier','nextAbove','nextBelow',
-             'trendFlag','snapLv','tiers','liveTiers','tierProfileLabel','narrowBase','atrOf','ampBase','poolEvidence','poolGate','poolEligible','poolAutoObserveEligible','poolDateText','poolCacheDecision','todayPnlOf','settledRows','fibAboveOf'];
+             'trendFlag','snapLv','tiers','liveTiers','tierProfileLabel','narrowBase','atrOf','ampBase','poolEvidence','poolGate','poolEligible','poolIntentEvidence','poolAutoObserveEligible','poolDateText','poolCacheDecision','todayPnlOf','settledRows','fibAboveOf'];
 const bundle = FNS.map(extractFn).join('\n');
 
 // ---- 沙箱: 假 Date 可控时间; TLOG/ATR/planNext 可注入 ----
@@ -302,6 +302,11 @@ console.log('— poolGate fixture —');
   eq(gate({...fx.strong,d0:undefined,f10:undefined}).status,'证据不足','资金字段缺失降级');
   eq(gate({...fx.strong,fundStatus:'接口断线',fundSourceValid:false}).status,'证据不足','资金断线降级');
   eq(gate({...fx.strong,d0:-1,outStreak:1}).status,'数据冲突','单一资金负值只标数据冲突');
+  const intent=vm.runInContext('poolIntentEvidence',makeCtx([2026,8,10,14,0]));
+  eq(intent({...fx.strong,d0:2e7,dc5:35,vr:1.6,closeOffHigh:0.02}).status,'证据一致','主力证据多字段一致');
+  eq(intent({...fx.strong,d0:-2e7,dc5:-15,vr:0.8,closeOffHigh:0.11}).status,'派发风险','主力证据多字段转弱');
+  ok(/DDX未接入/.test(intent({...fx.strong,d0:2e7,dc5:35,vr:1.6,closeOffHigh:0.02}).text), '未接入DDX不冒充已接入');
+  ok(/筹码未接入/.test(intent({...fx.strong,d0:2e7,dc5:35,vr:1.6,closeOffHigh:0.02}).text), '未接入筹码不冒充已接入');
   const auto=vm.runInContext('poolAutoObserveEligible',makeCtx([2026,8,10,14,0]));
   eq(auto({days:2,inPx:100,lastPx:105},fx.strong),true,'在池两天且涨幅达到5%自动晋升');
   eq(auto({days:2,inPx:100,lastPx:104.9},fx.strong),false,'涨幅不足5%不自动晋升');
