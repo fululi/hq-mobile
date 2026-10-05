@@ -430,6 +430,51 @@ details.fold:not([open]) > summary { margin-bottom:0; }
 .btc { width:100%; height:310px; display:block; border-radius:8px; margin-top:6px; background:#12161c; touch-action:none; -webkit-user-select:none; user-select:none; -webkit-touch-callout:none; }
 .foot { font-size:11.5px; color:#8d97a6; line-height:1.6; margin-top:8px; padding:0 2px; }
 </style>
+<style id="jl-glass-skin">
+/* ==== 金粼液态玻璃皮肤 · 透膜波动背景（v9 定稿移植 · 独立注入块，删除本 style 与同名 script 即整体回滚） ==== */
+html{background:#0b0e12}
+body{background:transparent!important}
+.jl-mem-wrap{position:fixed;inset:0;z-index:-1;overflow:hidden;pointer-events:none;background:
+  radial-gradient(60% 40% at 15% 0%,rgba(150,110,50,.42),transparent 70%),
+  radial-gradient(50% 35% at 90% 30%,rgba(20,90,150,.38),transparent 70%),
+  radial-gradient(60% 40% at 10% 85%,rgba(110,40,95,.34),transparent 70%),#0b0e12}
+.jl-mem{position:absolute;width:150%;left:-25%;filter:blur(16px);opacity:.55;mix-blend-mode:screen;animation:jlUndulate 13s ease-in-out infinite}
+.jl-mem-1{top:-70px;height:300px;background:linear-gradient(100deg,transparent 5%,rgba(255,210,120,.55) 35%,rgba(255,236,180,.22) 55%,transparent 85%)}
+.jl-mem-2{top:190px;height:260px;background:linear-gradient(260deg,transparent 5%,rgba(30,180,255,.50) 40%,rgba(140,230,255,.20) 60%,transparent 90%);animation-duration:17s;animation-delay:-4s}
+.jl-mem-3{top:480px;height:280px;background:linear-gradient(100deg,transparent 8%,rgba(255,70,190,.42) 45%,rgba(255,190,120,.20) 65%,transparent 92%);animation-duration:15s;animation-delay:-8s}
+.jl-mem-4{top:760px;height:300px;background:linear-gradient(250deg,transparent 5%,rgba(255,205,110,.38) 38%,rgba(30,180,255,.26) 62%,transparent 90%);animation-duration:19s;animation-delay:-12s}
+@keyframes jlUndulate{
+  0%{transform:translateX(-3%) translateY(0) rotate(-1.6deg) scaleY(1);border-radius:44% 56% 62% 38%/58% 40% 60% 42%}
+  33%{transform:translateX(2.5%) translateY(-20px) rotate(1.2deg) scaleY(1.16);border-radius:58% 42% 40% 60%/42% 58% 44% 56%}
+  66%{transform:translateX(-1.5%) translateY(12px) rotate(-.6deg) scaleY(.92);border-radius:50% 50% 56% 44%/54% 46% 58% 42%}
+  100%{transform:translateX(-3%) translateY(0) rotate(-1.6deg) scaleY(1);border-radius:44% 56% 62% 38%/58% 40% 60% 42%}}
+.jl-wavefoot{position:absolute;left:0;right:0;bottom:0;width:100%;height:220px;opacity:.32}
+.jl-wavefoot path{animation:jlSway 9s ease-in-out infinite alternate}
+.jl-wavefoot path:nth-child(2){animation-duration:12s;animation-delay:-3s}
+@keyframes jlSway{from{transform:translateX(-14px)}to{transform:translateX(14px)}}
+.jl-grain{position:fixed;inset:0;pointer-events:none;z-index:9998;opacity:.4;mix-blend-mode:overlay;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)' opacity='0.35'/%3E%3C/svg%3E")}
+@media (prefers-reduced-motion:reduce){.jl-mem,.jl-wavefoot path{animation:none}}
+</style>
+<script id="jl-glass-skin-js">
+/* 金粼液态玻璃皮肤 · 背景层挂载（与 jl-glass-skin 样式块同删即回滚） */
+(function(){
+  function mount(){
+    try{
+      if(document.getElementById('jl-mem-wrap-live'))return;
+      var w=document.createElement('div');w.id='jl-mem-wrap-live';w.className='jl-mem-wrap';
+      w.innerHTML='<div class="jl-mem jl-mem-1"></div><div class="jl-mem jl-mem-2"></div><div class="jl-mem jl-mem-3"></div><div class="jl-mem jl-mem-4"></div>'
+      +'<svg class="jl-wavefoot" viewBox="0 0 375 220" preserveAspectRatio="none">'
+      +'<path d="M-30,140 C60,90 130,180 210,130 C280,88 330,150 405,110 L405,230 L-30,230 Z" fill="rgba(232,195,122,.10)"/>'
+      +'<path d="M-30,170 C70,130 140,205 220,165 C295,128 340,180 405,150 L405,230 L-30,230 Z" fill="rgba(120,170,230,.08)"/></svg>';
+      document.body.appendChild(w);
+      var g=document.createElement('div');g.className='jl-grain';
+      document.body.appendChild(g);
+    }catch(e){}
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',mount);else mount();
+})();
+</script>
 </head>
 <body>
 <canvas id="bgwave" aria-hidden="true"></canvas>
