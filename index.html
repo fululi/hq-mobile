@@ -475,6 +475,21 @@ body{background:transparent!important}
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',mount);else mount();
 })();
 </script>
+
+<style id="jl-glass-skin-panels">
+/* ==== 金粼液态玻璃皮肤 · 面板层 v2（与 jl-glass-skin 两块同删即整体回滚） ==== */
+.top,.navSticky,#qstrip{background:rgba(13,17,24,.5)!important;backdrop-filter:blur(22px) saturate(1.5)!important;-webkit-backdrop-filter:blur(22px) saturate(1.5)!important;box-shadow:0 1px 0 rgba(255,255,255,.07)!important}
+.top button{background:rgba(255,255,255,.07)!important;border-color:rgba(232,195,122,.35)!important}
+.navStk{background:transparent!important}
+.navStk span{background:rgba(255,255,255,.06)!important;border:1px solid rgba(255,255,255,.07)!important}
+#qstrip .qs{background:rgba(255,255,255,.05)!important}
+.ovcard,.ovbd,.wlcard,.tbox,.ladder,.holdStage,.holdSummary,.reviewSummary,.acch,.btc,.qb,.rvtabs,.addform,.sum,.trec{background:rgba(255,255,255,.045)!important;border:1px solid rgba(255,255,255,.09)!important;backdrop-filter:blur(16px) saturate(1.4)!important;-webkit-backdrop-filter:blur(16px) saturate(1.4)!important;box-shadow:0 8px 28px rgba(0,0,0,.3),inset 0 1px 0 rgba(255,255,255,.06)!important}
+.idx .c,.ovbd .sum,.ovbd .idx .c,.kv,.stageKV,.holdStage.price,.ladnow{background:rgba(255,255,255,.05)!important}
+.ovtabs b,.wltabs button,.qtys button,.step button{background:rgba(255,255,255,.055)!important}
+.wltabs button.on,.qtys button:active{background:rgba(232,195,122,.2)!important;color:#f0d5a0!important}
+.holdItem.open{background:rgba(255,255,255,.06)!important}
+.acct{background:rgba(232,195,122,.08)!important}
+</style>
 </head>
 <body>
 <canvas id="bgwave" aria-hidden="true"></canvas>
