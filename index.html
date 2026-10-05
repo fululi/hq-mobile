@@ -490,6 +490,30 @@ body{background:transparent!important}
 .holdItem.open{background:rgba(255,255,255,.06)!important}
 .acct{background:rgba(232,195,122,.08)!important}
 </style>
+
+<style id="jl-glass-skin-v9">
+/* ==== 金粼液态玻璃皮肤 · v9 同款视觉（三个 jl-glass-skin 块同删即整体回滚） ==== */
+/* 门头金字流光 */
+.top h1 .logoNm{background-size:250% 100%!important;animation:jlShine 5s linear infinite!important;filter:drop-shadow(0 0 10px rgba(232,195,122,.45))}
+@keyframes jlShine{from{background-position:120% 0}to{background-position:-120% 0}}
+.top h1::before{animation:jlPulseDot 2.2s ease-in-out infinite}
+@keyframes jlPulseDot{0%,100%{box-shadow:0 0 6px rgba(232,197,104,.5)}50%{box-shadow:0 0 14px rgba(232,197,104,.95)}}
+/* 顶栏按钮金色玻璃 */
+.top button{color:#f0d5a0!important;background:rgba(232,195,122,.09)!important;border:1px solid rgba(232,195,122,.32)!important;backdrop-filter:blur(12px)!important;-webkit-backdrop-filter:blur(12px)!important}
+/* 主 Tab 选中态：金色渐变胶囊（v9 同款） */
+.navSticky button{border-radius:10px!important}
+.navSticky button.active{background:linear-gradient(135deg,#f0d5a0,#d9ab5c)!important;color:#0b0e14!important;font-weight:800!important;border-bottom-color:transparent!important;box-shadow:0 4px 14px rgba(217,171,92,.35)}
+/* 次级 Tab 选中态金色化 */
+.wltabs button.on,.rvtabs button.on{background:rgba(232,195,122,.18)!important;color:#f0d5a0!important;border-color:rgba(232,195,122,.4)!important}
+/* 大圆角统一 16px */
+.ovcard,.ovbd,.wlcard,.tbox,.ladder,.holdStage,.holdSummary,.reviewSummary,.sum,.trec,.qb,.btc,.rvtabs,.addform,.idx .c{border-radius:16px!important}
+#qstrip .qs{border-radius:12px!important}
+/* 灰字提亮（v9 规范：不要灰暗文字） */
+.sub{color:rgba(255,255,255,.8)!important}
+.dim{color:rgba(255,255,255,.6)!important}
+.ovtabs b{color:rgba(255,255,255,.72)!important}
+.rvtabs button{color:rgba(255,255,255,.78)!important}
+</style>
 </head>
 <body>
 <canvas id="bgwave" aria-hidden="true"></canvas>
