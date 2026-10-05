@@ -545,6 +545,29 @@ body{background:transparent!important}
 .jl-rescan{font-size:11.5px;font-weight:800;color:#0b0e14;background:linear-gradient(135deg,#f0d5a0,#d9ab5c);border:0;border-radius:10px;padding:6px 14px;cursor:pointer;box-shadow:0 4px 14px rgba(217,171,92,.35)}
 .jl-pool-empty{text-align:center;padding:34px 16px;color:rgba(255,255,255,.9);font-weight:700;background:rgba(255,255,255,.045);border:1px solid rgba(255,255,255,.09);border-radius:16px;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
 </style>
+
+<style id="jl-skin-v6">
+/* ==== 皮肤 v6 · 方案A分层指挥舱（详情页+龙池统一）：金色分区条/统一信号chip/剧本条/提醒透明化 ==== */
+.sec{font-weight:800!important;letter-spacing:1.5px}
+.sec>span:first-child{color:#f0d5a0!important;display:inline-flex;align-items:center}
+.sec>span:first-child::before{content:''!important;width:3px!important;height:13px!important;border-radius:2px!important;background:linear-gradient(#e8c37a,rgba(232,195,122,.15))!important;margin-right:8px!important;vertical-align:-1px!important;display:inline-block}
+.card,.tbox{border-radius:16px!important;box-shadow:0 8px 28px rgba(0,0,0,.3),inset 0 1px 0 rgba(255,255,255,.07)!important}
+.kv,.trec,.qb{border-radius:12px!important}
+/* 方案A 统一信号 chip（JS 打标） */
+.jl-chip{display:inline-block;font-size:10px!important;font-weight:800!important;padding:3px 9px!important;border-radius:8px!important;margin:2px 3px 2px 0!important;white-space:nowrap}
+.jl-c-risk{color:#ff8a80!important;background:rgba(255,90,95,.13)!important;border:1px solid rgba(255,90,95,.35)!important}
+.jl-c-warn{color:#ffcf7a!important;background:rgba(255,190,90,.1)!important;border:1px solid rgba(255,190,90,.3)!important}
+.jl-c-info{color:#8fd0ff!important;background:rgba(80,180,255,.1)!important;border:1px solid rgba(80,180,255,.3)!important}
+.jl-c-gold{color:#f0d5a0!important;background:rgba(232,195,122,.1)!important;border:1px solid rgba(232,195,122,.35)!important}
+.jl-c-ok{color:#5fe0b0!important;background:rgba(46,207,155,.1)!important;border:1px solid rgba(46,207,155,.3)!important}
+/* 剧本条（JS 打标） */
+.jl-script{border-left:3px solid #e8c37a!important;background:linear-gradient(90deg,rgba(232,195,122,.12),rgba(255,255,255,.03))!important;border-radius:0 14px 14px 0!important;padding:10px 13px!important;color:#f0d5a0!important;font-weight:700}
+/* 提醒弹层透明玻璃化（功能保留，只换皮肤） */
+dialog{background:rgba(16,19,28,.78)!important;border:1px solid rgba(255,255,255,.14)!important;border-radius:20px!important;backdrop-filter:blur(26px) saturate(1.5)!important;-webkit-backdrop-filter:blur(26px) saturate(1.5)!important;color:#fff!important;box-shadow:0 20px 60px rgba(0,0,0,.5)!important}
+dialog::backdrop{background:rgba(5,7,12,.55)!important;backdrop-filter:blur(5px)!important;-webkit-backdrop-filter:blur(5px)!important}
+dialog button{border-radius:11px!important}
+dialog h3{color:#f0d5a0!important;letter-spacing:1px}
+</style>
 </head>
 <body>
 <canvas id="bgwave" aria-hidden="true"></canvas>
@@ -8667,6 +8690,55 @@ async function poolFFJL(list, prog) {
     console.log('[池缓存策略] 已接管 poolShow');
   }
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',patch);else patch();
+})();
+</script>
+
+<script id="jl-copy-diet">
+/* 文案瘦身 + 方案A打标（提醒功能一个不删，只删冗余解释字）*/
+(function(){
+  var RULES=[
+    [/个股主力净流入\s*[（(]全市场口径[^）)]*[）)]/g,'主力净流入'],
+    [/超大\/大\/中\/小单拆分/g,'单型拆分'],
+    [/值得看≠买入指令\s*·\s*/g,''],
+    [/值得看≠买入\s*·\s*/g,''],
+    [/未持仓未观察\s*·\s*/g,''],
+    [/金龙池今日还没扫描\s*·\s*点底部「金龙池」跑一次全A扫描/g,'今日未扫描 · 点「金龙池」开扫'],
+    [/点底部「金龙池」跑一次全A扫描/g,'点「金龙池」开扫'],
+    [/仅在页面打开时监测价格，非真实行情提醒。/g,'仅页面打开时监测。'],
+    /[（(]T仓做T·非清仓?[）)]/g,'(T仓·非清仓)'],
+    [/恐慌全清=([^·]{2,14})当日被收回/g,'前科:$1恐慌全清被收回'],
+    [/\s*·\s*·\s*/g,' · '],
+    [/·\s*·/g,'·']
+  ];
+  var CHIP={risk:/20周均下|周线↓|日线↓|结构破坏|等新腿|趋势下跌|不接|派发|破位|风险|勿追/,warn:/极端超卖|偏离20日|ATR|RSI|放量|加速/,gold:/剧本|勿割肉|底仓别清|等新腿|规则/,ok:/连续2日|转正|确认|收复|主升|刚启动|二波/};
+  function dietText(t){var o=t;for(var i=0;i<RULES.length;i++)t=t.replace(RULES[i][0],RULES[i][1]);return t!==o?t:null}
+  function chipCls(t){if(CHIP.gold.test(t))return 'jl-c-gold';if(CHIP.risk.test(t))return 'jl-c-risk';if(CHIP.warn.test(t))return 'jl-c-warn';if(CHIP.ok.test(t))return 'jl-c-ok';return null}
+  function walk(root){
+    try{
+      var w=document.createTreeWalker(root,NodeFilter.SHOW_TEXT,null);
+      var n,dirty=[];
+      while((n=w.nextNode())){
+        if(n.parentNode&&(n.parentNode.tagName==='SCRIPT'||n.parentNode.tagName==='STYLE'||n.parentNode.isContentEditable))continue;
+        var t=n.nodeValue,nt=dietText(t);
+        if(nt!==null&&nt.trim()!==''||nt===null&&false){}
+        if(nt!==null)n.nodeValue=nt;
+      }
+      root.querySelectorAll?root.querySelectorAll('span,b,i,small,div').forEach(function(el){
+        if(el.children.length>0)return;
+        var t=(el.textContent||'').trim();
+        if(!t||t.length>18||el.classList.contains('jl-chip'))return;
+        var c=chipCls(t);
+        if(c&&(el.className||'').indexOf('jl-c-')<0){el.classList.add('jl-chip',c)}
+        if(/^剧本/.test(t)&&!el.classList.contains('jl-script')){el.classList.add('jl-script')}
+      }):0;
+    }catch(e){}
+  }
+  function start(){walk(document.body);
+    var t=null;
+    try{new MutationObserver(function(){clearTimeout(t);t=setTimeout(function(){walk(document.body)},500)}).observe(document.body,{childList:true,subtree:true,characterData:true})}catch(e){}
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start);else start();
+  console.log('[文案瘦身] 已启用：口径解释删减、提醒文案精简（提醒功能保留）、方案A信号chip/剧本条打标');
 })();
 </script>
 </body>
