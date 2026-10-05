@@ -514,6 +514,26 @@ body{background:transparent!important}
 .ovtabs b{color:rgba(255,255,255,.72)!important}
 .rvtabs button{color:rgba(255,255,255,.78)!important}
 </style>
+
+<style id="jl-glass-skin-v4">
+/* ==== 皮肤 v4：龙池玻璃化 + 灰字提亮 + 图标体系统一（jl- 系列块同删即整体回滚） ==== */
+.atrnote{color:rgba(255,255,255,.62)!important}
+.ovtm,.ovt{color:rgba(255,255,255,.82)!important}
+.ovhd span,.sec{color:rgba(255,255,255,.9)!important}
+.ovtabs b{color:rgba(255,255,255,.75)!important}
+.tlog-row,.prow{color:rgba(255,255,255,.8)!important}
+#qstrip{color:rgba(255,255,255,.85)!important}
+#v-pool [onclick*="openK"]{background:rgba(255,255,255,.045)!important;border:1px solid rgba(255,255,255,.1)!important;border-radius:14px!important;backdrop-filter:blur(14px) saturate(1.4)!important;-webkit-backdrop-filter:blur(14px) saturate(1.4)!important;box-shadow:0 6px 22px rgba(0,0,0,.28),inset 0 1px 0 rgba(255,255,255,.06)!important;transition:transform .15s ease}
+#v-pool [onclick*="openK"]:active{transform:scale(.98)}
+#v-pool details{background:rgba(255,255,255,.03)!important;border:1px solid rgba(255,255,255,.08)!important;border-radius:14px!important;margin:8px 0!important;backdrop-filter:blur(10px)!important;-webkit-backdrop-filter:blur(10px)!important}
+#v-pool summary{cursor:pointer;list-style:none;padding:10px 13px;font-weight:700;color:#f0d5a0;font-size:13px;position:relative}
+#v-pool summary::-webkit-details-marker{display:none}
+#v-pool summary::after{content:'';position:absolute;right:13px;top:50%;width:7px;height:7px;border-right:1.8px solid #e8c568;border-bottom:1.8px solid #e8c568;transform:translateY(-70%) rotate(45deg);transition:transform .25s}
+#v-pool details[open] summary::after{transform:translateY(-30%) rotate(-135deg)}
+.jl-ico{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;vertical-align:-2.5px;display:inline-block}
+.jl-hot{color:#e8c568;font-size:9.5px;font-weight:700;border:1px solid rgba(232,195,122,.55);border-radius:6px;padding:0 4px;margin-left:4px;background:rgba(232,195,122,.1)}
+#jl-fx{position:fixed;inset:0;z-index:9997;pointer-events:none}
+</style>
 </head>
 <body>
 <canvas id="bgwave" aria-hidden="true"></canvas>
@@ -8175,6 +8195,418 @@ function backupNudge(){
 }
 try{ healthCheck(); }catch(e){}
 try{ setTimeout(backupNudge, 2600); }catch(e){}
+</script>
+
+<script id="jl-spark-fx">
+(function(){
+  function boot(){
+    try{
+      var cv=document.createElement('canvas');cv.id='jl-fx';document.body.appendChild(cv);
+      var ctx=cv.getContext('2d'),W,H,dpr=Math.min(window.devicePixelRatio||1,2);
+      function rs(){W=window.innerWidth;H=window.innerHeight;cv.width=W*dpr;cv.height=H*dpr;ctx.setTransform(dpr,0,0,dpr,0,0)}
+      rs();window.addEventListener('resize',rs);
+      var COLORS=['#ffe9b0','#ffd478','#8fe3ff','#ffffff','#ffc7e8'],parts=[];
+      function burst(x,y,n){for(var i=0;i<n;i++){var a=Math.random()*6.283,v=.6+Math.random()*2.6;
+        parts.push({x:x,y:y,vx:Math.cos(a)*v,vy:Math.sin(a)*v-.4,r:.8+Math.random()*2,life:1,decay:.012+Math.random()*.02,c:COLORS[Math.random()*5|0],star:Math.random()<.45})}}
+      setInterval(function(){if(parts.length<50&&document.visibilityState==='visible')burst(Math.random()*W,Math.random()*H*.9,1)},380);
+      document.addEventListener('pointerdown',function(e){burst(e.clientX,e.clientY,24)},true);
+      document.addEventListener('pointermove',function(e){if(e.buttons)burst(e.clientX,e.clientY,2)},true);
+      function star(x,y,r,c,al){ctx.save();ctx.globalAlpha=al;ctx.fillStyle=c;ctx.shadowColor=c;ctx.shadowBlur=6;ctx.beginPath();
+        for(var i=0;i<8;i++){var ang=i*Math.PI/4,rr=i%2?r*.38:r;ctx.lineTo(x+Math.cos(ang)*rr,y+Math.sin(ang)*rr)}ctx.closePath();ctx.fill();ctx.restore()}
+      (function loop(){ctx.clearRect(0,0,W,H);parts=parts.filter(function(p){return p.life>0});
+        parts.forEach(function(p){p.x+=p.vx;p.y+=p.vy;p.vy+=.02;p.vx*=.985;p.life-=p.decay;p.r*=.995;
+          if(p.star)star(p.x,p.y,p.r*1.6,p.c,p.life);
+          else{ctx.globalAlpha=p.life;ctx.fillStyle=p.c;ctx.shadowColor=p.c;ctx.shadowBlur=8;ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,7);ctx.fill();ctx.globalAlpha=1}});
+        requestAnimationFrame(loop)})();
+    }catch(e){}
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);else boot();
+})();
+</script>
+
+<script id="jl-icon-cleaner">
+(function(){
+  var SVG={};
+  SVG['\u27f3']='<path d="M21 12a9 9 0 1 1-2.6-6.4"/><path d="M21 3v6h-6"/>';
+  SVG['\u26f6']='<path d="M4 9V4h5"/><path d="M20 9V4h-5"/><path d="M4 15v5h5"/><path d="M20 15v5h-5"/>';
+  SVG['\u25a5']='<path d="M5 20V9"/><path d="M12 20V4"/><path d="M19 20v-7"/>';
+  SVG['\u2261']='<path d="M4 6h16M4 12h16M4 18h16"/>';
+  SVG['\u232b']='<path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/>';
+  SVG['\u25d0']='<circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 0 0 18z" fill="currentColor" stroke="none"/>';
+  SVG['\u2667']='<path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/>';
+  SVG['\u2571']='<path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/>';
+  SVG['\u223f']='<path d="M3 12c3-6 6 6 9 0s6 6 9 0"/>';
+  SVG['\uff0b']='<path d="M12 5v14M5 12h14"/>';
+  SVG['\u00d7']='<path d="M6 6l12 12M18 6L6 18"/>';
+  var EMOJI=/[\u{1F300}-\u{1FAFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{FE0F}]/gu;
+  function svgFor(ch){return '<svg class="jl-ico" viewBox="0 0 24 24">'+SVG[ch]+'</svg>'}
+  function clean(root){
+    try{
+      root.querySelectorAll('button,.iconBtn,.round,[data-holding-style],[aria-label]').forEach(function(el){
+        var t=(el.textContent||'').trim();
+        if(t.length<=2&&SVG[t]){el.innerHTML=svgFor(t)}
+      });
+      root.querySelectorAll('.sec,.ovhd,.pageTitle,h1,h2,h3,summary,.miniHeading').forEach(function(el){
+        if(EMOJI.test(el.textContent)){
+          el.innerHTML=el.innerHTML.replace(/\u{1F525}/gu,'<b class="jl-hot">热</b>').replace(/<b class="jl-hot">热<\/b>/g,'@JLHOT@');
+          var parts=el.innerHTML.split('@JLHOT@');
+          el.innerHTML=parts.map(function(p){return p.replace(EMOJI,'')}).join('<b class="jl-hot">热</b>');
+        }
+      });
+    }catch(e){}
+  }
+  function start(){clean(document.body);
+    var t=null;
+    try{new MutationObserver(function(){clearTimeout(t);t=setTimeout(function(){clean(document.body)},400)}).observe(document.body,{childList:true,subtree:true})}catch(e){}
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start);else start();
+})();
+</script>
+<script id="jl-algo-engine">
+/* 金粼算法引擎：龙池核心算法逐字移植自金粼主应用；签名校验通过才热替换；原函数备份于 __hqPoolBackup */
+let jlTradeDayObs='';const JLPOOL_IDX10=0;const JLPOOL_HOT=(typeof HOT_IND!=='undefined'&&HOT_IND instanceof Set)?HOT_IND:new Set();
+function jlYMD(d) {
+    return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+  }
+function jlLastTradeDay() {
+    const d = /* @__PURE__ */ new Date();
+    if (d.getHours() * 60 + d.getMinutes() < 560) d.setDate(d.getDate() - 1);
+    while (d.getDay() === 0 || d.getDay() === 6) d.setDate(d.getDate() - 1);
+    return jlYMD(d);
+  }
+function jlPoolFresh(dt) {
+    if (!dt) return false;
+    let s = String(dt).slice(0, 10);
+    if (/^\d{8}$/.test(s)) s = s.slice(0, 4) + "-" + s.slice(4, 6) + "-" + s.slice(6, 8);
+    return s === jlLastTradeDay() || jlTradeDayObs !== "" && s === jlTradeDayObs || window.__jlPoolAsOf && s === window.__jlPoolAsOf;
+  }
+function fmtFundJL(v) {
+    if (v == null || !Number.isFinite(Number(v))) return "\u2014";
+    const n = Number(v);
+    const a = Math.abs(n);
+    return (n >= 0 ? "+" : "\u2212") + (a >= 1e8 ? (a / 1e8).toFixed(2) + "\u4EBF" : Math.round(a / 1e4).toLocaleString() + "\u4E07");
+  }
+function jlEmGet(url) {
+    return new Promise((res) => {
+      let settled = false;
+      const done = (d) => {
+        if (!settled) {
+          settled = true;
+          res(d);
+        }
+      };
+      Promise.reject(new Error("no-proxy")).then((r) => r.ok ? r.json() : Promise.reject(0)).then(done).catch(() => {
+        const cb = "_jlm" + Math.random().toString(36).slice(2);
+        const tm = setTimeout(() => {
+          try {
+            delete window[cb];
+          } catch (e) {
+          }
+          done(null);
+        }, 8e3);
+        window[cb] = (d) => {
+          clearTimeout(tm);
+          try {
+            delete window[cb];
+          } catch (e) {
+          }
+          done(d);
+        };
+        const sc = document.createElement("script");
+        sc.src = url + (url.indexOf("?") >= 0 ? "&" : "?") + "cb=" + cb + "&_=" + Date.now();
+        sc.onerror = () => {
+          clearTimeout(tm);
+          try {
+            delete window[cb];
+          } catch (e) {
+          }
+          done(null);
+        };
+        sc.onload = () => sc.remove();
+        document.head.appendChild(sc);
+      });
+    });
+  }
+function poolEvidenceJL(x) {
+    const f = {};
+    if (x.pos > 0.9 || x.p20 > 35) f.position = ["\u9AD8\u4F4D/\u52A0\u901F\u4F4D\u7F6E"];
+    if (x.volPct120 >= 0.95) f.volume = ["\u4E2A\u80A1120\u65E5\u91CF\u5206\u4F4D\u5F02\u5E38"];
+    if (x.upperShadow >= 0.35 || x.closeOffHigh >= 0.08) f.price = ["\u4EF7\u683C\u627F\u63A5\u5931\u8D25"];
+    if (x.outStreak >= 2 && x.d0 < 0) f.funds = ["\u8FDE\u7EED\u8D44\u91D1\u6D41\u51FA"];
+    return f;
+  }
+function poolGateJL(x) {
+    const reasons = [];
+    if (!x || !jlPoolFresh(x.d)) return { ok: false, status: "\u6570\u636E\u8FC7\u671F", reasons: ["\u65E5K\u6570\u636E\u8FC7\u671F"], families: [] };
+    if (!jlPoolFresh(x.d0Date)) return { ok: false, status: "\u6570\u636E\u8FC7\u671F", reasons: ["\u8D44\u91D1\u6570\u636E\u8FC7\u671F"], families: [] };
+    if (x.f10 === void 0 || x.d0 === void 0 || x.fundSourceValid !== true || x.fundStatus === "\u63A5\u53E3\u9650\u6D41" || x.fundStatus === "\u63A5\u53E3\u65AD\u7EBF" || x.fundStatus === "\u6682\u7F3A") return { ok: false, status: "\u8BC1\u636E\u4E0D\u8DB3", reasons: [x.fundStatus || "\u8D44\u91D1\u5B57\u6BB5\u7F3A\u5931"], families: [] };
+    const ev = poolEvidenceJL(x), fam = Object.keys(ev);
+    if (fam.length >= 2) return { ok: false, status: "\u6D3E\u53D1\u98CE\u9669", reasons: [fam.map((k) => ev[k][0]).join(" + ")], families: fam };
+    if (!(x.d0 >= 1e7 || x.f10 >= 1.5e8 && x.d0 > -5e7)) return { ok: false, status: "\u8D44\u91D1\u91CF\u7EA7\u4E0D\u8DB3", reasons: ["\u5F53\u65E5 " + fmtFundJL(x.d0) + " / 10\u65E5 " + fmtFundJL(x.f10) + " \u672A\u8FC7\u95E8\u69DB(\u5F53\u65E5\u22651000\u4E07 \u6216 10\u65E5\u22651.5\u4EBF\u4E14\u5F53\u65E5\u4E0D\u5927\u51FA)"], families: [] };
+    if (x.d0 < 0) reasons.push("\u5F53\u65E5\u4E3B\u529B\u51C0\u6D41\u51FA");
+    return { ok: true, status: reasons.length ? "\u6570\u636E\u51B2\u7A81" : "\u5408\u683C", reasons, families: fam };
+  }
+function poolObserveGateJL(x) {
+    if (!x || !jlPoolFresh(x.d)) return { ok: false, status: "\u6570\u636E\u8FC7\u671F", reasons: ["\u65E5K\u6570\u636E\u8FC7\u671F"], families: [] };
+    const ev = poolEvidenceJL(x), fam = Object.keys(ev);
+    if (fam.length >= 2) return { ok: true, status: "\u98CE\u9669\u89C2\u5BDF", reasons: [fam.map((k) => ev[k][0]).join(" + ")], families: fam, risk: 1 };
+    if (!jlPoolFresh(x.d0Date)) return { ok: true, status: "\u8D44\u91D1\u5F85\u786E\u8BA4", reasons: ["\u8D44\u91D1\u65E5\u671F\u672A\u786E\u8BA4\xB7\u6570\u636E\u65E5" + (x.d0Date || "?") + "\xB7\u95E8\u69DB\u65E5" + jlLastTradeDay()], families: fam, watch: 1 };
+    if (x.f10 === void 0 || x.d0 === void 0 || x.fundSourceValid !== true || x.fundStatus === "\u63A5\u53E3\u9650\u6D41" || x.fundStatus === "\u63A5\u53E3\u65AD\u7EBF" || x.fundStatus === "\u6682\u7F3A") return { ok: true, status: x.fundStatus || "\u8D44\u91D1\u6682\u7F3A", reasons: [x.fundStatus || "\u8D44\u91D1\u5B57\u6BB5\u7F3A\u5931"], families: fam, watch: 1 };
+    if (x.d0 < 0) return { ok: true, status: "\u8D44\u91D1\u8F6C\u5F31\u5F85\u786E\u8BA4", reasons: ["\u8D44\u91D1\u8F6C\u8D1F"], families: fam, watch: 1 };
+    return { ok: true, status: "\u76D8\u4E2D\u89C2\u5BDF", reasons: [], families: fam, watch: 1 };
+  }
+function poolEligibleJL(x) {
+    return !!(x && poolGateJL(x).ok);
+  }
+function geneScoreJL(g) {
+    return Math.min(g || 0, 4) * 5;
+  }
+const poolSortKeyJL = (x) => x.score != null ? 1e3 + x.score : x.layer === "trend" ? x.ctrl || 0 : x.layer === "top" ? Math.round((x.pos || 0) * 100) : -1e9;
+  function scoreOfJL(x) {
+    if (!poolEligibleJL(x)) return null;
+    const ind = JLPOOL_HOT.has(x.ind) ? 1 : 0;
+    let sc = 0;
+    if (x.layer === "start") {
+      sc = (x.c2 ? 40 : x.f5 > 0 ? 20 : 0) + geneScoreJL(x.gene) + (x.pos < 0.4 ? 20 : x.pos < 0.5 ? 12 : 6) + ind * 20 + (x.vr >= 1.5 ? 12 : 0);
+    } else if (x.layer === "zs") {
+      sc = (x.n10 >= 7 ? 40 : x.n10 >= 5 ? 25 : x.f10 > 0 ? 15 : 0) + (x.p20 >= 30 ? 25 : x.p20 >= 20 ? 18 : 12) + geneScoreJL(x.gene) + ind * 15;
+    } else if (x.layer === "eb") {
+      sc = (x.f5 > 0 ? 40 : 0) + geneScoreJL(x.gene) + (x.wash >= 5 ? 20 : 10) + ind * 15;
+    } else return null;
+    sc = Math.round(sc / ({ start: 112, zs: 100, eb: 95 })[x.layer] * 100);
+    if (!x.d0Stale && x.d0 < 0) sc = Math.round(sc * 0.7);
+    return sc;
+  }
+function scoreOfJL(x) {
+    if (!poolEligibleJL(x)) return null;
+    const ind = JLPOOL_HOT.has(x.ind) ? 1 : 0;
+    let sc = 0;
+    if (x.layer === "start") {
+      sc = (x.c2 ? 40 : x.f5 > 0 ? 20 : 0) + geneScoreJL(x.gene) + (x.pos < 0.4 ? 20 : x.pos < 0.5 ? 12 : 6) + ind * 20 + (x.vr >= 1.5 ? 12 : 0);
+    } else if (x.layer === "zs") {
+      sc = (x.n10 >= 7 ? 40 : x.n10 >= 5 ? 25 : x.f10 > 0 ? 15 : 0) + (x.p20 >= 30 ? 25 : x.p20 >= 20 ? 18 : 12) + geneScoreJL(x.gene) + ind * 15;
+    } else if (x.layer === "eb") {
+      sc = (x.f5 > 0 ? 40 : 0) + geneScoreJL(x.gene) + (x.wash >= 5 ? 20 : 10) + ind * 15;
+    } else return null;
+    sc = Math.round(sc / ({ start: 112, zs: 100, eb: 95 })[x.layer] * 100);
+    if (!x.d0Stale && x.d0 < 0) sc = Math.round(sc * 0.7);
+    return sc;
+  }
+function poolClassifyJL(code, name, rows) {
+    const kl = rows.map((x) => ({ d: x[0], o: +x[1], c: +x[2], h: +x[3], l: +x[4], v: +x[5] }));
+    let liveBar = null;
+    try {
+      const _nd = /* @__PURE__ */ new Date(), _mn = _nd.getHours() * 60 + _nd.getMinutes(), _tds = _nd.toLocaleDateString("sv-SE");
+      if (kl.length && String(kl[kl.length - 1].d).slice(0, 10) === _tds && _mn >= 560 && _mn < 905) liveBar = kl.pop();
+      if (kl.length && String(kl[kl.length - 1].d).slice(0, 10) > jlTradeDayObs) {
+        jlTradeDayObs = String(kl[kl.length - 1].d).slice(0, 10);
+        try {
+          localStorage.setItem("jl_tdo_v1", jlTradeDayObs);
+        } catch (e) {
+        }
+      }
+    } catch (e) {
+    }
+    const n = kl.length;
+    if (n < 60) return null;
+    if (n < 80) return null;
+    const _gL = kl[n - 1], _gPC = n >= 2 ? kl[n - 2].c : 0;
+    if (!(_gL.v > 0)) return null;
+    const _gLim = /ST/i.test(name || "") ? 4.8 : /^(30|68)/.test(String(code)) ? 19.8 : /^(8|4|92)/.test(String(code)) ? 29.8 : 9.8;
+    if (_gPC > 0 && _gL.o === _gL.c && _gL.c === _gL.h && _gL.h === _gL.l && (_gL.c / _gPC - 1) * 100 >= _gLim - 0.3) return null;
+    if (n >= 20) {
+      let _amt = 0;
+      for (let _gi = n - 20; _gi < n; _gi++) _amt += kl[_gi].v * 100 * (kl[_gi].h + kl[_gi].l + kl[_gi].c) / 3;
+      if (_amt / 20 < 5e7) return null;
+    }
+    const cs = kl.map((x) => x.c);
+    const k2 = 2 / 21;
+    let e = null;
+    const e20 = new Array(n).fill(null);
+    for (let i2 = 0; i2 < n; i2++) {
+      e = e === null ? cs[i2] : cs[i2] * k2 + e * (1 - k2);
+      e20[i2] = e;
+    }
+    let b2 = null, b4 = null, b5 = null;
+    const ctrl = new Array(n).fill(null);
+    for (let i2 = 34; i2 < n; i2++) {
+      let hh = -1e18, ll = 1e18;
+      for (let j = i2 - 34; j <= i2; j++) {
+        if (kl[j].h > hh) hh = kl[j].h;
+        if (kl[j].l < ll) ll = kl[j].l;
+      }
+      const rg = hh - ll;
+      if (rg <= 0) continue;
+      const c = kl[i2].c, b1 = (hh - c) / rg * 100 - 35, b3 = (c - ll) / rg * 100;
+      b2 = b2 === null ? b1 : (b1 + b2 * 34) / 35;
+      b4 = b4 === null ? b3 : (b3 + b4 * 2) / 3;
+      b5 = b5 === null ? b4 : (b4 + b5 * 2) / 3;
+      const b6 = b5 + 100 - (b2 + 100);
+      ctrl[i2] = b6 > 1 ? Math.round((b6 - 1) * 2.5) : 0;
+    }
+    const i = n - 1;
+    if (ctrl[i] === null) return null;
+    let hi = -1e18, lo = 1e18, mh60 = 0;
+    for (let j = Math.max(0, i - 59); j <= i; j++) {
+      if (kl[j].h > hi) hi = kl[j].h;
+      if (kl[j].l < lo) lo = kl[j].l;
+      if (ctrl[j] !== null && ctrl[j] > mh60) mh60 = ctrl[j];
+    }
+    const pos = hi > lo ? (cs[i] - lo) / (hi - lo) : 0.5;
+    const p20 = i >= 20 ? (cs[i] / cs[i - 20] - 1) * 100 : 0;
+    const p10 = i >= 10 ? (cs[i] / cs[i - 10] - 1) * 100 : 0;
+    const pct2 = (cs[i] / cs[i - 1] - 1) * 100;
+    let wash = 0;
+    for (let j = Math.max(6, i - 9); j <= i; j++) {
+      const p = (kl[j].c / kl[j - 1].c - 1) * 100;
+      const lb = kl[j].v / ((kl[j - 5].v + kl[j - 4].v + kl[j - 3].v + kl[j - 2].v + kl[j - 1].v) / 5);
+      if (p >= -2.5 && p <= 0.5 && lb < 0.85) wash++;
+    }
+    const dc5 = i >= 5 && ctrl[i - 5] !== null ? ctrl[i] - ctrl[i - 5] : 0;
+    const lim = code.indexOf("sz300") === 0 || code.indexOf("sz301") === 0 || code.indexOf("sh688") === 0 ? 19.8 : 9.8;
+    const isLU = (j2) => {
+      const p = (kl[j2].c / kl[j2 - 1].c - 1) * 100;
+      return p >= lim - 0.3 && kl[j2].l < kl[j2].h;
+    };
+    let gene = 0, lu20 = 0;
+    for (let j2 = Math.max(6, n - 250); j2 < n; j2++) {
+      if (isLU(j2)) {
+        gene++;
+        if (j2 >= n - 20) lu20++;
+      }
+    }
+    const vr = function() {
+      if (i < 6) return 1;
+      const s5 = (kl[i - 5].v + kl[i - 4].v + kl[i - 3].v + kl[i - 2].v + kl[i - 1].v) / 5;
+      if (!(s5 > 0)) return 1;
+      if (liveBar) {
+        const _nd2 = /* @__PURE__ */ new Date(), mn2 = _nd2.getHours() * 60 + _nd2.getMinutes(), em = mn2 <= 690 ? Math.max(1, mn2 - 570) : mn2 < 780 ? 120 : Math.min(240, 120 + Math.max(0, mn2 - 780));
+        return +(liveBar.v / em * 240 / s5).toFixed(2);
+      }
+      return +(kl[i].v / s5).toFixed(2);
+    }();
+    const vols = kl.slice(Math.max(0, n - 120)).map((x) => x.v).sort((a, b) => a - b);
+    const volPct120 = vols.length ? vols.filter((v) => v <= kl[i].v).length / vols.length : null;
+    const rg0 = kl[i].h - kl[i].l, upperShadow = rg0 > 0 ? (kl[i].h - Math.max(kl[i].c, cs[i - 1])) / rg0 : 0;
+    const closeOffHigh = kl[i].h > 0 ? (kl[i].h - kl[i].c) / kl[i].h : 0;
+    const up = cs[i] > e20[i];
+    let layer = null;
+    if (ctrl[i] >= 100 && pos >= 0.85 && pct2 < 0) layer = "top";
+    else if (ctrl[i] > 150 && pos > 0.8 && up) layer = "zs";
+    else if (lu20 >= 2 && wash >= 3 && pos < 0.8 || mh60 >= 120 && ctrl[i] >= 50 && ctrl[i] < 120 && pos >= 0.3 && pos <= 0.65 && wash >= 4) layer = "eb";
+    else if (dc5 > 30 && up && pos < 0.6 && p20 < 15) layer = "start";
+    else if (up && ctrl[i] >= 50) layer = "trend";
+    if (!layer) return null;
+    let upDays = 0;
+    for (let j = i; j >= 1 && cs[j] > cs[j - 1]; j--) upDays++;
+    let emaDays = 0;
+    for (let j = i; j >= 20 && cs[j] > e20[j]; j--) emaDays++;
+    return { code, name, close: liveBar ? liveBar.c : cs[i], pct: liveBar ? +((liveBar.c / cs[i] - 1) * 100).toFixed(2) : +pct2.toFixed(2), ctrl: ctrl[i], pos: +pos.toFixed(2), wash, p20: +p20.toFixed(1), gene, lu20, vr, dc5: +dc5.toFixed(1), volPct120: volPct120 != null ? +volPct120.toFixed(3) : null, upperShadow: +upperShadow.toFixed(3), closeOffHigh: +closeOffHigh.toFixed(3), layer, upDays, emaDays, d: liveBar ? liveBar.d : kl[i].d, yd: p10 - JLPOOL_IDX10 >= 80 ? 1 : 0 };
+  }
+async function poolFFJL(list, prog) {
+    if (!list.length) return;
+    let idx = 0, done = 0;
+    async function one(x) {
+      const url = "https://push2his.eastmoney.com/api/qt/stock/fflow/daykline/get?lmt=10&klt=101&fields1=f1,f2,f3,f7&fields2=f51,f52&secid=" + (x.code.indexOf("sh") === 0 ? "1." : "0.") + x.code.slice(2);
+      let d = await jlEmGet(url);
+      if (!(d && d.data && d.data.klines && d.data.klines.length >= 2)) {
+        d = await jlEmGet(url.replace("push2his.eastmoney.com", "push2delay.eastmoney.com"));
+      }
+      if (!(d && d.data && d.data.klines && d.data.klines.length >= 2)) {
+        await new Promise((r2) => setTimeout(r2, 1500));
+        d = await jlEmGet(url);
+      }
+      if (!(d && d.data && d.data.klines && d.data.klines.length >= 2)) {
+        try {
+          const du = await jlEmGet("https://push2delay.eastmoney.com/api/qt/ulist.np/get?fltt=2&invt=2&fields=f12,f62&secids=" + (x.code.indexOf("sh") === 0 ? "1." : "0.") + x.code.slice(2));
+          const f62b = du && du.data && du.data.diff && du.data.diff[0] ? +du.data.diff[0].f62 : NaN;
+          if (Number.isFinite(f62b)) {
+            x.fundSourceValid = true;
+            x.fundStatus = "\u5B9E\u65F6/\u5F53\u65E5\u76D8\u4E2D";
+            x.d0 = f62b;
+            x.d0Date = jlLastTradeDay();
+            x.d0Stale = 0;
+            done++;
+            if (prog) prog("\u8D44\u91D1\u786E\u8BA4 " + done + "/" + list.length);
+            return;
+          }
+        } catch (e) {
+        }
+      }
+      try {
+        const rows0 = d && d.data && d.data.klines ? d.data.klines.map((s2) => s2.split(",")) : [];
+        const ltd = jlLastTradeDay();
+        const minsP = (/* @__PURE__ */ new Date()).getHours() * 60 + (/* @__PURE__ */ new Date()).getMinutes(), rowsF = rows0.filter((r2) => String(r2[0]) < ltd || minsP >= 905 && String(r2[0]) <= ltd);
+        const rows = rowsF.length ? rowsF : rows0;
+        const nets = rows.map((r) => +r[1]);
+        if (nets.length >= 1) {
+          x.fundSourceValid = true;
+          x.fundStatus = "\u5B9E\u65F6/\u6700\u8FD1\u6709\u6548";
+          x.d0 = nets[nets.length - 1];
+          x.d0Date = rows[rows.length - 1] && rows[rows.length - 1][0] || "";
+          x.d0Stale = jlPoolFresh(x.d0Date) ? 0 : 1;
+          x.f5 = nets.slice(-5).reduce((a, v) => a + v, 0);
+          x.f10 = nets.reduce((a, v) => a + v, 0);
+          x.n10 = nets.filter((v) => v > 0).length;
+          x.c2 = nets.length >= 2 && nets[nets.length - 1] > 0 && nets[nets.length - 2] > 0 ? 1 : 0;
+          let st = 0;
+          for (let q = nets.length - 1; q >= 0 && nets[q] < 0; q--) st++;
+          x.outStreak = st;
+          if (x.d0Stale) {
+            try {
+              const td2 = jlLastTradeDay();
+              const du = await jlEmGet("https://push2delay.eastmoney.com/api/qt/ulist.np/get?fltt=2&invt=2&fields=f12,f62&secids=" + (x.code.indexOf("sh") === 0 ? "1." : "0.") + x.code.slice(2));
+              const f62 = du && du.data && du.data.diff && du.data.diff[0] ? +du.data.diff[0].f62 : NaN;
+              if (Number.isFinite(f62)) {
+                const dn10 = nets.slice(-10);
+                x.d0 = f62;
+                x.d0Date = td2;
+                x.d0Stale = 0;
+                x.fundStatus = "\u5B9E\u65F6/\u5F53\u65E5\u76D8\u4E2D";
+                x.f5 = dn10.slice(-5).reduce((a, v) => a + v, 0);
+                x.f10 = dn10.reduce((a, v) => a + v, 0);
+                x.n10 = dn10.filter((v) => v > 0).length;
+                x.c2 = dn10.length >= 2 && dn10[dn10.length - 1] > 0 && dn10[dn10.length - 2] > 0 ? 1 : 0;
+                let st2 = 0;
+                for (let q2 = dn10.length - 1; q2 >= 0 && dn10[q2] < 0; q2--) st2++;
+                x.outStreak = st2;
+              }
+            } catch (e) {
+            }
+          }
+        } else {
+          x.fundSourceValid = false;
+          x.fundStatus = "\u6682\u7F3A";
+        }
+      } catch (e) {
+        x.fundSourceValid = false;
+        x.fundStatus = "\u6682\u7F3A";
+      }
+      done++;
+      if (prog) prog("\u8D44\u91D1\u786E\u8BA4 " + done + "/" + list.length);
+    }
+    async function worker() {
+      while (idx < list.length) await one(list[idx++]);
+    }
+    await Promise.all([worker(), worker(), worker(), worker(), worker(), worker()]);
+  }
+
+(function(){
+  try{
+    if(typeof window.poolClassify==='function'&&window.poolClassify.length===3&&typeof window.poolGate==='function'&&typeof window.poolClassifyJL==='function'){
+      window.__hqPoolBackup={classify:window.poolClassify,gate:window.poolGate,evidence:window.poolEvidence,eligible:window.poolEligible,ff:window.poolFF};
+      window.poolClassify=window.poolClassifyJL;
+      window.poolGate=window.poolGateJL;
+      if(typeof window.poolEvidence==='function')window.poolEvidence=window.poolEvidenceJL;
+      if(typeof window.poolEligible==='function')window.poolEligible=window.poolEligibleJL;
+      if(typeof window.poolFF==='function')window.poolFF=function(list){return window.poolFFJL(list,null)};
+      window.__JL_ENGINE='金粼算法引擎 v1 已接管龙池';
+    }else{
+      window.__JL_ENGINE='未接管(未发现全局池函数,保持原算法)';
+    }
+    console.log('[金粼引擎]',window.__JL_ENGINE);
+  }catch(e){console.warn('[金粼引擎] 启用失败,保持原算法',e)}
+})();
 </script>
 </body>
 </html>
