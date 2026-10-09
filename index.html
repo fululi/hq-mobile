@@ -607,7 +607,7 @@ dialog h3{color:#f0d5a0!important;letter-spacing:1px}
   <div class="ovfoot" id="bkflowDrill" style="display:none"></div>
 </div>
 
-<!-- v5.176: 行业资金监控卡(房东0909:"我买的就是通信/半导体,这些资金流量要有监控,这才是持仓关注") -->
+<!-- v5.176: 行业资金监控卡(0909需求:"我买的就是通信/半导体,这些资金流量要有监控,这才是持仓关注") -->
 <div class="ovcard" id="indmfBox" style="display:none">
   <div class="ovt"><span>🏭 行业资金监控 · 我的板块 <span class="ovtm" id="indmfTm"></span></span>
   <span class="qm" onclick="alert('默认盯 通信设备/半导体/玻璃玻纤 三个东财行业板块(BK指数)\n涨跌幅+主力净流入=东财ulist实时口径(f3/f62),60秒轮询\n每行下方点名联动=我的持仓/观察票里属于该行业的票\n行业归属:东财f100缓存优先,兜底硬编码(永鼎=通信设备/巨石=玻璃玻纤/通信ETF=通信设备)')">?</span></div>
@@ -2812,7 +2812,7 @@ function bkDrill(code,name){
 }
 
 // ================= v5.176: 行业资金监控卡 + 暗盘识别徽章 =================
-// —— 行业资金监控(任务:房东0909"持仓行业的资金流量要有监控") ——
+// —— 行业资金监控(任务,0909需求:"持仓行业的资金流量要有监控") ——
 // 默认盯 通信设备BK0448 / 半导体BK1036 / 玻璃玻纤BK0546。
 // BK代码0909双确认: ①东财clist fs=m:90+t:2 全表实测 ②本地存档 做T台账/数据存档/mkt_daily.json(bk_flow节,同为东财口径)
 // 数据=东财ulist一次拉三块(f3涨跌幅/f62主力净流入),60秒节流,挂refresh链与ovShow,失败读当日缓存,还没有才整块隐藏
@@ -2861,7 +2861,7 @@ function renderIndMF(){
   const tm2=INDMF_BK.map(b=>INDMF[b[0]]&&INDMF[b[0]].tm).filter(Boolean).sort().pop();
   document.getElementById('indmfTm').textContent=(mktLive()?'60秒轮询 · ':'收盘快照 · ')+(tm2||'');
 }
-// —— 暗盘识别(对倒拆单指纹,房东0909口径) ——
+// —— 暗盘识别(对倒拆单指纹,0909口径) ——
 // 东财fflow klt=1 最新一根=当日累计(v5.135已验证f52为累计值); f52=主力净额 f56=超大单(f55大/f54中/f53小,本版只用f52/f56)
 // 触发: 主力净额<0 且 超大单>0 且 |超大单|>|主力净额|×0.5 → 明面主力流出但超大单在进=疑似拆单吸筹,挂琥珀徽章"👁疑似暗盘流入"
 // 只盯真持仓(shares>0),60秒节流; 接口失败静默——不报错/不清旧徽章/不空白化
@@ -3470,7 +3470,7 @@ function renderYidong(){
     if(cc&&((cc.ev&&cc.ev.length)||cc.bk||cc.zt)){ YD.ev=cc.ev||[]; if(!YD.bk&&cc.bk){ YD.bk=cc.bk; YD.dt=cc.dt||''; } if(!YD.zt&&cc.zt) YD.zt=cc.zt; YD._cacheD=cc.date; } }catch(e){} }
   if(!YD.line&&!YD.bk&&!(YD.ev&&YD.ev.length)&&!YD.zt){ box.style.display='none'; return; }
   box.style.display='';
-  const W=340,H=152,PL=6,PR=40,PT=10,PB=49; // v5.176: PB=15时间轴+34量柱带(≥主区93px的1/4且≥28px,房东0909:量柱几乎看不见)
+  const W=340,H=152,PL=6,PR=40,PT=10,PB=49; // v5.176: PB=15时间轴+34量柱带(≥主区93px的1/4且≥28px,0909问题:量柱几乎看不见)
   let svg='', mfsvg='';
   if(YD.line){
     const pts=YD.line.pts, pre=YD.line.pre, n=pts.length;
@@ -6588,7 +6588,7 @@ function doRender(){
     const _idvT=_idv?(pct>0?' <b style="color:#e8a13c">⚠顶背离·价涨钱出</b>':' <b style="color:#e8a13c">⚠底背离·价跌钱进</b>'):'';
     const iffT=iff?`<div class="g sub" style="font-weight:400">主力 <b class="${cls(iff.amt)}">${iff.amt>=0?'+':''}${fmtAmt(iff.amt)}</b>${iff.pct!=null?' ('+iff.pct.toFixed(1)+'%)':''}${_idvT}</div>`:'';
     // v5.168: 撑压"到过没到过"——用今高/今低对照今日预判区间,盘中一眼看到位没有
-    // v5.182: 收盘后/盘后也照显——对照锚固定用昨收(prev,即"今日预判区间"的锚),不跟iref滚到明日预判而隐藏(房东0909 20:20:总览要能看到上证/深证/300撑压到过没到过)
+    // v5.182: 收盘后/盘后也照显——对照锚固定用昨收(prev,即"今日预判区间"的锚),不跟iref滚到明日预判而隐藏(0909 20:20需求:总览要能看到上证/深证/300撑压到过没到过)
     // v5.183: 颜色分级——触上沿橙⚠(防回调) / 破下沿红⚠(防杀跌) / 未到正常灰
     const _ihi=F(f,33), _ilo=F(f,34);
     const itouch=(prev!=null&&ia!=null&&_ihi!=null&&_ilo!=null)
@@ -6755,7 +6755,7 @@ function doRender(){
     // v5.13: 做T档位快照——用同一轮已算好的 tr.sells/tr.buys/tf.lv,legAge按小波段起点到目标日的自然日数估算
     const _legAge=(lg&&lg.from)?Math.round((new Date(_td)-new Date(lg.from))/86400000):null;
     try{ snapTier({code:h.code,name:h.name,targetDate:_td,sells:tr.sells,buys:tr.buys,trendLv:tf.lv,legAge:_legAge}); }catch(e){}
-    // v5.182: 盘后"今日各档到过没"回放——读今早已写入的TFC档位快照(写一次永不覆盖),对照今日真实高低判定,不重算不倒填(房东0909 20:40批:✓到过盘后也要能复盘)
+    // v5.182: 盘后"今日各档到过没"回放——读今早已写入的TFC档位快照(写一次永不覆盖),对照今日真实高低判定,不重算不倒填(0909 20:40定案:✓到过盘后也要能复盘)
     let _tdHit='';
     if(_nxh&&hi!=null&&lo!=null){
       const _tf0=tfOf(h.code,today());
@@ -7036,7 +7036,7 @@ function doRender(){
       </div>
       <div class="proj" style="margin-top:2px;flex-direction:column;align-items:flex-start;gap:2px"><span>${actRow(h.code,p,prev,lo,hi,_aLo,_aHi,_qd)}</span><span class="sub">${planLbl()}${_td.slice(5)}预判 <b class="flat">${preStr}</b>${(()=>{ if(_nxP||hi==null||lo==null||_dHi==null||_dLo==null) return ''; const _tc=(hi>=_dHi?'<b style="color:#e8a13c"> ⚠触上沿</b>':'')+(lo<=_dLo?'<b style="color:#ff7a72"> ⚠破下沿</b>':''); return _tc||'<span class="dim"> · 未触沿</span>'; })()}<span class="qm" onclick="preWhy('${h.code}','${h.name}')">?</span>${PREHIT[h.code]?' · 实测'+PREHIT[h.code].inr+'%不出界':''} · ${anchorNote(h.code,prev,p)}</span></div>
       ${(tr.buys[0]&&tr.sells[0])?`<div class="proj" style="margin-top:2px"><span>📌 ${planLbl()}计划一句话: <b class="down">${P(tr.buys[0])}接${(()=>{const rc0=refCloseOf(p,prev);return rc0?'(水下'+((1-tr.buys[0]/rc0)*100).toFixed(1)+'%)':'';})()}</b> → <b class="up">${P(tr.sells[0])}抛${(()=>{const rc0=refCloseOf(p,prev);return rc0?'(水上'+((tr.sells[0]/rc0-1)*100).toFixed(1)+'%)':'';})()}</b> = 全程<b>${((tr.sells[0]/tr.buys[0]-1)*100).toFixed(1)}点</b> · 100股净≈<b>${(()=>{try{const _f=feeOf(tr.sells[0],tr.buys[0],100,100,h.code).fee;return sg(Math.round((tr.sells[0]-tr.buys[0])*100-_f));}catch(e){return '—';}})()}元</b></span></div>`:''}
-      ${(()=>{ // v5.83: 周期要点一行 —— 大周期压力/支撑, 不用点开; v5.185: 三角状态撤下(房东0909 21:3x: 黄色箭头三角行取消,别的不要动)
+      ${(()=>{ // v5.83: 周期要点一行 —— 大周期压力/支撑, 不用点开; v5.185: 三角状态撤下(0909 21:3x定案: 黄色箭头三角行取消,别的不要动)
         try{ const lg0=legOf(h.code); if(!lg0||!(lg0.hi>0)||!(lg0.lo>0)) return '';
           const R0=lg0.hi-lg0.lo, isUp0=String(lg0.loD)<String(lg0.hiD);
           const lv0=[[0.382],[0.5],[0.618],[0.786]].map(x=>isUp0?lg0.hi-R0*x[0]:lg0.lo+R0*x[0]);
@@ -7136,7 +7136,7 @@ function doRender(){
     const _trw=liveTiers(anchorOf(w.code,p,prev),narrowBase(w.code,base,todayAmp).base,_rcw,_tfw.lv,w.code,w.name);
     const wt=WT[w.code], wtC=wt>0?'up':(wt<0?'down':'flat');
     const al=(p!=null&&pjHiN!=null)?(p>=pjHiN?[' ▲破上沿','up']:(p<=pjLoN?[' ▼破下沿','down']:['',''])):['',''];
-    // v5.182: 观察卡补"压/撑到过没到过"——对照今日预判pj(昨收锚,盘中盘后同一口径),今高/今低真实判定,盘后常显(房东0909 20:40批)
+    // v5.182: 观察卡补"压/撑到过没到过"——对照今日预判pj(昨收锚,盘中盘后同一口径),今高/今低真实判定,盘后常显(0909 20:40定案)
     const _tchW=(pjHiN!=null&&pjLoN!=null&&hi!=null&&lo!=null)
       ? `<div style="font-size:11px;margin-top:2px">压 ${P(pjHiN)} ${hi>=pjHiN?'<b style="color:#e8c568">已到</b>':'<span style="color:#5d6675">未到</span>'} · 撑 ${P(pjLoN)} ${lo<=pjLoN?'<b style="color:#e8c568">已到</b>':'<span style="color:#5d6675">未到</span>'}</div>`:'';
     const sig=PAPER.find(x=>x.code===w.code&&x.status==='open');
