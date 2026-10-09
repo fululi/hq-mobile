@@ -91,7 +91,7 @@ body { margin:0; padding:10px 12px 30px; background:radial-gradient(1200px 520px
 .sum { background:#14181e; border:1px solid #232a33; border-radius:12px; padding:14px 16px; margin-bottom:14px; display:flex; justify-content:space-between; }
 .sum .b .k { font-size:11px; color:#b0bac7; letter-spacing:.08em; } .sum .b .v { font-size:24px; font-weight:760; font-variant-numeric:tabular-nums; margin-top:3px; letter-spacing:.01em; }
 .idx { display:grid; grid-template-columns:repeat(2,1fr); gap:8px; margin-bottom:16px; }
-.idx .c { background:#14181e; border:1px solid #232a33; border-radius:10px; padding:10px 8px; text-align:center; min-width:0; overflow:hidden; } /* v5.194: grid子项默认min-width:auto被长内容撑破→整页右偏(H16,房主手机实锤) */
+.idx .c { background:#14181e; border:1px solid #232a33; border-radius:10px; padding:10px 8px; text-align:center; min-width:0; overflow:hidden; } /* v5.194: grid子项默认min-width:auto被长内容撑破→整页右偏(H16,手机实锤) */
 .idx .c .n { font-size:11px; color:#b0bac7; margin-bottom:3px; letter-spacing:.08em; }
 .idx .c .v { font-size:17px; font-weight:720; font-variant-numeric:tabular-nums; }
 .idx .c .g { font-size:11.5px; font-weight:600; margin-top:1px; font-variant-numeric:tabular-nums; }
@@ -653,7 +653,7 @@ dialog h3{color:#f0d5a0!important;letter-spacing:1px}
   <div class="ovfoot">工作日 9:15~9:35 抓集合竞价快照(涨幅×竞价成交额,东财全A) · 窗口外只读当日缓存,过期隐藏 · 竞价强度高≠全天强,仅陈列事实</div>
 </div>
 
-<!-- v5.195: 总览内嵌早报卡撤下——新闻已独立一栏(房主:重复); loadZaobao/zbApplyColl 有空元素守卫,留函数空转不碍事 -->
+<!-- v5.195: 总览内嵌早报卡撤下——新闻已独立一栏(重复); loadZaobao/zbApplyColl 有空元素守卫,留函数空转不碍事 -->
 </div>
 </div>
 </div>
@@ -700,7 +700,7 @@ dialog h3{color:#f0d5a0!important;letter-spacing:1px}
 <div id="sentiHoldsSlot" style="margin-bottom:10px"></div>
 <div id="holds" style="display:none"></div>
 <details class="fold" data-fk="mrg" open style="margin-bottom:10px">
-<summary class="sec"><span>合并总账</span></summary> <!-- v5.193: 解释文案删(房主0910:"这些解释都给删了吧") -->
+<summary class="sec"><span>合并总账</span></summary> <!-- v5.193: 解释文案删(0910定案:"这些解释都给删了吧") -->
 <div class="card tbl" id="mrgBox"></div>
 </details>
 <details class="fold" id="foldImp" style="margin-bottom:10px">
@@ -895,8 +895,8 @@ const DEFAULT = {
   holds:[],
   watch:[]
 };
-const K_UP=0.3, K_DN=0.5, ATR_FLOOR=0.9; // v5.198: ATR_FLOOR 0.75→0.9(C6房主已拍板,0910傍晚落地); K_DN=0.5 为通用档,分票标定值在脾气档案(巨石0.9449/永鼎0.9118)待第②步接线
-const GRID_FIX={sh600176:1}; // v5.197: 整数关磁吸格距分票标定——巨石1元格(0910傍晚房主拍板"巨石就加一其他0.5":0.5格太密,把S1~S4延全吸成x.00/x.50),其余票维持0.5/0.05/0.005;liveMags/btMags都读它=实盘回测同口径
+const K_UP=0.3, K_DN=0.5, ATR_FLOOR=0.9; // v5.198: ATR_FLOOR 0.75→0.9(C6已定案,0910傍晚落地); K_DN=0.5 为通用档,分票标定值在脾气档案(巨石0.9449/永鼎0.9118)待第②步接线
+const GRID_FIX={sh600176:1}; // v5.197: 整数关磁吸格距分票标定——巨石1元格(0910傍晚定案"巨石就加一其他0.5":0.5格太密,把S1~S4延全吸成x.00/x.50),其余票维持0.5/0.05/0.005;liveMags/btMags都读它=实盘回测同口径
 const LS='portfolio_v2', LOG='tlog_v2', ATRK='atr14_v6', FEEK='fee_v1'; // v5.106: v4新增ma20(跌透判断),旧缓存作废重抓; v5.147: v5新增cl25; v5.164: v6新增zz(ZigZag拐点·上一波结构),旧缓存作废重抓
 let PF, editMode=false, MKT=null, ATR={}, ATR_DATE='', ATR_FAIL=false;
 let FEE={comm:0.025, stamp:0.05, min:5}; // 佣金万2.5、印花税0.05%(卖出)、最低佣金5元(ETF不适用)
@@ -1280,7 +1280,7 @@ function legFibOf(code,p){
   const rpct=Math.round(Math.max(ret,0)*100);
   let txt,c;
   if(p<lg.lo){ txt='已破基点'; c='#ff7a72'; }              // 红: 结构破坏条呼应
-  else if(ret>0.786){ txt='回吐涨幅'+rpct+'%·逼近基点'; c='#e8a13c'; }  // 橙; v5.192: "回撤"改"回吐涨幅"——腿内回吐比例与"自高回落%"(今日价)撞词,房主0910被绕晕
+  else if(ret>0.786){ txt='回吐涨幅'+rpct+'%·逼近基点'; c='#e8a13c'; }  // 橙; v5.192: "回撤"改"回吐涨幅"——腿内回吐比例与"自高回落%"(今日价)撞词,0910曾混淆
   else if(ret>0.55){ txt='回吐涨幅'+rpct+'%·深'; c='#e8c568'; }          // 黄
   else if(ret>0.40){ txt='回吐涨幅'+rpct+'%·中'; c='#4fd79b'; }          // 绿
   else { txt='回吐涨幅'+rpct+'%·浅'; c='#4fd79b'; }                      // 绿
@@ -2818,7 +2818,7 @@ function bkDrill(code,name){
 // 数据=东财ulist一次拉三块(f3涨跌幅/f62主力净流入),60秒节流,挂refresh链与ovShow,失败读当日缓存,还没有才整块隐藏
 const INDMF_BK=[['BK0448','通信设备'],['BK1036','半导体'],['BK0546','玻璃玻纤']];
 // 行业归属兜底硬编码(0909东财f100实测: 永鼎股份=通信设备, 中国巨石=玻璃玻纤, 通信ETF国泰f100为空→按跟踪指数归通信设备); HY缓存(f100)有值时以HY为准
-const INDMF_FIX={'sh600105':'通信设备','sh600176':'玻璃玻纤','sh515880':'通信设备','sh603986':'半导体'}; // v5.194: 补兆易创新(房主0910买入)
+const INDMF_FIX={'sh600105':'通信设备','sh600176':'玻璃玻纤','sh515880':'通信设备','sh603986':'半导体'}; // v5.194: 补兆易创新(0910买入)
 function indOf(c){ return HY[c]||INDMF_FIX[c]||''; }
 let INDMF={}, INDMF_TS=0;
 function maybeIndMF(force){ const n=Date.now(); if(!force&&n-INDMF_TS<60*1000) return; INDMF_TS=n; loadIndMF(); }
@@ -3137,7 +3137,7 @@ function renderHoldTemp(){
       else if(pos>=0.85) temp='<b style="color:#ff8a80">高位·防回调</b>';
       else if(pos<=0.15) temp='<b style="color:#4fd79b">低位·看支撑</b>';
       else temp='<span class="dim">中段</span>'; }
-    // v5.194: "到过"图形化+温度计双尺(房主0910:不要通篇文字;最高到过吗>85%;下午跳水游标不撤,忙完一眼看出买在回撤;波段尺点切换)
+    // v5.194: "到过"图形化+温度计双尺(0910定案:不要通篇文字;最高到过吗>85%;下午跳水游标不撤,忙完一眼看出买在回撤;波段尺点切换)
     const dH=F(f,33), dL=F(f,34);
     const _sw=(typeof swingState==='function')?swingState(code,p):null;
     const _swTop=(_sw&&_sw.L1!=null)?(_sw.tgt2||_sw.H1):null;
@@ -3160,7 +3160,7 @@ function renderHoldTemp(){
       if(_sw.tgt1!=null) ticks+=vl(_sw.tgt1,'#e8c568');         // 攻=等幅目标
     }
     const ttChip=_swOK?'<span style="font-size:9.5px;color:#7e8798;border:1px solid #2a323d;border-radius:8px;padding:0 5px;margin-right:4px;cursor:pointer" onclick="event.stopPropagation();ttTgl(\''+code+'\')">'+(_ttm==='sw'?'⇄日内':'⇄波段')+'</span>':'';
-    // v5.193: 观察行给✕(房主0910:"也不能删,搞一个x号")——点两下确认,删完温度卡/观察区同一份PF.watch联动消失
+    // v5.193: 观察行给✕(0910定案:"也不能删,搞一个x号")——点两下确认,删完温度卡/观察区同一份PF.watch联动消失
     const xBtn=wx?'<span style="color:#5d6675;font-size:12px;padding:0 2px 0 6px;cursor:pointer" title="点两下删除" onclick="event.stopPropagation();wlDel(\''+code+'\',\''+name+'\',this)">✕</span>':'';
     const _pff=(typeof PFF!=='undefined'&&PFF.rows)?PFF.rows[code.slice(2)]:null;
     const mfT=_pff?'主力 <b style="color:'+(_pff.z>=0?'#ff5f56':'#4fd79b')+'">'+fmtY(_pff.z)+'</b>':'';
@@ -3771,7 +3771,7 @@ function loadZaobao(re){
     if(!root) throw new Error('no zb-root');
     emp.style.display='none'; fr.style.display='block';
     const tm=doc.querySelector('[data-zbdate]'); if(tm) document.getElementById('zbTm').textContent=tm.textContent;
-    zbFixLinks(doc); // v5.194: 早报内链接补 target=_blank(房主:链接打不开)
+    zbFixLinks(doc); // v5.194: 早报内链接补 target=_blank(链接打不开)
     const fit=()=>{ try{ const d2=fr.contentDocument; if(!d2||d2.body.offsetWidth<100) return;
       fr.style.height=Math.min(Math.max(d2.body.scrollHeight+8,260),4000)+'px'; }catch(e){} };
     fit(); setTimeout(fit,700); setTimeout(fit,2000); // 总览视图后显示时宽度过0,需重fit
@@ -5299,8 +5299,8 @@ function wlAdvice(code,name,brief){
       ? '<span style="color:#ff8a80">→看 <b>'+P(sNxt)+'</b> +'+((sNxt/p-1)*100).toFixed(1)+'%</span>'
       : '<span style="color:#e8c568"> 已越顶·'+(sExt?'上看 <b>'+P(sExt)+'</b> +'+((sExt/p-1)*100).toFixed(1)+'%'+(_fU&&_fU.v>sExt*1.001?' · 磁吸'+_fU.tag+'='+P(_fU.v):''):(_fU?'档全穿·上看 '+_fU.tag+' <b>'+P(_fU.v)+'</b>':'直逼涨停·移动止盈'))+'</span>');
     else if(s0!=null) sTxt='<span style="color:#ff8a80">抛 <b>'+P(s0)+'</b> +'+((s0/p-1)*100).toFixed(1)+'%</span>';
-    // v5.196: ↗箭头撤下(房主:箭头太多)——接抛两档并排已够直给
-    // v5.192: sup态日内T档照出+标"T仓"——"别加仓"管的是波段买档,日内做T的接/抛价必须有(0910兆易卡:房主成本在下方,光喊别接不给日内档=扯淡)
+    // v5.196: ↗箭头撤下(箭头太多)——接抛两档并排已够直给
+    // v5.192: sup态日内T档照出+标"T仓"——"别加仓"管的是波段买档,日内做T的接/抛价必须有(0910兆易卡:成本在下方,光喊别接不给日内档=扯淡)
     if(_ba.st==='sup'&&s0!=null&&!sBrk) sTxt=(b0!=null?'<span style="color:#4fd79b">B <b>'+P(b0)+'</b></span> ':'')+'<span style="color:#ff8a80">S <b>'+P(s0)+'</b> +'+((s0/p-1)*100).toFixed(1)+'%</span><span class="dim" style="font-size:10px">(T仓做T·非清仓)</span>';
     let _net=null, _fee=null; // v5.178: 净额存一份,拼进第一行大字; v5.184: 费也存一份,数据带悬停提示用
     const gap=(b0!=null&&s0!=null&&s0>b0&&!_pd&&!sBrk&&!bBrk)?(function(){ const _f=feeOf(s0,b0,100,100,code).fee; _fee=Math.round(_f); _net=Math.round((s0-b0)*100-_f); return '<span class="dim" title="净额已扣双边费'+_fee+'元">来回'+((s0/b0-1)*100).toFixed(1)+'点·100股净<b style="color:#e8c568">'+_net+'元</b></span>'; })():''; // v5.144: 每股毛改100股净额(已扣费),不用心算; v5.184: 费收悬停,不占版面
@@ -5325,7 +5325,7 @@ function wlAdvice(code,name,brief){
     if(_pd){ detail.push(sTxt,bTxt); }
     else if(_ba.st==='sup'){ // v5.192: 破位悬停给完整答案——买侧不接盘(bTxt)、底仓别恐慌全清、反弹到抛档分批减(sTxt);实案教训入卡
       detail.push(bTxt, sTxt, '<span style="color:#e8a13c;font-size:11px">恐慌全清=09-04永鼎当日被收回 · 放量破位另判</span>'); }
-    else if(_sw){ // v5.192d 房主定稿: 波段守/攻一行 + 顶预警一行 + 日内T行(接/抛/100股净/先后/已触价)——数字直给,不写小作文
+    else if(_sw){ // v5.192d 定稿: 波段守/攻一行 + 顶预警一行 + 日内T行(接/抛/100股净/先后/已触价)——数字直给,不写小作文
       detail.push('<span style="color:#8d97a6">守 <b>'+P(_sw.stopT)+'</b>/<b>'+P(_sw.stopC)+'</b></span>'
         +(_sw.tgt1?' <span style="color:#e8c568">攻 <b>'+P(_sw.tgt1)+'</b>→'+P(_sw.tgt2)+'</span>':'')
         +(_td==='dn'?' <span style="color:#ff9066;font-weight:700">⚠️ 破清仓线收不回减半</span>':''));
@@ -5348,7 +5348,7 @@ function wlAdvice(code,name,brief){
     else { detail.push(bTxt,sTxt); }
     if(gap&&!_td&&!_sw) detail.push(gap);
     if(_ba.st==='rearm'&&_ba.why) detail.push('<span class="dim">'+_ba.why+'</span>');
-    // v5.192: 腿+Fib回吐行从持仓卡撤下(房主0910:看不懂,不挂持仓卡)——腿锚点信息已由波段卡"顶/回撤落点"和sup卡"破段基点"各自承担;legFibTxt 保留给 brief 模式
+    // v5.192: 腿+Fib回吐行从持仓卡撤下(0910定案:看不懂,不挂持仓卡)——腿锚点信息已由波段卡"顶/回撤落点"和sup卡"破段基点"各自承担;legFibTxt 保留给 brief 模式
     // v5.180: 今日从高点回落直给——今高+回落%,数学不好不用心算
     if(hi!=null&&hi>0&&p>0&&p<hi) detail.push('<span class="dim">今高 '+P(hi)+' · 自高回落 '+((hi-p)/hi*100).toFixed(1)+'%</span>');
     // v5.182: brief模式——折叠持仓卡一行答案制: 头结论+接/抛价+fib位, 不要解释小字
@@ -5357,7 +5357,7 @@ function wlAdvice(code,name,brief){
       let ans='';
       if(_ba.st==='sup') ans=(b0!=null&&s0!=null)?'B <b>'+P(b0)+'</b> / S <b>'+P(s0)+'</b>':''; // v5.192: sup不再空白——日内T档照出(B/S),波段口径在头部(等收复)
       else if(_ba.st==='nodata') ans='';
-      else if(_sw) ans='止盈 <b>'+P(_sw.stopT)+'</b> · 清仓 <b>'+P(_sw.stopC)+'</b>'+(_sw.tgt1?' · 目标 <b>'+P(_sw.tgt1)+'</b>':'')+(_sw.tgt2?' · 顶 <b style="color:#e8a13c">'+P(_sw.tgt2)+'</b>':'')+((b0!=null&&s0!=null)?' · B <b>'+P(b0)+'</b>/S <b>'+P(s0)+'</b>'+(_net!=null?' 净<b style="color:#e8c568">'+_net+'</b>元':''):'')+(pct!=null?' · '+(pct>0?'先抛后接':'先接后抛'):''); // v5.192d: 波段行带日内B/S+100股净额(房主要的"买和卖+每100股多少钱");fib回吐badge已撤
+      else if(_sw) ans='止盈 <b>'+P(_sw.stopT)+'</b> · 清仓 <b>'+P(_sw.stopC)+'</b>'+(_sw.tgt1?' · 目标 <b>'+P(_sw.tgt1)+'</b>':'')+(_sw.tgt2?' · 顶 <b style="color:#e8a13c">'+P(_sw.tgt2)+'</b>':'')+((b0!=null&&s0!=null)?' · B <b>'+P(b0)+'</b>/S <b>'+P(s0)+'</b>'+(_net!=null?' 净<b style="color:#e8c568">'+_net+'</b>元':''):'')+(pct!=null?' · '+(pct>0?'先抛后接':'先接后抛'):''); // v5.192d: 波段行带日内B/S+100股净额(所需的"买和卖+每100股多少钱");fib回吐badge已撤
       else if(_pd) ans=sTxt+' '+bTxt;
       else if(_td==='up') ans=(!bBrk&&b0!=null?'回踩接 <b style="color:#4fd79b">'+P(b0)+'</b>':'拿住');
       else if(_td==='dn') ans=(!sBrk&&s0!=null?'反弹抛 <b style="color:#ff8a80">'+P(s0)+'</b>':'');
@@ -6367,7 +6367,7 @@ function drawWLMin(){
       const y0=3+(1-(prev-mn)/rg)*(H-6);
       c2.strokeStyle='#39424f'; c2.setLineDash([3,3]); c2.beginPath(); c2.moveTo(0,y0); c2.lineTo(W,y0); c2.stroke(); c2.setLineDash([]);
     }
-    // v5.194: 对标指数卡精致度(房主:持仓/观察小图线没有上证小图精致)——渐变面积+圆角线段+末端光晕
+    // v5.194: 对标指数卡精致度(持仓/观察小图线没有上证小图精致)——渐变面积+圆角线段+末端光晕
     c2.lineJoin='round'; c2.lineCap='round';
     const PX=i=>i/(arr.length-1)*(W-6)+3, PY=v=>3+(1-(v-mn)/rg)*(H-6);
     const grd=c2.createLinearGradient(0,0,0,H);
@@ -6650,7 +6650,7 @@ function doRender(){
     const wtBadge = `<span class="badge ${wtCh}">${wtTxt(h.code)}</span>`;
     const wsgH=WSIG[h.code], wsgTxtH=wsgH?`<span class="badge ${wsgH>0?'up':'down'}">△周线破三角${wsgH>0?'上沿':'下沿'}${sigCtx(wsgH, DT[h.code], '日线')}</span>`:'';
     const m15H=MSIG[h.code], m15Badge=m15H?`<span class="badge ${m15H>0?'up':'down'}">△15分破三角${m15H>0?'上沿':'下沿'}${sigCtx(m15H, DT[h.code], '日线')}</span>`:'';
-    // v5.196: 三角徽章三合一(房主:箭头太多)——△15分/周线/日线合成一条紧凑签,同向反向细节在15分fib行里
+    // v5.196: 三角徽章三合一(箭头太多)——△15分/周线/日线合成一条紧凑签,同向反向细节在15分fib行里
     const dth=DT[h.code], dtCh=dth>0?'up':(dth<0?'down':'flat');
     const _triP=[m15H?('15分'+(m15H>0?'↑':'↓')):'', wsgH?('周线'+(wsgH>0?'↑':'↓')):'', (dth!=null&&dth!==0)?('日线'+(dth>0?'↑':'↓')):''].filter(x=>x);
     const triBadgeAll=_triP.length?('<span class="badge '+((_triP.join('').indexOf('↓')>=0)?'down':'up')+'">△'+_triP.join('·')+'</span>'):'';
@@ -6671,7 +6671,7 @@ function doRender(){
       let gapS='';
       if(p!=null&&p>0){ const g=(x/p-1)*100, ag=Math.abs(g).toFixed(1);
         gapS=side==='buy'?(g<0?'<em>还差'+ag+'%</em>':'<em class="warn">⚠比现价高'+ag+'%</em>')
-          :(g>0?'<em>还差'+ag+'%</em>':'<em class="warn">⚠已越过'+ag+'%</em>'); } // v5.195: 卖档在现价下方=涨穿,不是跌破(巨石0910实锤); v5.198: 价格右侧箭头撤下(房主0910第三次强调:买卖标记不要箭头,其余箭头一律不动)
+          :(g>0?'<em>还差'+ag+'%</em>':'<em class="warn">⚠已越过'+ag+'%</em>'); } // v5.195: 卖档在现价下方=涨穿,不是跌破(巨石0910实锤); v5.198: 价格右侧箭头撤下(0910定案:买卖标记不要箭头,其余箭头一律不动)
       const amt=Math.round(x*100);
       const amtS=(side==='buy'?'花 ':'收 ')+amt.toLocaleString()+'元'; // v5.165: 100股直给金额
       const _dq=DPOS[h.code]; let prS='';
@@ -7021,12 +7021,12 @@ function doRender(){
         if(b0==null&&s0!=null) return `<div class="actnow wait">先抛 ${sTxt} · 接档今日算不出,等刷新<small>${warn||'恐慌/单边日规则'}</small></div>`; // v5.89: 恐慌日缺买腿时不显示断箭头
         return `<div class="actnow wait">等 · ${bTxt} → ${sTxt}<small>${warn||'未到价·点价格直接填单'}</small></div>`;
       })()}
-      <!-- v5.196: ⚡单边横幅撤下(房主:闪电什么鬼不要)——极端日信息已在徽章/恐慌条里,不重复堆 -->
+      <!-- v5.196: ⚡单边横幅撤下(闪电图标不要)——极端日信息已在徽章/恐慌条里,不重复堆 -->
       ${_pd?`<div style="margin:6px 0;padding:8px 12px;border-radius:9px;font-weight:800;font-size:13.5px;background:rgba(255,144,102,.12);color:#ff9066">🛑 恐慌下跌日 ${pct!=null?sg(pct.toFixed(1))+'%':''}${ffFact(h.code)} · 先卖后买更稳,接档照给不锁 · 档位已按极端日放宽</div>`:(!_pd&&_soldT&&(pct!=null&&pct<=-3)?`<div style="margin:6px 0;padding:6px 12px;border-radius:9px;font-weight:700;font-size:12.5px;background:rgba(46,189,127,.10);color:#4fd79b">✓ 恐慌日·今天已先卖 · 接回照常提示</div>`:'')}
       ${tradeZone}
       <details class="fold" data-fk="wb-${h.code}"><summary style="font-size:12px;color:#8d97a6;padding:4px 0;cursor:pointer">水位·波段明细(实时)</summary>${actBar}</details>
       ${(BATTLE[i]={code:h.code,buys:tr.buys,sells:tr.sells,preLo:preLo,preHi:preHi,cost:h.cost,p3:(p!=null&&p<10),lev:(lg&&lg.hi>0&&lg.lo>0)?{hi:lg.hi,lo:lg.lo}:null},'')}
-      <!-- v5.195: 卡底"全屏看图↗"撤下——卡顶小图点按直达K站同口径带档线+当日BS,底部链接重复(房主:已有看板不需要这么多入口) -->
+      <!-- v5.195: 卡底"全屏看图↗"撤下——卡顶小图点按直达K站同口径带档线+当日BS,底部链接重复(已有看板不需要这么多入口) -->
       
       <div class="grid2">
         <div class="kv"><div class="k">回撤/盈亏率</div><div class="val ${dd!=null?cls(dd):'flat'}">${dd!=null?sg(dd.toFixed(2))+'%':'—'}</div></div>
@@ -8106,7 +8106,7 @@ function ttTgl(code){ TT_MODE[code]=(TT_MODE[code]==='sw')?'day':'sw'; try{ loca
 // ===== v5.194: 新闻独立一栏 + 持仓行业联动 + 早报链接修复 =====
 let NEWS_W='zao', NEWS_ONLY=false, NEWS_SRC='', NEWS_TM=0;
 function zbFixLinks(doc){ try{ doc.querySelectorAll('a[href]').forEach(a=>{ if(!a.target){ a.target='_blank'; a.rel='noopener'; } }); }catch(e){} }
-// v5.194b: 行业别名——早报写"光通信/超节点"而持仓行业叫"通信设备", 纯字符串匹配会漏(房主:持仓关联光通讯,新闻就要链过来)
+// v5.194b: 行业别名——早报写"光通信/超节点"而持仓行业叫"通信设备", 纯字符串匹配会漏(持仓关联光通讯,新闻就要链过来)
 const IND_ALIAS={'通信设备':['光通信','光通讯','光模块','CPO','光纤','超节点'],'半导体':['半导体','芯片','存储','DRAM','HBM','先进封装'],'玻璃玻纤':['玻纤','电子布','覆铜板','玻璃纤维']};
 function newsKw(){
   const kw={}, out=[];
@@ -8157,7 +8157,7 @@ function newsDecorate(doc){
           : '本期没直接点到你的持仓/行业 <span class="dim">(盯: '+kws.slice(0,6).join('·')+')</span>')
     +' · <b id="newsOnlyB" style="color:#4a9eff;cursor:pointer" onclick="newsTgl()">'+(NEWS_ONLY?'看全部':'只看相关')+'</b>');
 }
-// ===== v5.194: 数据健康灯——终榜/PE带/早报/晚报/ATR缓存 五源新鲜度; 绿=当日 黄=隔1~2交易日 红=停更/取不到(房主:管道再停更一眼能看到) =====
+// ===== v5.194: 数据健康灯——终榜/PE带/早报/晚报/ATR缓存 五源新鲜度; 绿=当日 黄=隔1~2交易日 红=停更/取不到(管道再停更一眼能看到) =====
 let HEALTH={pool:'',pe:'',atr:'',zao:null,wan:null}; // null=读取中
 function hNormD(s){ s=String(s||'').slice(0,10); if(/^\d{8}$/.test(s)) s=s.slice(0,4)+'-'+s.slice(4,6)+'-'+s.slice(6,8); return /^\d{4}-\d{2}-\d{2}$/.test(s)?s:''; }
 function prevTradeDay(){ const d=new Date(); do{ d.setDate(d.getDate()-1); }while(d.getDay()===0||d.getDay()===6); return ymd(d); }
